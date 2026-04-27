@@ -1,0 +1,9 @@
+{
+  "name": "audit",
+  "display_name": "核查",
+  "description": "检查结论一致性、字段完整性、流程状态和审计日志",
+  "type": "audit",
+  "pipeline": "audit_pipeline",
+  "private_memory": true,
+  "root": "skills/audit"
+}

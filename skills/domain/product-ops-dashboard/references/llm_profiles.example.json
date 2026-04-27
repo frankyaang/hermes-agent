@@ -1,0 +1,46 @@
+{
+  "profiles": {
+    "qual_default": {
+      "provider": "openai_compatible",
+      "model": "placeholder-qual-model",
+      "temperature": 0.2,
+      "max_tokens": 6000,
+      "system_prompt_id": "qual_reasoning_v1",
+      "timeout_sec": 90,
+      "base_url": "https://your-openai-compatible-endpoint/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    "thesis_default": {
+      "provider": "openai_compatible",
+      "model": "placeholder-thesis-model",
+      "temperature": 0.1,
+      "max_tokens": 4000,
+      "system_prompt_id": "thesis_reasoning_v1",
+      "timeout_sec": 90,
+      "base_url": "https://your-openai-compatible-endpoint/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    "qual_stub": {
+      "provider": "deterministic_stub",
+      "model": "stub-qual-model",
+      "temperature": 0.0,
+      "max_tokens": 2000,
+      "system_prompt_id": "qual_reasoning_v1",
+      "timeout_sec": 30
+    },
+    "thesis_stub": {
+      "provider": "deterministic_stub",
+      "model": "stub-thesis-model",
+      "temperature": 0.0,
+      "max_tokens": 2000,
+      "system_prompt_id": "thesis_reasoning_v1",
+      "timeout_sec": 30
+    }
+  }
+}

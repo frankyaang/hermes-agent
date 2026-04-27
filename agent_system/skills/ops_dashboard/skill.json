@@ -1,0 +1,9 @@
+{
+  "name": "ops_dashboard",
+  "display_name": "运营看板",
+  "description": "生成产品运营报告、Dashboard信息架构、关键指标表格和行动建议",
+  "type": "report_generation",
+  "pipeline": "ops_dashboard_pipeline",
+  "private_memory": true,
+  "root": "skills/ops_dashboard"
+}

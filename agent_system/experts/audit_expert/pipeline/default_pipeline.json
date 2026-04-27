@@ -1,0 +1,24 @@
+{
+  "name": "default_pipeline",
+  "version": 1,
+  "expert": "audit_expert",
+  "skills": [
+    "audit",
+    "superpowers"
+  ],
+  "nodes": [
+    {
+      "step": 4,
+      "node": "audit",
+      "user_gate": true,
+      "primary_expert": "audit_expert",
+      "secondary_experts": [
+        "ops_expert"
+      ],
+      "input_type": "运营看板输出与渲染结果",
+      "output_type": "核查结论",
+      "max_runtime": 120
+    }
+  ],
+  "status": "example_pipeline_defined"
+}

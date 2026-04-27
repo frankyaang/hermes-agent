@@ -1,0 +1,6 @@
+{
+  "user_id": "user_A_example",
+  "display_name": "用户A（示例）",
+  "description": "示例用户，用于测试对话记忆和偏好",
+  "root": "memory/user_mem/user_A_example"
+}

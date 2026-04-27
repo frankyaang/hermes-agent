@@ -1,0 +1,25 @@
+{
+  "name": "default_pipeline",
+  "version": 1,
+  "expert": "ops_expert",
+  "skills": [
+    "ops_dashboard",
+    "superpowers",
+    "briefing"
+  ],
+  "nodes": [
+    {
+      "step": 2,
+      "node": "ops_dashboard",
+      "user_gate": true,
+      "primary_expert": "ops_expert",
+      "secondary_experts": [
+        "user_analyst"
+      ],
+      "input_type": "用户洞察结论",
+      "output_type": "产品运营报告与Dashboard结构",
+      "max_runtime": 180
+    }
+  ],
+  "status": "example_pipeline_defined"
+}

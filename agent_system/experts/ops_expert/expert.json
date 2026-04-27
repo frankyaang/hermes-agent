@@ -1,0 +1,12 @@
+{
+  "name": "ops_expert",
+  "display_name": "运营专家",
+  "description": "负责产品运营报告、Dashboard结构和运营动作建议",
+  "skills": [
+    "ops_dashboard",
+    "superpowers",
+    "briefing"
+  ],
+  "private_memory": true,
+  "root": "experts/ops_expert"
+}

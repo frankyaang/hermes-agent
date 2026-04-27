@@ -1,0 +1,9 @@
+{
+  "name": "dashboard_html",
+  "display_name": "看板渲染",
+  "description": "消费运营看板结构化输出并渲染HTML/PDF，不改写业务内容",
+  "type": "ui_render",
+  "pipeline": "dashboard_html_pipeline",
+  "private_memory": true,
+  "root": "skills/dashboard_html"
+}

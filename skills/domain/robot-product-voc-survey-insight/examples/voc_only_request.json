@@ -1,0 +1,9 @@
+{
+  "category_name": "扫地机器人",
+  "analysis_goal": "基于VOC反馈识别用户购买原因、失望原因与下一代定义输入",
+  "product_scope": "VOC-only",
+  "time_scope": "近90天",
+  "data_sources": [
+    "VOC"
+  ]
+}

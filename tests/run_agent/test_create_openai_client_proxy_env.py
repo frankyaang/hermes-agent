@@ -14,9 +14,13 @@ challenge`` 403s against ``chatgpt.com/backend-api/codex`` once they upgraded
 past #11277. The fix forwards the proxy URL explicitly to ``httpx.Client``
 while keeping the keepalive-enabled transport in place.
 
-This test pins that the constructed ``httpx.Client`` mounts an ``HTTPProxy``
-pool when a proxy env var is set, AND that the socket-level keepalive
-transport is still installed on the no-proxy default path.
+chatgpt.com/backend-api/codex is a special case: the backend's streaming
+Responses endpoint can hang behind the custom keepalive transport, so that
+backend stays on the OpenAI SDK default transport. The SDK default still honors
+proxy env vars via httpx's normal ``trust_env`` path.
+
+These tests pin both contracts: non-Codex providers still receive the explicit
+keepalive/proxy client, while the ChatGPT Codex backend does not.
 """
 from unittest.mock import patch
 
@@ -28,9 +32,9 @@ from run_agent import AIAgent, _get_proxy_from_env, _get_proxy_for_base_url
 def _make_agent():
     return AIAgent(
         api_key="test-key",
-        base_url="https://chatgpt.com/backend-api/codex",
-        provider="openai-codex",
-        model="gpt-5.4",
+        base_url="https://api.example.com/v1",
+        provider="custom",
+        model="test-model",
         quiet_mode=True,
         skip_context_files=True,
         skip_memory=True,
@@ -91,7 +95,7 @@ def test_create_openai_client_routes_via_proxy_when_env_set(mock_openai, monkeyp
     agent = _make_agent()
     kwargs = {
         "api_key": "test-key",
-        "base_url": "https://chatgpt.com/backend-api/codex",
+        "base_url": "https://api.example.com/v1",
     }
     agent._create_openai_client(kwargs, reason="test", shared=False)
 
@@ -126,7 +130,7 @@ def test_create_openai_client_no_proxy_when_env_unset(mock_openai, monkeypatch):
     agent = _make_agent()
     kwargs = {
         "api_key": "test-key",
-        "base_url": "https://chatgpt.com/backend-api/codex",
+        "base_url": "https://api.example.com/v1",
     }
     agent._create_openai_client(kwargs, reason="test", shared=False)
 
@@ -218,3 +222,33 @@ def test_create_openai_client_bypasses_proxy_for_no_proxy_host(mock_openai, monk
         "NO_PROXY host must not route through HTTPProxy; pools were %r" % (pool_types,)
     )
     http_client.close()
+
+
+@patch("run_agent.OpenAI")
+def test_create_openai_client_skips_keepalive_for_chatgpt_codex(mock_openai, monkeypatch):
+    """ChatGPT Codex Responses streaming must use the SDK default transport.
+
+    The custom keepalive httpx transport can cause chatgpt.com/backend-api/codex
+    streams to hang even though the same request succeeds with the SDK default
+    client. Do not inject ``http_client`` for this backend, including when a
+    proxy env var is present; httpx's default trust_env behavior handles that.
+    """
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+
+    agent = AIAgent(
+        api_key="test-key",
+        base_url="https://chatgpt.com/backend-api/codex",
+        provider="openai-codex",
+        model="gpt-5.4",
+        quiet_mode=True,
+        skip_context_files=True,
+        skip_memory=True,
+    )
+    kwargs = {
+        "api_key": "test-key",
+        "base_url": "https://chatgpt.com/backend-api/codex",
+    }
+    agent._create_openai_client(kwargs, reason="test", shared=False)
+
+    forwarded = mock_openai.call_args.kwargs
+    assert "http_client" not in forwarded

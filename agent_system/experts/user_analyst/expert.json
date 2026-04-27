@@ -1,0 +1,12 @@
+{
+  "name": "user_analyst",
+  "display_name": "用户分析专家",
+  "description": "负责用户洞察、VOC分析、竞品反馈和质量风险判断",
+  "skills": [
+    "voc_insight",
+    "superpowers",
+    "briefing"
+  ],
+  "private_memory": true,
+  "root": "experts/user_analyst"
+}

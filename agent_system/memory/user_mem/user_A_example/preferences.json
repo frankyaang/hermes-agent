@@ -1,0 +1,13 @@
+{
+  "user_id": "user_A_example",
+  "version": 1,
+  "preferences": {
+    "preferred_skills": [
+      "voc_insight",
+      "ops_dashboard",
+      "briefing"
+    ],
+    "output_style": "detailed",
+    "report_format": "dashboard"
+  }
+}

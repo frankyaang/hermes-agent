@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "logs": [
+    {
+      "generation_id": "TASK_20260423220000_example",
+      "module": "ops_dashboard",
+      "display_name": "运营看板",
+      "step": "dashboard_generation",
+      "status": "success",
+      "user_gate": true,
+      "scheduler_monitor": true
+    },
+    {
+      "generation_id": "TASK_20260423_dashboard",
+      "module": "ops_dashboard",
+      "display_name": "运营看板",
+      "step": "dashboard_generation",
+      "status": "success",
+      "user_gate": true,
+      "scheduler_monitor": true
+    }
+  ]
+}

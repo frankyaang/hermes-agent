@@ -7,24 +7,33 @@ The lark client is injected per-thread by the comment event handler.
 
 import json
 import logging
-import threading
 
+from tools.feishu_client_context import (
+    bind_task_client,
+    get_client as _get_shared_client,
+    set_thread_client,
+    unbind_task_client,
+)
 from tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
-# Thread-local storage for the lark client injected by feishu_comment handler.
-_local = threading.local()
-
-
 def set_client(client):
     """Store a lark client for the current thread (called by feishu_comment)."""
-    _local.client = client
+    set_thread_client(client)
 
 
-def get_client():
-    """Return the lark client for the current thread, or None."""
-    return getattr(_local, "client", None)
+def bind_client(task_id, client):
+    bind_task_client(task_id, client)
+
+
+def unbind_client(task_id):
+    unbind_task_client(task_id)
+
+
+def get_client(task_id=None):
+    """Return the active lark client for the current thread or task."""
+    return _get_shared_client(task_id)
 
 
 def _check_feishu():
@@ -129,9 +138,9 @@ FEISHU_DRIVE_LIST_COMMENTS_SCHEMA = {
 
 
 def _handle_list_comments(args: dict, **kwargs) -> str:
-    client = get_client()
+    client = get_client(kwargs.get("task_id"))
     if client is None:
-        return tool_error("Feishu client not available")
+        return tool_error("Feishu client not available for this task")
 
     file_token = args.get("file_token", "").strip()
     if not file_token:
@@ -204,9 +213,9 @@ FEISHU_DRIVE_LIST_REPLIES_SCHEMA = {
 
 
 def _handle_list_replies(args: dict, **kwargs) -> str:
-    client = get_client()
+    client = get_client(kwargs.get("task_id"))
     if client is None:
-        return tool_error("Feishu client not available")
+        return tool_error("Feishu client not available for this task")
 
     file_token = args.get("file_token", "").strip()
     comment_id = args.get("comment_id", "").strip()
@@ -276,9 +285,9 @@ FEISHU_DRIVE_REPLY_SCHEMA = {
 
 
 def _handle_reply_comment(args: dict, **kwargs) -> str:
-    client = get_client()
+    client = get_client(kwargs.get("task_id"))
     if client is None:
-        return tool_error("Feishu client not available")
+        return tool_error("Feishu client not available for this task")
 
     file_token = args.get("file_token", "").strip()
     comment_id = args.get("comment_id", "").strip()
@@ -347,9 +356,9 @@ FEISHU_DRIVE_ADD_COMMENT_SCHEMA = {
 
 
 def _handle_add_comment(args: dict, **kwargs) -> str:
-    client = get_client()
+    client = get_client(kwargs.get("task_id"))
     if client is None:
-        return tool_error("Feishu client not available")
+        return tool_error("Feishu client not available for this task")
 
     file_token = args.get("file_token", "").strip()
     content = args.get("content", "").strip()

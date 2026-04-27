@@ -1,0 +1,9 @@
+{
+  "name": "briefing",
+  "display_name": "过程汇报",
+  "description": "关键节点完成后生成自然语言过程汇报，服务所有主流程节点",
+  "type": "status_report",
+  "pipeline": "briefing_pipeline",
+  "private_memory": true,
+  "root": "skills/briefing"
+}

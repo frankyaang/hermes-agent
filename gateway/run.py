@@ -41,6 +41,68 @@ from agent.account_usage import fetch_account_usage, render_account_usage_lines
 _AGENT_CACHE_MAX_SIZE = 128
 _AGENT_CACHE_IDLE_TTL_SECS = 3600.0  # evict agents idle for >1h
 
+TOOL_DISPLAY_NAMES = {
+    # 核心技能
+    "skill_view": "技能视图",
+    "skills_list": "技能列表",
+    # 终端与进程
+    "execute_code": "执行代码",
+    "terminal": "终端",
+    "process": "进程管理",
+    # 文件操作
+    "search_file": "搜索文件",
+    "search_files": "搜索文件",
+    "read_file": "读取文件",
+    "write_file": "写入文件",
+    "patch": "文件补丁",
+    "file_info": "文件信息",
+    # Web 工具
+    "web_search": "网络搜索",
+    "web_extract": "网页提取",
+    # 浏览器工具
+    "browser_navigate": "浏览器导航",
+    "browser_snapshot": "页面快照",
+    "browser_vision": "页面视觉分析",
+    "browser_back": "浏览器后退",
+    "browser_forward": "浏览器前进",
+    "browser_scroll": "滚动页面",
+    "browser_click": "点击元素",
+    "browser_type": "输入文本",
+    "browser_press": "按键操作",
+    "browser_get_images": "获取图片",
+    "browser_console": "浏览器控制台",
+    "browser_cdp": "CDP 指令",
+    # 多媒体与生成
+    "vision_analyze": "视觉分析",
+    "image_generate": "生成图片",
+    "text_to_speech": "文字转语音",
+    # 任务与协同
+    "todo": "待办事项",
+    "clarify": "澄清",
+    "delegate_task": "委派任务",
+    # 内存与搜索
+    "memory": "记忆",
+    "session_search": "会话搜索",
+    # 调度与消息
+    "cronjob": "定时任务",
+    "send_message": "发送消息",
+    # 飞书表格
+    "feishu_sheet_read": "飞书表格读取",
+    "feishu_sheet_write": "飞书表格写入",
+    # 家庭助手与集成
+    "ha_call_service": "调用服务",
+    "ha_get_state": "获取状态",
+    "ha_list_entities": "列出实体",
+    "ha_list_services": "列出服务",
+}
+
+
+def _tool_display_name(tool_name: str | None) -> str:
+    """返回网关进度消息使用的本地化工具名。"""
+    if not tool_name:
+        return "工具"
+    return TOOL_DISPLAY_NAMES.get(tool_name, tool_name)
+
 # ---------------------------------------------------------------------------
 # SSL certificate auto-detection for NixOS and other non-standard systems.
 # Must run BEFORE any HTTP library (discord, aiohttp, etc.) is imported.
@@ -4886,11 +4948,9 @@ class GatewayRunner:
                     )
                     await adapter.send(
                         source.chat_id,
-                        f"📬 No home channel is set for {platform_name.title()}. "
-                        f"A home channel is where Hermes delivers cron job results "
-                        f"and cross-platform messages.\n\n"
-                        f"Type {sethome_cmd} to make this chat your home channel, "
-                        f"or ignore to skip."
+                        f"📬 ❗ 尚未为 {platform_name.title()} 设置默认频道（Home Channel）。\n"
+                        f"➡️ 请发送 {sethome_cmd} 将本聊天设为默认频道，\n"
+                        "📌 这样 Hermes 才会把定时任务和通知推送到这里。"
                     )
         
         # -----------------------------------------------------------------
@@ -6946,6 +7006,7 @@ class GatewayRunner:
             turn_route = self._resolve_turn_agent_config(prompt, model, runtime_kwargs)
 
             def run_sync():
+                _cleanup_feishu_clients = self._bind_feishu_tool_clients(source, task_id)
                 agent = AIAgent(
                     model=turn_route["model"],
                     **turn_route["runtime"],
@@ -6979,6 +7040,8 @@ class GatewayRunner:
                         task_id=task_id,
                     )
                 finally:
+                    if _cleanup_feishu_clients:
+                        _cleanup_feishu_clients()
                     self._cleanup_agent_resources(agent)
 
             result = await self._run_in_executor_with_context(run_sync)
@@ -8974,6 +9037,26 @@ class GatewayRunner:
         )
         return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
+    def _bind_feishu_tool_clients(self, source: "SessionSource", task_id: Optional[str]):
+        from gateway.config import Platform
+
+        if source.platform != Platform.FEISHU or not task_id:
+            return None
+
+        adapter = self.adapters.get(source.platform)
+        client = getattr(adapter, "_client", None) if adapter else None
+        if client is None:
+            return None
+
+        from tools.feishu_client_context import bind_task_client, unbind_task_client
+
+        bind_task_client(task_id, client)
+
+        def _cleanup():
+            unbind_task_client(task_id)
+
+        return _cleanup
+
     def _apply_session_model_override(
         self, session_key: str, model: str, runtime_kwargs: dict
     ) -> tuple:
@@ -9784,6 +9867,7 @@ class GatewayRunner:
             # Build progress message with primary argument preview
             from agent.display import get_tool_emoji
             emoji = get_tool_emoji(tool_name, default="⚙️")
+            display_tool_name = _tool_display_name(tool_name)
             
             # Verbose mode: show detailed arguments, respects tool_preview_length
             if progress_mode == "verbose":
@@ -9796,11 +9880,11 @@ class GatewayRunner:
                     # detail.  Platform message-length limits handle the rest.
                     if _pl > 0 and len(args_str) > _pl:
                         args_str = args_str[:_pl - 3] + "..."
-                    msg = f"{emoji} {tool_name}({list(args.keys())})\n{args_str}"
+                    msg = f"{emoji} {display_tool_name}({list(args.keys())})\n{args_str}"
                 elif preview:
-                    msg = f"{emoji} {tool_name}: \"{preview}\""
+                    msg = f"{emoji} {display_tool_name}: \"{preview}\""
                 else:
-                    msg = f"{emoji} {tool_name}..."
+                    msg = f"{emoji} {display_tool_name}..."
                 progress_queue.put(msg)
                 return
             
@@ -9813,9 +9897,9 @@ class GatewayRunner:
                 _cap = _pl if _pl > 0 else 40
                 if len(preview) > _cap:
                     preview = preview[:_cap - 3] + "..."
-                msg = f"{emoji} {tool_name}: \"{preview}\""
+                msg = f"{emoji} {display_tool_name}: \"{preview}\""
             else:
-                msg = f"{emoji} {tool_name}..."
+                msg = f"{emoji} {display_tool_name}..."
             
             # Dedup: collapse consecutive identical progress messages.
             # Common with execute_code where models iterate with the same
@@ -10547,6 +10631,7 @@ class GatewayRunner:
             _approval_session_key = session_key or ""
             _approval_session_token = set_current_session_key(_approval_session_key)
             register_gateway_notify(_approval_session_key, _approval_notify_sync)
+            _cleanup_feishu_clients = self._bind_feishu_tool_clients(source, session_id)
             try:
                 # If _prepare_inbound_message_text buffered image paths for native
                 # attachment, wrap the user turn as an OpenAI-style multimodal
@@ -10582,6 +10667,8 @@ class GatewayRunner:
 
                 result = agent.run_conversation(_run_message, conversation_history=agent_history, task_id=session_id)
             finally:
+                if _cleanup_feishu_clients:
+                    _cleanup_feishu_clients()
                 unregister_gateway_notify(_approval_session_key)
                 reset_current_session_key(_approval_session_token)
             result_holder[0] = result

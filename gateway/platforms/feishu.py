@@ -367,6 +367,7 @@ class FeishuAdapterSettings:
     # Bot's own open_id (app-scoped) — returned by /bot/v3/info.  Used only for
     # @mention matching: Feishu puts this value in mentions[].id.open_id when
     # a user @-mentions the bot in a group chat.
+    group_wake_terms: tuple[str, ...]
     bot_open_id: str
     # Bot's user_id (tenant-scoped) — optional, used as fallback mention match.
     bot_user_id: str
@@ -498,6 +499,20 @@ def _coerce_int(value: Any, default: Optional[int] = None, min_value: int = 0) -
 def _coerce_required_int(value: Any, default: int, min_value: int = 0) -> int:
     parsed = _coerce_int(value, default=default, min_value=min_value)
     return default if parsed is None else parsed
+
+
+def _normalize_feishu_mention_name(value: Any) -> str:
+    """Normalize a mention display name for resilient bot matching."""
+    name = str(value or "").strip()
+    if name.startswith("@"):
+        name = name[1:].strip()
+    return _WHITESPACE_RE.sub(" ", name)
+
+
+def _normalize_feishu_wake_text(value: Any) -> str:
+    """Normalize message text for configured group wake-term matching."""
+    text = str(value or "").replace("@", " ").strip()
+    return _WHITESPACE_RE.sub(" ", text).casefold()
 
 
 # ---------------------------------------------------------------------------
@@ -752,6 +767,49 @@ def _render_nested_post(
             if part
         )
     return ""
+
+
+def _extract_post_mentions_from_payload(
+    payload: Any,
+    *,
+    bot: _FeishuBotIdentity,
+) -> List[FeishuMentionRef]:
+    resolved = _resolve_post_payload(payload)
+    if not resolved:
+        return []
+
+    results: List[FeishuMentionRef] = []
+    seen: set[tuple[bool, str, str]] = set()
+
+    for row in resolved.get("content", []) or []:
+        if not isinstance(row, list):
+            continue
+        for element in row:
+            if not isinstance(element, dict):
+                continue
+            if str(element.get("tag", "")).strip().lower() != "at":
+                continue
+            placeholder = str(element.get("user_id", "")).strip()
+            if placeholder == "@_all":
+                signature = (True, "", "@all")
+                if signature not in seen:
+                    seen.add(signature)
+                    results.append(FeishuMentionRef(is_all=True))
+                continue
+            open_id = str(element.get("open_id", "") or "").strip()
+            name = str(element.get("user_name", "") or element.get("text", "") or "").strip()
+            ref = FeishuMentionRef(
+                name=name,
+                open_id=open_id,
+                is_self=bot.matches(open_id=open_id, user_id="", name=name),
+            )
+            signature = (ref.is_all, ref.open_id, ref.name)
+            if signature in seen:
+                continue
+            seen.add(signature)
+            results.append(ref)
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -1389,6 +1447,23 @@ class FeishuAdapter(BasePlatformAdapter):
 
         # Default group policy (for groups not in group_rules)
         default_group_policy = str(extra.get("default_group_policy", "")).strip().lower()
+        raw_group_wake_terms = extra.get("group_wake_terms")
+        if raw_group_wake_terms is None:
+            raw_group_wake_terms = os.getenv("FEISHU_GROUP_WAKE_TERMS", "")
+        if isinstance(raw_group_wake_terms, str):
+            group_wake_terms = tuple(
+                term.strip()
+                for term in raw_group_wake_terms.split(",")
+                if term.strip()
+            )
+        elif isinstance(raw_group_wake_terms, (list, tuple, set)):
+            group_wake_terms = tuple(
+                str(term).strip()
+                for term in raw_group_wake_terms
+                if str(term).strip()
+            )
+        else:
+            group_wake_terms = ()
 
         return FeishuAdapterSettings(
             app_id=str(extra.get("app_id") or os.getenv("FEISHU_APP_ID", "")).strip(),
@@ -1405,6 +1480,7 @@ class FeishuAdapter(BasePlatformAdapter):
                 for item in os.getenv("FEISHU_ALLOWED_USERS", "").split(",")
                 if item.strip()
             ),
+            group_wake_terms=group_wake_terms,
             bot_open_id=os.getenv("FEISHU_BOT_OPEN_ID", "").strip(),
             bot_user_id=os.getenv("FEISHU_BOT_USER_ID", "").strip(),
             bot_name=os.getenv("FEISHU_BOT_NAME", "").strip(),
@@ -1457,6 +1533,7 @@ class FeishuAdapter(BasePlatformAdapter):
         self._verification_token = settings.verification_token
         self._group_policy = settings.group_policy
         self._allowed_group_users = set(settings.allowed_group_users)
+        self._group_wake_terms = tuple(settings.group_wake_terms)
         self._admins = set(settings.admins)
         self._default_group_policy = settings.default_group_policy or settings.group_policy
         self._group_rules = settings.group_rules
@@ -2204,8 +2281,31 @@ class FeishuAdapter(BasePlatformAdapter):
 
         chat_type = getattr(message, "chat_type", "p2p")
         chat_id = getattr(message, "chat_id", "") or ""
-        if chat_type != "p2p" and not self._should_accept_group_message(message, sender_id, chat_id):
-            logger.debug("[Feishu] Dropping group message that failed mention/policy gate: %s", message_id)
+        if chat_type != "p2p":
+            accepted, reason, details = self._evaluate_group_message_gate(message, sender_id, chat_id)
+            if not accepted:
+                logger.info(
+                    "[Feishu] Dropping group message before agent: message_id=%s chat_id=%s "
+                    "reason=%s sender_open_id=%s sender_user_id=%s bot_name=%r bot_open_id=%s "
+                    "bot_user_id=%s mention_names=%s mention_open_ids=%s parsed_mentioned_ids=%s "
+                    "matched_wake_term=%r",
+                    message_id,
+                    chat_id,
+                    reason or "unknown",
+                    details.get("sender_open_id", ""),
+                    details.get("sender_user_id", ""),
+                    self._bot_name,
+                    self._bot_open_id,
+                    self._bot_user_id,
+                    details.get("mention_names", []),
+                    details.get("mention_open_ids", []),
+                    details.get("parsed_mentioned_ids", []),
+                    details.get("matched_wake_term", ""),
+                )
+                return
+        else:
+            accepted = True
+        if not accepted:
             return
         await self._process_inbound_message(
             data=data,
@@ -3625,24 +3725,69 @@ class FeishuAdapter(BasePlatformAdapter):
 
         return bool(sender_ids and (sender_ids & self._allowed_group_users))
 
-    def _should_accept_group_message(self, message: Any, sender_id: Any, chat_id: str = "") -> bool:
-        """Require an explicit @mention before group messages enter the agent."""
+    def _evaluate_group_message_gate(
+        self,
+        message: Any,
+        sender_id: Any,
+        chat_id: str = "",
+    ) -> tuple[bool, Optional[str], Dict[str, Any]]:
+        """Evaluate whether a group message should enter the agent loop."""
+        details: Dict[str, Any] = {
+            "sender_open_id": getattr(sender_id, "open_id", None),
+            "sender_user_id": getattr(sender_id, "user_id", None),
+            "mention_names": [],
+            "mention_open_ids": [],
+            "parsed_mentioned_ids": [],
+            "matched_wake_term": "",
+        }
+
         if not self._allow_group_message(sender_id, chat_id):
-            return False
+            return False, "sender_or_group_not_allowed", details
         # @_all is Feishu's @everyone placeholder — always route to the bot.
         raw_content = getattr(message, "content", "") or ""
         if "@_all" in raw_content:
-            return True
-        mentions = getattr(message, "mentions", None) or []
-        if mentions:
-            return self._message_mentions_bot(mentions)
+            return True, None, details
         normalized = normalize_feishu_message(
             message_type=getattr(message, "message_type", "") or "",
             raw_content=raw_content,
             mentions=getattr(message, "mentions", None),
             bot=self._bot_identity(),
         )
-        return self._post_mentions_bot(normalized.mentions)
+        mentions = getattr(message, "mentions", None) or []
+        if mentions:
+            details["mention_names"] = [
+                _normalize_feishu_mention_name(getattr(mention, "name", None))
+                for mention in mentions
+            ]
+            details["mention_open_ids"] = [
+                getattr(getattr(mention, "id", None), "open_id", None)
+                for mention in mentions
+            ]
+            if self._message_mentions_bot(mentions):
+                return True, None, details
+        parsed_mentions = list(normalized.mentions or [])
+        if not parsed_mentions and normalized.raw_type == "post":
+            parsed_mentions = _extract_post_mentions_from_payload(
+                _load_feishu_payload(raw_content),
+                bot=self._bot_identity(),
+            )
+        if parsed_mentions:
+            details["parsed_mentioned_ids"] = [
+                mention.open_id or ("@_all" if mention.is_all else mention.name)
+                for mention in parsed_mentions
+            ]
+            if self._post_mentions_bot(parsed_mentions):
+                return True, None, details
+        matched_wake_term = self._match_group_wake_term(normalized.text_content)
+        if matched_wake_term:
+            details["matched_wake_term"] = matched_wake_term
+            return True, None, details
+        return False, "no_bot_mention_or_wake_term", details
+
+    def _should_accept_group_message(self, message: Any, sender_id: Any, chat_id: str = "") -> bool:
+        """Require an explicit @mention or wake term before group messages enter the agent."""
+        accepted, _reason, _details = self._evaluate_group_message_gate(message, sender_id, chat_id)
+        return accepted
 
     def _is_self_sent_bot_message(self, event: Any) -> bool:
         """Return True only for Feishu events emitted by this Hermes bot."""
@@ -3665,11 +3810,12 @@ class FeishuAdapter(BasePlatformAdapter):
         # IDs trump names: when both sides have open_id (or both user_id),
         # match requires equal IDs. Name fallback only when either side
         # lacks an ID.
+        target_name = _normalize_feishu_mention_name(self._bot_name)
         for mention in mentions:
             mention_id = getattr(mention, "id", None)
             mention_open_id = (getattr(mention_id, "open_id", None) or "").strip()
             mention_user_id = (getattr(mention_id, "user_id", None) or "").strip()
-            mention_name = (getattr(mention, "name", None) or "").strip()
+            mention_name = _normalize_feishu_mention_name(getattr(mention, "name", None))
 
             if mention_open_id and self._bot_open_id:
                 if mention_open_id == self._bot_open_id:
@@ -3679,7 +3825,7 @@ class FeishuAdapter(BasePlatformAdapter):
                 if mention_user_id == self._bot_user_id:
                     return True
                 continue
-            if self._bot_name and mention_name == self._bot_name:
+            if target_name and mention_name == target_name:
                 return True
 
         return False
@@ -3693,6 +3839,16 @@ class FeishuAdapter(BasePlatformAdapter):
             user_id=self._bot_user_id,
             name=self._bot_name,
         )
+
+    def _match_group_wake_term(self, text: str) -> str:
+        if not text or not self._group_wake_terms:
+            return ""
+        normalized_text = _normalize_feishu_wake_text(text)
+        for term in self._group_wake_terms:
+            normalized_term = _normalize_feishu_wake_text(term)
+            if normalized_term and normalized_term in normalized_text:
+                return term
+        return ""
 
     async def _hydrate_bot_identity(self) -> None:
         """Best-effort discovery of bot identity for precise group mention gating
@@ -3717,15 +3873,8 @@ class FeishuAdapter(BasePlatformAdapter):
         # uses via probe_bot().
         if not self._bot_open_id or not self._bot_name:
             try:
-                req = (
-                    BaseRequest.builder()
-                    .http_method(HttpMethod.GET)
-                    .uri("/open-apis/bot/v3/info")
-                    .token_types({AccessTokenType.TENANT})
-                    .build()
-                )
-                resp = await asyncio.to_thread(self._client.request, req)
-                content = getattr(getattr(resp, "raw", None), "content", None)
+                resp = await asyncio.to_thread(_request_bot_info_via_sdk, self._client)
+                content = _extract_sdk_response_content(resp)
                 if content:
                     payload = json.loads(content)
                     parsed = _parse_bot_response(payload) or {}
@@ -4501,25 +4650,51 @@ def _parse_bot_response(data: dict) -> Optional[dict]:
         return None
     bot = data.get("bot") or data.get("data", {}).get("bot") or {}
     return {
-        "bot_name": bot.get("app_name") or bot.get("bot_name"),
+        "bot_name": bot.get("app_name") or bot.get("bot_name") or bot.get("name"),
         "bot_open_id": bot.get("open_id"),
     }
+
+
+def _request_bot_info_via_sdk(client: Any) -> Any:
+    """Fetch /open-apis/bot/v3/info via the SDK's BaseRequest interface.
+
+    Recent lark_oapi versions expect ``client.request(BaseRequest)`` rather than
+    ``client.request(method=..., url=...)``. The BaseRequest path works across
+    the versions Hermes currently supports and is also what other Feishu tools
+    in this repo already use successfully.
+    """
+    from lark_oapi import AccessTokenType
+    from lark_oapi.core.enum import HttpMethod
+    from lark_oapi.core.model.base_request import BaseRequest
+
+    request = (
+        BaseRequest.builder()
+        .http_method(HttpMethod.GET)
+        .uri("/open-apis/bot/v3/info")
+        .token_types({AccessTokenType.TENANT})
+        .build()
+    )
+    return client.request(request)
+
+
+def _extract_sdk_response_content(response: Any) -> bytes | str | None:
+    """Return raw response content from either legacy or BaseRequest SDK paths."""
+    content = getattr(response, "content", None)
+    if content:
+        return content
+    raw = getattr(response, "raw", None)
+    if raw is not None:
+        return getattr(raw, "content", None)
+    return None
 
 
 def _probe_bot_sdk(app_id: str, app_secret: str, domain: str) -> Optional[dict]:
     """Probe bot info using lark_oapi SDK."""
     try:
         client = _build_onboard_client(app_id, app_secret, domain)
-        req = (
-            BaseRequest.builder()
-            .http_method(HttpMethod.GET)
-            .uri("/open-apis/bot/v3/info")
-            .token_types({AccessTokenType.TENANT})
-            .build()
-        )
-        resp = client.request(req)
-        content = getattr(getattr(resp, "raw", None), "content", None)
-        if content is None:
+        resp = _request_bot_info_via_sdk(client)
+        content = _extract_sdk_response_content(resp)
+        if not content:
             return None
         return _parse_bot_response(json.loads(content))
     except Exception as exc:

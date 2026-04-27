@@ -1,0 +1,22 @@
+{
+  "name": "default_pipeline",
+  "version": 1,
+  "expert": "render_expert",
+  "skills": [
+    "dashboard_html",
+    "briefing"
+  ],
+  "nodes": [
+    {
+      "step": 3,
+      "node": "dashboard_html",
+      "user_gate": false,
+      "primary_expert": "render_expert",
+      "secondary_experts": [],
+      "input_type": "产品运营报告与Dashboard结构",
+      "output_type": "HTML/PDF",
+      "max_runtime": 60
+    }
+  ],
+  "status": "example_pipeline_defined"
+}

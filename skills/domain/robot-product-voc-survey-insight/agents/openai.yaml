@@ -1,0 +1,7 @@
+interface:
+  display_name: "看用户洞察分析"
+  short_description: "用唯一 VOC、Top15、代际、竞品与 FRR/FFR 风险校正来读清用户判断"
+  default_prompt: "Use $robot-product-voc-survey-insight to do 看用户 analysis for robot products, especially cleaning robots. Build a unique VOC report around JudgmentUnit, full Top15 penetration, full Top15 generational comparison, full Top15 competitor-by-competitor expansion, and FRR/FFR risk correction. Keep the whole output sounding like a product manager reading users. Avoid system-style fallback, tag broadcasting, and vote-like competition phrasing."
+
+policy:
+  allow_implicit_invocation: false

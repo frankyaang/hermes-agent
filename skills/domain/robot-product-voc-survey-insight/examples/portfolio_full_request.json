@@ -1,0 +1,13 @@
+{
+  "category_name": "扫地机器人",
+  "analysis_goal": "综合VOC、问卷、竞品与质量数据生成机器人洞察主报告",
+  "product_scope": "Portfolio-full",
+  "time_scope": "近180天",
+  "data_sources": [
+    "VOC",
+    "Survey",
+    "Competition",
+    "FRR",
+    "FFR"
+  ]
+}
