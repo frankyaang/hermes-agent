@@ -1,0 +1,9 @@
+{
+  "name": "superpowers",
+  "display_name": "思考辅助",
+  "description": "辅助专家进行任务理解、方案判断、冲突复核和质量检查",
+  "type": "analysis_assist",
+  "pipeline": "superpowers_pipeline",
+  "private_memory": true,
+  "root": "skills/superpowers"
+}

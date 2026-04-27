@@ -1069,6 +1069,79 @@ class TestAdapterBehavior(unittest.TestCase):
         self.assertFalse(adapter2._should_accept_group_message(SimpleNamespace(mentions=[same_name_other_id_mention]), sender_id, ""))
         self.assertTrue(adapter2._should_accept_group_message(SimpleNamespace(mentions=[bot_mention]), sender_id, ""))
 
+    @patch.dict(os.environ, {"FEISHU_GROUP_POLICY": "open"}, clear=True)
+    def test_group_message_matches_normalized_bot_name(self):
+        from gateway.config import PlatformConfig
+        from gateway.platforms.feishu import FeishuAdapter
+
+        adapter = FeishuAdapter(PlatformConfig())
+        adapter._bot_name = "香农AI助手"
+        sender_id = SimpleNamespace(open_id="ou_any", user_id=None)
+
+        named_mention = SimpleNamespace(
+            name=" @香农AI助手 ",
+            id=SimpleNamespace(open_id="ou_other", user_id="u_other"),
+        )
+
+        self.assertTrue(adapter._should_accept_group_message(SimpleNamespace(mentions=[named_mention]), sender_id, ""))
+
+    @patch.dict(os.environ, {"FEISHU_GROUP_POLICY": "open"}, clear=True)
+    def test_group_text_message_matches_configured_wake_term(self):
+        from gateway.config import PlatformConfig
+        from gateway.platforms.feishu import FeishuAdapter
+
+        adapter = FeishuAdapter(
+            PlatformConfig(extra={"group_wake_terms": ["香农AI助手"]})
+        )
+        sender_id = SimpleNamespace(open_id="ou_any", user_id=None)
+        message = SimpleNamespace(
+            message_type="text",
+            mentions=[],
+            content=json.dumps({"text": "希望你：@香农AI助手 你好"}, ensure_ascii=False),
+        )
+
+        self.assertTrue(adapter._should_accept_group_message(message, sender_id, ""))
+
+    @patch.dict(
+        os.environ,
+        {
+            "FEISHU_GROUP_POLICY": "allowlist",
+            "FEISHU_ALLOWED_USERS": "ou_allowed",
+        },
+        clear=True,
+    )
+    def test_group_wake_term_does_not_bypass_sender_policy(self):
+        from gateway.config import PlatformConfig
+        from gateway.platforms.feishu import FeishuAdapter
+
+        adapter = FeishuAdapter(
+            PlatformConfig(extra={"group_wake_terms": ["香农AI助手"]})
+        )
+        sender_id = SimpleNamespace(open_id="ou_blocked", user_id=None)
+        message = SimpleNamespace(
+            message_type="text",
+            mentions=[],
+            content=json.dumps({"text": "希望你：@香农AI助手 你好"}, ensure_ascii=False),
+        )
+
+        self.assertFalse(adapter._should_accept_group_message(message, sender_id, ""))
+
+    @patch.dict(os.environ, {"FEISHU_GROUP_POLICY": "open"}, clear=True)
+    def test_group_post_message_uses_parsed_mentions_when_sdk_mentions_missing(self):
+        from gateway.config import PlatformConfig
+        from gateway.platforms.feishu import FeishuAdapter
+
+        adapter = FeishuAdapter(PlatformConfig())
+        adapter._bot_open_id = "ou_bot"
+        sender_id = SimpleNamespace(open_id="ou_any", user_id=None)
+        message = SimpleNamespace(
+            message_type="post",
+            mentions=[],
+            content='{"en_us":{"content":[[{"tag":"at","user_name":"Hermes","open_id":"ou_bot"}]]}}',
+        )
+
+        self.assertTrue(adapter._should_accept_group_message(message, sender_id, ""))
+
     @patch.dict(os.environ, {}, clear=True)
     def test_extract_post_message_as_text(self):
         from gateway.config import PlatformConfig
@@ -2792,6 +2865,61 @@ class TestHydrateBotIdentity(unittest.TestCase):
         )
         self.assertTrue(adapter._is_self_sent_bot_message(self_event))
         self.assertFalse(adapter._is_self_sent_bot_message(peer_event))
+
+
+@unittest.skipUnless(_HAS_LARK_OAPI, "lark-oapi not installed")
+class TestFeishuBotProbeSdk(unittest.TestCase):
+    def test_probe_bot_sdk_supports_positional_base_request_client(self):
+        from gateway.platforms import feishu as feishu_module
+
+        class _FakeClient:
+            def request(self, request):
+                self.request_arg = request
+                payload = json.dumps(
+                    {
+                        "code": 0,
+                        "bot": {
+                            "bot_name": "Hermes Bot",
+                            "open_id": "ou_probe_sdk",
+                        },
+                    }
+                ).encode("utf-8")
+                return SimpleNamespace(content=payload)
+
+        fake_client = _FakeClient()
+
+        with patch.object(feishu_module, "_build_onboard_client", return_value=fake_client):
+            result = feishu_module._probe_bot_sdk("cli_app", "secret", "feishu")
+
+        self.assertEqual(
+            result,
+            {
+                "bot_name": "Hermes Bot",
+                "bot_open_id": "ou_probe_sdk",
+            },
+        )
+        self.assertIsNotNone(getattr(fake_client, "request_arg", None))
+
+    def test_parse_bot_response_accepts_app_name(self):
+        from gateway.platforms import feishu as feishu_module
+
+        result = feishu_module._parse_bot_response(
+            {
+                "code": 0,
+                "bot": {
+                    "app_name": "香农AI助手",
+                    "open_id": "ou_probe_sdk",
+                },
+            }
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "bot_name": "香农AI助手",
+                "bot_open_id": "ou_probe_sdk",
+            },
+        )
 
 
 @unittest.skipUnless(_HAS_LARK_OAPI, "lark-oapi not installed")

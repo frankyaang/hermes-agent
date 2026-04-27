@@ -1,0 +1,7 @@
+interface:
+  display_name: "产品运营Dashboard"
+  short_description: "先按看用户方法完成 Top15 洞察，再收成产品运营 Dashboard 与 HTML 成品"
+  default_prompt: "Use $product-ops-dashboard to analyze robot products, especially cleaning robots, through the current 看用户 backbone: JudgmentUnit, full Top15 penetration, generational comparison, competitor substitution logic, and FRR/FFR risk correction. First produce a PM-style main report that sounds like a product manager reading users, then package the result into a product-operations dashboard structure. When the user asks for dashboard HTML or a page-like deliverable, bridge to voc-dashboard-html instead of inventing a second renderer."
+
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,9 @@
+{
+  "name": "voc_insight",
+  "display_name": "用户洞察",
+  "description": "分析VOC、评论、竞品和质量反馈，输出用户洞察结论",
+  "type": "analysis",
+  "pipeline": "voc_insight_pipeline",
+  "private_memory": true,
+  "root": "skills/voc_insight"
+}

@@ -1,0 +1,9 @@
+{
+  "category_name": "扫地机器人",
+  "analysis_goal": "基于问卷反馈补充用户任务、满意点与风险点",
+  "product_scope": "Survey-only",
+  "time_scope": "近180天",
+  "data_sources": [
+    "Survey"
+  ]
+}

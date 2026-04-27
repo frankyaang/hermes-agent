@@ -1,0 +1,11 @@
+{
+  "name": "audit_expert",
+  "display_name": "核查专家",
+  "description": "负责交付前质量检查、字段完整性和审计追踪",
+  "skills": [
+    "audit",
+    "superpowers"
+  ],
+  "private_memory": true,
+  "root": "experts/audit_expert"
+}

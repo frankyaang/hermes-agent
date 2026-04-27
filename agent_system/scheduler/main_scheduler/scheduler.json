@@ -1,0 +1,12 @@
+{
+  "name": "main_scheduler",
+  "display_name": "主调度器",
+  "description": "负责洞察流程、看板流程和网页流程的任务分配、监督、异常处理和决策日志",
+  "supervised_modules": [
+    "experts",
+    "skills"
+  ],
+  "exception_handling": "default_strategy",
+  "decision_logging": true,
+  "root": "scheduler/main_scheduler"
+}

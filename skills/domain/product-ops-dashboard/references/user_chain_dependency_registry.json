@@ -1,0 +1,363 @@
+{
+  "contract_version": "2026-04-03.user_chain_dependency_registry.v1",
+  "steps": [
+    {
+      "step_id": "build_cleaning_robot_theme_registry",
+      "stage": "user_exposure",
+      "builder_id": "build_cleaning_robot_theme_registry",
+      "produced_artifacts": ["cleaning_robot_theme_registry"],
+      "downstream_steps": ["build_topic_attention_matrix"]
+    },
+    {
+      "step_id": "build_topic_attention_matrix",
+      "stage": "user_exposure",
+      "builder_id": "build_topic_attention_matrix",
+      "produced_artifacts": ["topic_attention_matrix"],
+      "downstream_steps": [
+        "build_problem_drilldown_packages",
+        "build_survey_qual_explanation_map",
+        "build_user_thesis_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_problem_drilldown_packages",
+      "stage": "user_exposure",
+      "builder_id": "build_problem_drilldown_packages",
+      "produced_artifacts": ["problem_drilldown_packages"],
+      "downstream_steps": [
+        "build_qual_evidence_packet",
+        "build_survey_qual_explanation_map",
+        "build_user_insight_exposure_tree",
+        "build_user_thesis_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_qual_evidence_packet",
+      "stage": "user_reasoning",
+      "builder_id": "build_qual_evidence_packet",
+      "produced_artifacts": ["qual_evidence_packet"],
+      "downstream_steps": ["run_dual_engine_reasoning"]
+    },
+    {
+      "step_id": "run_dual_engine_reasoning",
+      "stage": "user_reasoning",
+      "builder_id": "run_dual_engine_reasoning",
+      "produced_artifacts": [
+        "qual_reasoning_task_board",
+        "qual_case_reasoning_cards",
+        "qual_theme_reasoning_map",
+        "cross_source_hypothesis_board"
+      ],
+      "downstream_steps": ["evaluate_candidate_claims"]
+    },
+    {
+      "step_id": "evaluate_candidate_claims",
+      "stage": "user_reasoning",
+      "builder_id": "evaluate_candidate_claims",
+      "produced_artifacts": ["judgment_acceptance_log"],
+      "downstream_steps": [
+        "build_cross_source_interpretation",
+        "build_survey_qual_explanation_map",
+        "build_user_thesis_tree"
+      ]
+    },
+    {
+      "step_id": "build_cross_source_interpretation",
+      "stage": "user_reasoning",
+      "builder_id": "build_cross_source_interpretation",
+      "produced_artifacts": ["cross_source_interpretation"],
+      "downstream_steps": [
+        "build_series_positioning",
+        "build_strategy_translation",
+        "build_cross_source_convergence_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_series_positioning",
+      "stage": "user_reasoning",
+      "builder_id": "build_series_positioning",
+      "produced_artifacts": ["series_positioning"],
+      "downstream_steps": [
+        "build_user_strategy_convergence_tree",
+        "build_cross_source_convergence_tree"
+      ]
+    },
+    {
+      "step_id": "build_strategy_translation",
+      "stage": "user_reasoning",
+      "builder_id": "build_strategy_translation",
+      "produced_artifacts": ["strategy_translation"],
+      "downstream_steps": [
+        "build_cross_source_convergence_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_survey_qual_explanation_map",
+      "stage": "user_exposure",
+      "builder_id": "build_survey_qual_explanation_map",
+      "produced_artifacts": ["survey_qual_explanation_map"],
+      "downstream_steps": [
+        "build_user_insight_exposure_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_user_insight_exposure_tree",
+      "stage": "user_exposure",
+      "builder_id": "build_user_insight_exposure_tree",
+      "produced_artifacts": ["user_insight_exposure_tree"],
+      "downstream_steps": [
+        "build_user_strategy_convergence_tree",
+        "build_presentation_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_user_strategy_convergence_tree",
+      "stage": "user_closure",
+      "builder_id": "build_user_strategy_convergence_tree",
+      "produced_artifacts": ["user_strategy_convergence_tree"],
+      "downstream_steps": [
+        "build_user_thesis_tree",
+        "build_master_judgment_tree",
+        "build_presentation_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_user_thesis_tree",
+      "stage": "user_closure",
+      "builder_id": "build_user_thesis_tree",
+      "produced_artifacts": ["user_thesis_tree"],
+      "downstream_steps": [
+        "build_master_judgment_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_cross_source_convergence_tree",
+      "stage": "user_closure",
+      "builder_id": "build_cross_source_convergence_tree",
+      "produced_artifacts": ["cross_source_convergence_tree"],
+      "downstream_steps": [
+        "build_self_strategy_thesis_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_self_strategy_thesis_tree",
+      "stage": "user_closure",
+      "builder_id": "build_self_strategy_thesis_tree",
+      "produced_artifacts": ["self_strategy_thesis_tree"],
+      "downstream_steps": [
+        "build_master_judgment_tree",
+        "build_presentation_tree",
+        "build_presentation_page_blocks"
+      ]
+    },
+    {
+      "step_id": "build_master_judgment_tree",
+      "stage": "user_closure",
+      "builder_id": "build_master_judgment_tree",
+      "produced_artifacts": ["master_judgment_tree"],
+      "downstream_steps": ["build_presentation_page_blocks"]
+    },
+    {
+      "step_id": "build_presentation_tree",
+      "stage": "user_closure",
+      "builder_id": "build_presentation_tree",
+      "produced_artifacts": ["presentation_tree"],
+      "downstream_steps": ["build_presentation_page_blocks"]
+    },
+    {
+      "step_id": "build_presentation_page_blocks",
+      "stage": "user_closure",
+      "builder_id": "build_presentation_page_blocks",
+      "produced_artifacts": ["presentation_page_blocks"],
+      "downstream_steps": [
+        "build_user_presentation_blocks",
+        "run_user_presentation_composer"
+      ]
+    },
+    {
+      "step_id": "build_user_presentation_blocks",
+      "stage": "user_closure",
+      "builder_id": "build_user_presentation_blocks",
+      "produced_artifacts": ["user_presentation_blocks"],
+      "downstream_steps": ["run_user_presentation_composer"]
+    },
+    {
+      "step_id": "run_user_presentation_composer",
+      "stage": "user_closure",
+      "builder_id": "run_user_presentation_composer",
+      "produced_artifacts": [
+        "presentation_main_report",
+        "mirror_review_loop_report",
+        "mirror_open_risks"
+      ],
+      "downstream_steps": []
+    }
+  ],
+  "scope_base_steps": {
+    "user_exposure": "build_cleaning_robot_theme_registry",
+    "user_reasoning": "build_qual_evidence_packet",
+    "user_closure": "build_user_strategy_convergence_tree"
+  },
+  "builder_aliases": {
+    "build_qual_reasoning_task_board": "run_dual_engine_reasoning",
+    "evaluate_candidate_claims": "run_dual_engine_reasoning"
+  },
+  "loopback_targets": {
+    "loopback_data": {
+      "priority": 0,
+      "mapped_refresh_scope": "",
+      "default_target_artifacts": [],
+      "default_target_builders": [],
+      "artifact_overrides": {}
+    },
+    "loopback_exposure": {
+      "priority": 1,
+      "mapped_refresh_scope": "user_exposure",
+      "default_target_artifacts": [
+        "cleaning_robot_theme_registry",
+        "topic_attention_matrix",
+        "problem_drilldown_packages",
+        "survey_qual_explanation_map",
+        "user_insight_exposure_tree"
+      ],
+      "default_target_builders": [
+        "build_cleaning_robot_theme_registry",
+        "build_topic_attention_matrix",
+        "build_problem_drilldown_packages",
+        "build_survey_qual_explanation_map",
+        "build_user_insight_exposure_tree"
+      ],
+      "artifact_overrides": {
+        "problem_drilldown_packages": {
+          "target_artifacts": [
+            "topic_attention_matrix",
+            "problem_drilldown_packages",
+            "survey_qual_explanation_map",
+            "user_insight_exposure_tree"
+          ],
+          "target_builders": [
+            "build_topic_attention_matrix",
+            "build_problem_drilldown_packages",
+            "build_survey_qual_explanation_map",
+            "build_user_insight_exposure_tree"
+          ]
+        },
+        "survey_qual_explanation_map": {
+          "target_artifacts": [
+            "survey_qual_explanation_map",
+            "user_insight_exposure_tree"
+          ],
+          "target_builders": [
+            "build_survey_qual_explanation_map",
+            "build_user_insight_exposure_tree"
+          ]
+        },
+        "user_insight_exposure_tree": {
+          "target_artifacts": ["user_insight_exposure_tree"],
+          "target_builders": ["build_user_insight_exposure_tree"]
+        }
+      }
+    },
+    "loopback_reasoning": {
+      "priority": 2,
+      "mapped_refresh_scope": "user_reasoning",
+      "default_target_artifacts": [
+        "qual_evidence_packet",
+        "qual_reasoning_task_board",
+        "qual_case_reasoning_cards",
+        "qual_theme_reasoning_map",
+        "cross_source_hypothesis_board",
+        "judgment_acceptance_log"
+      ],
+      "default_target_builders": [
+        "build_qual_evidence_packet",
+        "run_dual_engine_reasoning"
+      ],
+      "artifact_overrides": {
+        "qual_theme_reasoning_map": {
+          "target_artifacts": [
+            "qual_evidence_packet",
+            "qual_theme_reasoning_map",
+            "judgment_acceptance_log"
+          ],
+          "target_builders": [
+            "build_qual_evidence_packet",
+            "run_dual_engine_reasoning"
+          ]
+        },
+        "cross_source_hypothesis_board": {
+          "target_artifacts": [
+            "qual_evidence_packet",
+            "cross_source_hypothesis_board",
+            "judgment_acceptance_log",
+            "cross_source_interpretation"
+          ],
+          "target_builders": [
+            "build_qual_evidence_packet",
+            "run_dual_engine_reasoning",
+            "build_cross_source_interpretation"
+          ]
+        }
+      }
+    },
+    "rewrite_here": {
+      "priority": 3,
+      "mapped_refresh_scope": "user_closure",
+      "default_target_artifacts": [
+        "user_strategy_convergence_tree",
+        "user_thesis_tree",
+        "presentation_tree",
+        "presentation_page_blocks",
+        "user_presentation_blocks",
+        "presentation_main_report"
+      ],
+      "default_target_builders": [
+        "build_user_strategy_convergence_tree",
+        "build_user_thesis_tree",
+        "build_presentation_tree",
+        "build_presentation_page_blocks",
+        "build_user_presentation_blocks",
+        "run_user_presentation_composer"
+      ],
+      "artifact_overrides": {
+        "user_thesis_tree": {
+          "target_artifacts": [
+            "user_strategy_convergence_tree",
+            "user_thesis_tree",
+            "presentation_tree",
+            "presentation_main_report"
+          ],
+          "target_builders": [
+            "build_user_strategy_convergence_tree",
+            "build_user_thesis_tree",
+            "build_presentation_tree",
+            "run_user_presentation_composer"
+          ]
+        },
+        "presentation_tree": {
+          "target_artifacts": [
+            "presentation_tree",
+            "presentation_page_blocks",
+            "user_presentation_blocks",
+            "presentation_main_report"
+          ],
+          "target_builders": [
+            "build_presentation_tree",
+            "build_presentation_page_blocks",
+            "build_user_presentation_blocks",
+            "run_user_presentation_composer"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "user_id": "user_B",
+  "memory_id": "user_B_mem_001",
+  "content": "示例对话内容，用于用户B测试",
+  "timestamp": "2026-04-23T21:02:51.468146",
+  "version": 1,
+  "module": "planning"
+}

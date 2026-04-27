@@ -5027,8 +5027,18 @@ class AIAgent:
         # constructs a fresh one — no stale closed transport can be reused.
         # Tests in ``tests/run_agent/test_create_openai_client_reuse.py`` and
         # ``tests/run_agent/test_sequential_chats_live.py`` pin this invariant.
-        if "http_client" not in client_kwargs:
-            keepalive_http = self._build_keepalive_http_client(client_kwargs.get("base_url", ""))
+        # chatgpt.com/backend-api/codex streams reliably with the OpenAI SDK's
+        # default transport, but hangs when wrapped in our socket keepalive
+        # transport. Leave that backend on the SDK default path while keeping
+        # keepalives for other OpenAI-compatible providers.
+        _base_url_for_transport = str(client_kwargs.get("base_url", "") or "")
+        _skip_keepalive_transport = (
+            self.api_mode == "codex_responses"
+            and base_url_host_matches(_base_url_for_transport, "chatgpt.com")
+            and "/backend-api/codex" in _base_url_for_transport.lower()
+        )
+        if "http_client" not in client_kwargs and not _skip_keepalive_transport:
+            keepalive_http = self._build_keepalive_http_client(_base_url_for_transport)
             if keepalive_http is not None:
                 client_kwargs["http_client"] = keepalive_http
         client = OpenAI(**client_kwargs)

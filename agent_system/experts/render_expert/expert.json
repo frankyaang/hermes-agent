@@ -1,0 +1,11 @@
+{
+  "name": "render_expert",
+  "display_name": "渲染专家",
+  "description": "负责HTML/PDF呈现质量，确保渲染层不改写业务内容",
+  "skills": [
+    "dashboard_html",
+    "briefing"
+  ],
+  "private_memory": true,
+  "root": "experts/render_expert"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "default_pipeline",
+  "version": 1,
+  "expert": "user_analyst",
+  "skills": [
+    "voc_insight",
+    "superpowers",
+    "briefing"
+  ],
+  "nodes": [
+    {
+      "step": 1,
+      "node": "voc_insight",
+      "user_gate": true,
+      "primary_expert": "user_analyst",
+      "secondary_experts": [
+        "ops_expert"
+      ],
+      "input_type": "VOC、评论、竞品和质量反馈",
+      "output_type": "用户洞察结论",
+      "max_runtime": 300
+    }
+  ],
+  "status": "example_pipeline_defined"
+}

@@ -1,0 +1,6 @@
+{
+  "user_id": "user_A_example",
+  "memory_id": "example_mem_001",
+  "content": "示例对话内容，占位用于测试对话召回和匹配",
+  "timestamp": "2026-04-23T22:00:00"
+}
