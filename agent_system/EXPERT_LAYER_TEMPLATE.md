@@ -1,4 +1,4 @@
-# 核查专家
+# Hermes Agent System 专家层运行闭环模板（固定功能闭环版）
 
 ## 1. 模板目标
 
@@ -42,14 +42,14 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 专家 ID | audit_expert |
-| 专家名称 | 核查专家 |
-| 业务范围 | 负责交付前质量检查、字段完整性和审计追踪 |
+| 专家 ID | [expert_id] |
+| 专家名称 | [expert_display_name] |
+| 业务范围 | [business_scope] |
 | 角色定位 | 主专家 / 主智能体 |
 | 主要职责 | 任务判断、节点分配、复盘优先评估、默认 Skill 多重加载、动态覆盖规则、异常复核、输出汇总 |
 | Skill 执行 | 可独立调用默认 Skill 或动态覆盖 Skill；生产环境需通过真实 Agent / LLM / `delegate_task` 执行 |
 | 协作方式 | 可与辅专家平行执行 Skill，但必须遵守 DAG 依赖和调度顺序 |
-| 私域经验 | 启用，记录在 `expert_mem/` |
+| 私域经验 | [private_memory_status] |
 | 不负责内容 | 不替代调度层执行全局 DAG，不展开 Skill 内部执行细节，不替代人工审批 |
 
 ### 2.2 辅专家职责
@@ -88,8 +88,10 @@
 
 | Skill ID | Skill 名称 | Base Weight | 默认用途 | 加载策略 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
-| `audit` | 核查 | 90 | 审计 / 核查 | 高权重默认加载 | active |
-| `superpowers` | 思考辅助 | 80 | 复杂判断 / 辅助复核 | 条件满足时加载 | active |
+| [skill_id_1] | [skill_name_1] | 90 | 输入校验 / 分析 / 生成 / 审计 | 高权重默认加载 | active |
+| [skill_id_2] | [skill_name_2] | 80 | 复杂判断 / 辅助分析 | 条件满足时加载 | active |
+| [skill_id_3] | [skill_name_3] | 70 | 风险复核 / 异常校正 | 异常触发加载 | active |
+| [skill_id_4] | [skill_name_4] | 60 | 输出整理 / 报告生成 | 最终交付前加载 | watch |
 
 ### 3.1 权重公式
 
@@ -184,8 +186,8 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | --- | --- | --- | --- | --- | --- | --- |
 | `task_id` | 文本 | 必填 | 无 | 唯一任务编号 | 动态生成 | `task_20260428_001` |
 | `flow_id` | 文本 | 必填 | 无 | 必须存在于 routes | 可动态扩展 | `dashboard_flow` |
-| `node_id` | 文本 | 必填 | 无 | 当前任务节点 | 来自 routes | audit |
-| `expert_id` | 文本 | 必填 | 无 | 主专家 ID | 来自 experts | audit_expert |
+| `node_id` | 文本 | 必填 | 无 | 当前任务节点 | 来自 routes | [primary_skill_id] |
+| `expert_id` | 文本 | 必填 | 无 | 主专家 ID | 来自 experts | [expert_id] |
 | `secondary_expert_ids` | 列表 | 可选 | 个 | 可为空 | 来自 routes / experts | `[ops_expert]` |
 | `execution_owner` | 文本 / 枚举 | 必填 | 无 | 主专家 / 辅专家 / 人工 | primary_expert / secondary_expert / human | primary_expert |
 | `source_materials` | 表格 / 文档 | 必填 | 份 | 至少 1 份有效资料 | 文档 / 表格 / 链接 | VOC 表 |
@@ -193,7 +195,7 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | `output_format` | 文本 / 枚举 | 必填 | 无 | 可动态扩展 | report / table / pm_input / html | `pm_input` |
 | `risk_fields` | 表格 | 可选 | 个 | 仅风险字段 | 可动态扩展 | 返修率 |
 | `business_tags` | 文本 / 枚举列表 | 可选 | 个 | 可动态扩展 | VOC / 竞品 / 横评 / 售后 | VOC |
-| `default_skill_weights` | JSON | 可选 | 分值 | 0-100 | Skill ID 动态扩展 | `{audit: 90}` |
+| `default_skill_weights` | JSON | 可选 | 分值 | 0-100 | Skill ID 动态扩展 | `{[primary_skill_id]: 90}` |
 | `max_spawn_depth` | 数字 | 必填 | 层 | 1-3，按配置限制 | 1 / 2 / 3 | 1 |
 | `online_agent_probe` | JSON | 可选 | 无 | 不包含密钥明文，仅记录状态 | credential_status / provider / model | `{credential_status: direct_key_available}` |
 | `human_review_required` | 枚举 | 必填 | 无 | 是 / 否 | 是 / 否 | 是 |
@@ -219,9 +221,9 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | 节点状态 | `status` | 枚举 | 无 | completed / blocked / failed / optional_failed | completed |
 | 节点摘要 | `result_summary` | 文本 | 字 | 20-500 字 | 已完成用户洞察 |
 | 结构化输出 | `structured_outputs` | JSON | 组 | 可包含 Top15、场景穿透、代际对比、竞品替代、风险校正、PM 输入 | `{top15_fact_pool: []}` |
-| Skill 使用 | `skills_loaded` | 列表 | 个 | 至少 1 个 | `audit` |
-| Skill 权重 | `skill_weights` | JSON | 分值 | 0-100 | `{audit: 90}` |
-| 主专家执行 | `primary_expert_skill_calls` | 列表 | 次 | 可为空 | `audit` |
+| Skill 使用 | `skills_loaded` | 列表 | 个 | 至少 1 个 | `[primary_skill_id]` |
+| Skill 权重 | `skill_weights` | JSON | 分值 | 0-100 | `{[primary_skill_id]: 90}` |
+| 主专家执行 | `primary_expert_skill_calls` | 列表 | 次 | 可为空 | `[primary_skill_id]` |
 | 辅专家执行 | `secondary_expert_skill_calls` | 列表 | 次 | 可为空 | `[ops_dashboard]` |
 | 真实执行 | `real_skill_execution` | 布尔 | 无 | 必须记录真实 Agent / LLM / delegate_task 是否执行 | true |
 | 执行模式 | `skill_execution_modes` | 列表 | 个 | production_delegate_task / custom_skill_executor / local_default_executor | `[production_delegate_task]` |
@@ -308,7 +310,7 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | --- | --- | --- | --- |
 | `review_period` | 文本 | 日期范围 | 2026-04-15 至 2026-04-28 |
 | `task_count` | 数字 | 个 | 12 |
-| `primary_skill_usage` | JSON | 次 | `{audit: 10}` |
+| `primary_skill_usage` | JSON | 次 | `{[primary_skill_id]: 10}` |
 | `secondary_skill_usage` | JSON | 次 | `{ops_dashboard: 6}` |
 | `dynamic_overrides` | 列表 | 次 | `[input_type_special]` |
 | `success_rate` | 数字 | % | 91 |
@@ -317,7 +319,7 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | `human_review_count` | 数字 | 次 | 3 |
 | `human_input_summary` | 文本 / 列表 | 条 | 人工确认两项风险需回退 |
 | `dynamic_coverage_frequency` | 数字 | 次 | 3 |
-| `weight_adjustment_suggestions` | JSON | 分值变化 | `{audit: +5}` |
+| `weight_adjustment_suggestions` | JSON | 分值变化 | `{[primary_skill_id]: +5}` |
 | `rule_update_suggestions` | 列表 | 条 | 新增人工复核触发条件 |
 
 ## 13. 运行记录模板
@@ -376,7 +378,7 @@ CLI 主循环 -> 主智能体 -> 真实 Skill 执行 -> 子专家 / 子智能体
 | 验证项 | 检查方式 | 通过标准 |
 | --- | --- | --- |
 | 角色职责 | 扫描主专家、辅专家、Skill 层、调度层、人工介入字段 | 不出现职责混淆，辅专家不管理全局 DAG |
-| 模板占位 | 扫描 `audit_expert`、`audit`、`human_review_required`、`human_input_summary` 等字段 | 占位完整，可被生成器替换 |
+| 模板占位 | 扫描 `[expert_id]`、`[primary_skill_id]`、`human_review_required`、`human_input_summary` 等字段 | 占位完整，可被生成器替换 |
 | 异常映射 | 扫描 Top15、VOC、FRR/FFR、竞品、PM 字段异常 | 每个异常都有触发逻辑、处理规则、阻塞标记和复盘触发 |
 | 输入 / 输出字段 | 扫描字段类型、单位、枚举、约束 | 字段可审计、可复盘、可动态扩展 |
 | 复盘字段 | 扫描复盘触发、权重公式、私域经验引用 | 复盘信息能支撑权重更新和 pipeline 优化 |

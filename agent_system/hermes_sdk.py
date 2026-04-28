@@ -604,41 +604,106 @@ class HermesExpertManager:
 
     def _write_expert_doc(self, expert_root: Path, expert: HermesExpert) -> None:
         doc_path = expert_root / "EXPERT.md"
-        skill_lines = []
-        for skill_name in expert.skills:
+        skill_rows = []
+        base_weights = [90, 80, 70, 60, 50]
+        purpose_by_type = {
+            "analysis": "输入盘点 / 分析",
+            "report_generation": "生成 / 输出整理",
+            "ui_render": "渲染 / 交付呈现",
+            "analysis_assist": "复杂判断 / 辅助复核",
+            "status_report": "过程汇报 / 仿人汇报",
+            "audit": "审计 / 核查",
+        }
+        for index, skill_name in enumerate(expert.skills):
             metadata_path = self.skills_root / skill_name / "skill.json"
             display_name = skill_name
+            skill_type = ""
             if metadata_path.exists():
                 payload = json.loads(metadata_path.read_text(encoding="utf-8"))
                 display_name = payload.get("display_name", skill_name)
-            skill_lines.append(f"- `{skill_name}`（{display_name}）")
-        doc_path.write_text(
-            "\n".join(
+                skill_type = payload.get("type", "")
+            base_weight = base_weights[index] if index < len(base_weights) else 50
+            purpose = purpose_by_type.get(skill_type, "分析 / 生成 / 核查")
+            if index == 0:
+                strategy = "高权重默认加载"
+            elif skill_type == "audit":
+                strategy = "关键节点默认加载"
+            elif skill_type == "status_report":
+                strategy = "仿人汇报触发加载"
+            elif base_weight >= 70:
+                strategy = "条件满足时加载"
+            else:
+                strategy = "辅助或观察加载"
+            status = "active" if base_weight >= 70 else "watch"
+            skill_rows.append(
+                f"| `{skill_name}` | {display_name} | {base_weight} | {purpose} | {strategy} | {status} |"
+            )
+        template_path = self.project_root / "EXPERT_LAYER_TEMPLATE.md"
+        if template_path.exists():
+            content = template_path.read_text(encoding="utf-8")
+        else:
+            content = "\n".join(
                 [
-                    f"# {expert.display_name}",
+                    "# Hermes Agent System 专家层模板",
                     "",
-                    f"- English name: `{expert.name}`",
-                    f"- 中文名：{expert.display_name}",
-                    f"- Private memory: `{str(expert.private_memory).lower()}`",
+                    "## 职责边界",
                     "",
-                    expert.description,
+                    "| 项目 | 内容 |",
+                    "| --- | --- |",
+                    "| 专家 ID | `[expert_id]` |",
+                    "| 专家名称 | `[expert_display_name]` |",
+                    "| 业务范围 | `[business_scope]` |",
                     "",
-                    "## Callable Skills",
+                    "## 默认 Skill 多重加载",
                     "",
-                    *skill_lines,
+                    "| Skill ID | Skill 名称 | Base Weight | 默认用途 | 加载策略 | 当前状态 |",
+                    "| --- | --- | --- | --- | --- | --- |",
+                    "| `[skill_id]` | `[skill_name]` | 90 | 分析 / 生成 / 核查 | 高权重默认加载 | active |",
                     "",
-                    "## Pipeline",
+                    "### 权重公式",
                     "",
-                    "默认专家编排入口记录在 `pipeline/default_pipeline.json`。",
-                    "",
-                    "## Memory",
-                    "",
-                    "私域经验记录在 `expert_mem/`，用于沉淀该专家的协同经验。",
+                    "```text",
+                    "Skill_Weight = Base_Weight + Success_Rate * 0.4 + Output_Quality * 0.3 - Exception_Count * 0.2 + Dynamic_Coverage_Frequency * -0.1",
+                    "```",
                     "",
                 ]
-            ),
-            encoding="utf-8",
+            )
+
+        content = re.sub(r"^# .+$", f"# {expert.display_name}", content, count=1, flags=re.MULTILINE)
+        content = content.replace("[expert_id]", expert.name)
+        content = content.replace("[expert_display_name]", expert.display_name)
+        content = content.replace("[business_scope]", expert.description)
+        content = content.replace(
+            "[primary_skill_id]",
+            expert.skills[0] if expert.skills else "skill_id",
         )
+        content = content.replace(
+            "[private_memory_status]",
+            f"{'启用' if expert.private_memory else '未启用'}，记录在 `expert_mem/`",
+        )
+
+        table_pattern = (
+            r"(\| Skill ID \| Skill 名称 \| Base Weight \| 默认用途 \| 加载策略 \| 当前状态 \|\n"
+            r"\| --- \| --- \| --- \| --- \| --- \| --- \|\n)"
+            r"(?:\|.*\|\n)+"
+            r"(?=\n### 3\.1 权重公式)"
+        )
+        replacement = r"\1" + "\n".join(skill_rows) + "\n"
+        content, replacements = re.subn(table_pattern, replacement, content, count=1)
+        if replacements != 1:
+            skill_table = "\n".join(
+                [
+                    "## 默认 Skill 多重加载",
+                    "",
+                    "| Skill ID | Skill 名称 | Base Weight | 默认用途 | 加载策略 | 当前状态 |",
+                    "| --- | --- | --- | --- | --- | --- |",
+                    *skill_rows,
+                    "",
+                ]
+            )
+            content = content.rstrip() + "\n\n" + skill_table
+
+        doc_path.write_text(content.rstrip() + "\n", encoding="utf-8")
 
     @staticmethod
     def _write_pipeline_stub(pipeline_root: Path, expert: HermesExpert) -> None:
