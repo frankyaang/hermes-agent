@@ -1,3 +1,200 @@
+# Agent System Runtime Closed Loop Plan
+
+## Goal
+
+将专家层模板中的“主/辅专家 + Skill + DAG 调度 + 审计 + 复盘 + 人工介入”占位落到固定功能闭环运行器，并补齐本轮必落地的五个运行能力：CLI 主循环自动触发、人工审批 UI、多层子智能体、真实 Skill 执行绑定、自动 Skill 权重回写。成功标准是本地 `agent_system` 能读取 `scheduler/main_scheduler/routes.json`、`experts/*/expert.json`、`skills/*/skill.json`，按 DAG 生成单节点任务包，平行执行主/辅专家各自的真实 Skill / Agent 调用，处理 optional、user_gate、阻塞异常，写入 `audit/audit.jsonl`、`audit/review_summary.json`、`skill_weights.json`，并沉淀专家和 Skill 私域经验。
+
+## Scope
+
+- 新增轻量运行时模块，专门承接 agent_system 示例闭环执行。
+- 新增 CLI 桥接模块，只有用户消息明确触发 `agent_system` 且命中 pipeline 时，才接管默认聊天主循环并自动执行闭环。
+- 新增 agent_system 独立人工审批适配层，底层可复用 CLI / Gateway 回调，输出结构化审批决策。
+- 让运行器根据 `delegation.max_spawn_depth` 生成 leaf / orchestrator 任务包，保持 DAG 依赖在多层委托下可追踪。
+- 通过 `delegate_task` 绑定真实 Agent / LLM 执行默认 Skill，保留本地 executor 作为测试和离线回退路径。
+- 生产路径记录线上 Agent / LLM 执行模式、凭据状态和 API 调用观测，避免“看起来执行但实际只是占位”。
+- CLI 桥接必须在主 Agent 执行线程绑定之后运行，确保真实子智能体继承中断、活动和审批链路。
+- 保留现有模板占位、权重公式、异常映射、人工介入字段、私域经验积累和复盘字段。
+- 增加聚焦测试覆盖 DAG、optional、user_gate、审计、复盘和权重更新。
+- 最小改动主 Agent 大循环，只插入窄触发桥接，不改变普通对话、工具循环或 prompt cache 语义。
+
+## Non-goals
+
+- 不让普通聊天自动进入 agent_system；必须由明确触发词和 pipeline 命中共同触发。
+- 不重写 CLI / Gateway 的底层输入控件；agent_system 只提供独立审批适配层和结构化决策语义。
+- 不让辅专家管理全局 DAG 或跨节点调度。
+- 不重写 `delegate_task` 子智能体实现，只从 agent_system 桥接调用它。
+
+## Context
+
+- 现有 `agent_system/hermes_sdk.py` 负责初始化 Skill、Expert、Scheduler 和 Audit 资产。
+- `routes.json` 已包含 `pipeline_id`、`depends_on`、`trigger`、`optional`、`user_gate`、`final_output`、`supervision.primary_expert` 和 `secondary_experts`。
+- 现有 `delegate_task` 已支持 `role='orchestrator'` 和可配置 `delegation.max_spawn_depth`；本轮运行器需要把这个配置反映到任务包，并在 CLI 桥接中真实调用 `delegate_task`。
+- `clarify` 工具已通过 `AIAgent.clarify_callback` 接入 CLI / Gateway 交互；本轮 `user_gate` 通过独立审批适配层复用该回调，收集 `human_input_summary` 和审批决策。
+- 权重公式沿用模板：`Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1`，结果需要限制在 0-100。
+- 用户补充“经验固化版”要求：模板占位与运行闭环必须明确分层，并增加静态验证与运行验证，避免后续再次出现占位和执行不一致。
+
+## Milestones
+
+1. 新增运行器：加载资产、构建 DAG、生成主/辅专家单节点任务包。
+2. 实现执行闭环：节点执行、optional、user_gate、异常映射、审计 JSONL。
+3. 实现复盘与权重：复盘摘要、权重建议和 `skill_weights.json` 回写。
+4. 补充测试并运行聚焦验证。
+5. 固化经验准则：模板增加占位 / 运行闭环分层说明、验证要求，运行器支持可配置 `max_spawn_depth` 且默认保持 1。
+6. 接入 CLI 主循环：新增窄触发桥接，自动运行指定 pipeline，并返回审计、复盘和权重产物摘要。
+7. 落地真实 Skill 绑定：CLI 桥接通过 `delegate_task` 调用真实 Agent / LLM，运行器继续支持测试 executor。
+8. 落地人工审批：`user_gate` 缺人工输入时调用 `clarify_callback`，人工结论进入审计、复盘和权重数据。
+9. 补强线上落地观测：审计记录必须包含 `real_skill_execution`、`skill_execution_modes`、`human_review_ui_available` 和线上 API 调用观测字段。
+10. 正式审批语义：人工审批输出 `approved/blocked/missing` 决策，阻塞或退回复核会阻断下游 DAG。
+
+## Validation
+
+- `python -m py_compile agent_system/hermes_sdk.py agent_system/runtime.py agent_system/cli_bridge.py agent_system/human_approval.py agent_system/init_experts.py tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py`
+- `scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py`
+- `scripts/run_tests.sh tests/tools/test_delegate.py tests/tools/test_delegate_toolset_scope.py tests/tools/test_skills_tool.py`
+- `rg -n "human_review_required|human_input_summary|human_review_decision|human_review_blocking|skill_weights.json|audit.jsonl|optional_failed|max_spawn_depth|delegate_task|orchestrator|real_skill_execution|skill_execution_modes|online_llm_call_observed" agent_system/runtime.py agent_system/cli_bridge.py agent_system/human_approval.py tests/agent_system`
+- `rg -n "CLI 主循环|人工审批|真实 Skill|真实 Agent|max_spawn_depth|自动回写|运行验证|线上凭据|API 调用观测" agent_system/EXPERT_LAYER_TEMPLATE.md agent_system/experts/*/EXPERT.md`
+
+## Progress
+
+- [x] 完成只读核查，确认当前缺少运行时闭环执行器。
+- [x] 新增运行器。
+- [x] 增加测试。
+- [x] 完成验证。
+- [x] 固化模板占位 / 运行闭环分层和验证要求。
+- [x] 接入 CLI 主循环窄触发。
+- [x] 接入人工审批 UI 回调。
+- [x] 接入真实 `delegate_task` Skill 执行绑定。
+- [x] 验证多层子智能体任务包和权重自动回写。
+- [x] 刷新专家文档并完成聚焦回归测试。
+- [x] 补强线上功能落地审计字段和执行线程绑定位置。
+- [x] 落地独立人工审批适配层和审批阻塞语义。
+- [x] 完成正式环境闭环模板字段扫描和最终验证记录。
+
+## Decision Log
+
+- 选择新增 `agent_system/runtime.py`，而不是把执行逻辑放进模板生成器或主 Agent 循环。
+- 运行器默认使用本地被动 Skill 执行，提供 `skill_executor` 回调作为真实 Skill/Agent 接入口。
+- `user_gate=true` 表示节点执行后需要人工输入确认；缺少人工输入时节点记录为 `blocked`，下游非 optional 依赖暂停。
+- optional 节点失败或阻塞不阻断主流程，依赖 optional 节点的下游可继续。
+- 辅专家只承接单节点任务包并调用自身可用 Skill，不管理全局 DAG。
+- 权重更新固定生成复盘建议并回写 `skill_weights.json`。
+- 私域经验固定追加专家和 Skill 的运行摘要，形成长期能力积累。
+- 同一节点内主/辅专家 Skill 调用并行执行，结果按主专家优先、辅专家顺序稳定汇总。
+- 模板必须明确区分“模板占位”和“运行闭环落地”；静态字段检查不能替代运行测试。
+- `max_spawn_depth` 在运行器中可配置，模板示例和默认运行值保持为 1。
+- 本轮 CLI 接入必须是窄触发，避免普通聊天被 agent_system 抢走。
+- 人工审批由 `agent_system/human_approval.py` 提供独立适配层，底层复用 `clarify_callback(question, choices)`，保持 CLI、TUI 和 Gateway 的既有交互一致。
+- 人工审批返回“阻塞并补充资料”“退回复核”等结果时，当前节点保持 blocked，下游非 optional 节点按 DAG 暂停。
+- `max_spawn_depth > 1` 时任务包使用 `role='orchestrator'`，否则使用 `role='leaf'`，由 `delegate_task` 自身继续强制深度上限。
+- 真实 Skill 绑定放在 `agent_system/cli_bridge.py`，运行器保持 executor 注入能力，方便测试和后续替换。
+- CLI 桥接移动到 `run_conversation()` 的执行线程绑定之后，避免真实 `delegate_task` 运行时缺少中断和活动追踪上下文。
+- 生产路径不在自动测试中消耗线上凭据，但 `cli_bridge` 默认执行真实 `delegate_task`；若凭据缺失或子智能体未产生 API 调用，会进入审计字段和异常复盘。
+- 运行验证结果：`scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py` 通过 9 个测试。
+- 正式审批语义验证结果：`scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py` 通过 11 个测试，覆盖审批放行和审批阻塞。
+- 回归验证结果：`scripts/run_tests.sh tests/tools/test_delegate.py tests/tools/test_delegate_toolset_scope.py tests/tools/test_skills_tool.py` 通过 199 个测试。
+- 格式验证结果：`git diff --check` 通过。
+- 模板静态验证结果：`rg -n "人工审批|human_review_decision|human_review_blocking|human_review_channel|真实 Skill|真实 Agent|线上凭据|API 调用观测|运行验证" agent_system/EXPERT_LAYER_TEMPLATE.md agent_system/experts/*/EXPERT.md` 确认模板与四个专家文档均包含正式环境闭环字段。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-dev
+```
+
+优先查看：
+
+```bash
+sed -n '1,260p' agent_system/runtime.py
+sed -n '1,220p' tests/agent_system/test_runtime.py
+git status --short --branch
+```
+
+---
+
+# Agent System Expert Template Group Collaboration And Human Review Plan
+
+## Goal
+
+将专家层模板更新为“主/辅专家群体协作 + 平行 Skill 执行 + 碳基人工介入 + 调度层 DAG 约束”的版本。成功标准是后续生成的 `EXPERT.md` 明确：主专家负责任务判断、节点分配、复盘优先评估、默认 Skill 多重加载和动态覆盖规则；辅专家负责分配节点任务并独立调用 Skill；主/辅专家在执行阶段可平行调用 Skill，但必须遵守 DAG 依赖和调度顺序；人工复核结果进入审计、复盘和 Skill 权重优化。
+
+## Scope
+
+- 更新 `agent_system/EXPERT_LAYER_TEMPLATE.md` 作为群体协作 + 人工介入版本的标准模板。
+- 更新 `agent_system/hermes_sdk.py` 中专家文档生成逻辑。
+- 刷新 `agent_system/experts/*/EXPERT.md`。
+- 只做文档和生成器优化，不接入真实运行时调度。
+
+## Non-goals
+
+- 不实现 `expert_task` 工具。
+- 不修改 `delegate_task` 核心逻辑。
+- 不改 `routes.json` 的执行语义。
+- 不展开 Skill 内部步骤。
+- 不让辅专家越权管理全局 DAG、跨节点并行控制或调度暂停。
+- 不让专家模板替代调度层的运行时执行器。
+- 不实现真实人工审批 UI，只保留 `human_review_required` 和 `human_input_summary` 等字段。
+
+## Context
+
+- 当前 `agent_system/experts/*/EXPERT.md` 由 `HermesExpertManager._write_expert_doc()` 生成，必须同步更新生成器。
+- 用户已确认新版口径：主/辅专家可平行执行 Skill，辅专家执行分配节点任务；主专家在复盘优先评估和节点分配上保持主责；人工介入用于关键节点复核、异常确认和用户确认。
+- 模板仍需保留默认 Skill 权重公式、动态覆盖占位、输入/输出字段单位、枚举可扩展、异常映射占位、复盘审计占位和 `max_spawn_depth=1`。
+- 为避免下次运行 `init_experts.py` 覆盖手工文档，必须同步更新生成器。
+
+## Milestones
+
+1. 固化群体协作 + 人工介入版本的专家层标准模板文档。
+2. 更新专家文档生成器，使每个专家文档自动包含新版模板结构。
+3. 重新运行专家初始化脚本刷新现有专家文档。
+4. 运行语法和内容校验，确认主/辅专家、人工介入、权重公式、异常映射和复盘字段齐全。
+
+## Validation
+
+- `source .venv/bin/activate 2>/dev/null || source venv/bin/activate 2>/dev/null || true; python -m py_compile agent_system/hermes_sdk.py agent_system/init_experts.py`
+- `source .venv/bin/activate 2>/dev/null || source venv/bin/activate 2>/dev/null || true; python agent_system/init_experts.py`
+- `rg -n "主/辅专家职责|碳基|人工介入|human_review_required|human_input_summary|Skill_Weight|max_spawn_depth=1|异常映射|动态覆盖|复盘与权重优化" agent_system/EXPERT_LAYER_TEMPLATE.md agent_system/experts/*/EXPERT.md`
+- `rg -n "Callable Skills|辅专家.*全局 DAG|辅专家.*调度暂停|辅专家.*跨节点并行控制" agent_system/EXPERT_LAYER_TEMPLATE.md agent_system/experts/*/EXPERT.md || true`
+- `git diff -- agent_system PLANS.md`
+
+## Progress
+
+- [x] 明确群体协作 + 人工介入新版口径。
+- [x] 更新标准模板文档。
+- [x] 检查生成器占位兼容性。
+- [x] 刷新专家文档。
+- [x] 完成验证。
+
+## Decision Log
+
+- 选择更新生成器，而不是只手改 `EXPERT.md`，因为专家文档是生成物，手改会被初始化脚本覆盖。
+- 专家层文档允许出现主/辅专家平行执行 Skill 的说明，但执行阶段必须服从调度层 DAG 依赖和顺序。
+- 辅专家执行被分配节点任务并独立调用 Skill、积累私域经验和 pipeline 数据，但不管理全局 DAG 或调度暂停。
+- 人工介入只以字段和复盘输入占位表达，不实现审批 UI。
+- 人工介入字段统一为 `human_review_required` 和 `human_input_summary`，进入输出、审计和复盘摘要，但不替代真实用户确认流程。
+- 调度层负责 DAG、阻塞、暂停、审计汇总和复盘数据，不由专家模板实现运行时执行器。
+- 动态覆盖只保留触发条件和处理逻辑，不固定可覆盖 Skill 名单。
+- 生成器改为读取 `EXPERT_LAYER_TEMPLATE.md` 并替换专家占位与默认 Skill 表，避免模板和生成器内容双写漂移。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-dev
+```
+
+优先查看：
+
+```bash
+sed -n '1,260p' agent_system/EXPERT_LAYER_TEMPLATE.md
+sed -n '605,660p' agent_system/hermes_sdk.py
+git status --short --branch
+```
+
+---
+
 # Hermes CLI Agent Codex Responses Repair Plan
 
 ## Goal

@@ -9388,7 +9388,7 @@ class AIAgent:
         if not self.quiet_mode:
             _print_preview = _summarize_user_message_for_log(user_message)
             self._safe_print(f"💬 Starting conversation: '{_print_preview[:60]}{'...' if len(_print_preview) > 60 else ''}'")
-        
+
         # ── System prompt (cached per session for prefix caching) ──
         # Built once on first call, reused for all subsequent calls.
         # Only rebuilt after context compression events (which invalidate
@@ -9571,6 +9571,58 @@ class AIAgent:
         else:
             self._interrupt_message = None
             self._interrupt_thread_signal_pending = False
+
+        # Hermes Agent System runtime bridge.  This is deliberately a narrow
+        # pre-LLM hook: it only runs when the user explicitly mentions
+        # agent_system and names a known pipeline from routes.json.  It lives
+        # after execution-thread binding so real delegate_task children inherit
+        # the normal interrupt/activity plumbing.
+        try:
+            from agent_system.cli_bridge import maybe_run_agent_system_from_message
+
+            _agent_system_result = maybe_run_agent_system_from_message(
+                user_message,
+                parent_agent=self,
+                task_id=effective_task_id,
+            )
+        except Exception as exc:
+            logger.warning("agent_system CLI bridge failed before LLM loop: %s", exc)
+            _agent_system_result = None
+
+        if _agent_system_result is not None:
+            final_response = _agent_system_result.get("final_response", "")
+            messages.append({"role": "assistant", "content": final_response})
+            self._cleanup_task_resources(effective_task_id)
+            self._persist_session(messages, conversation_history)
+            self._stream_callback = None
+            self.clear_interrupt()
+            return {
+                "final_response": final_response,
+                "last_reasoning": None,
+                "messages": messages,
+                "api_calls": 0,
+                "completed": True,
+                "partial": False,
+                "interrupted": False,
+                "response_previewed": False,
+                "model": self.model,
+                "provider": self.provider,
+                "base_url": self.base_url,
+                "input_tokens": self.session_input_tokens,
+                "output_tokens": self.session_output_tokens,
+                "cache_read_tokens": self.session_cache_read_tokens,
+                "cache_write_tokens": self.session_cache_write_tokens,
+                "reasoning_tokens": self.session_reasoning_tokens,
+                "prompt_tokens": self.session_prompt_tokens,
+                "completion_tokens": self.session_completion_tokens,
+                "total_tokens": self.session_total_tokens,
+                "last_prompt_tokens": getattr(self.context_compressor, "last_prompt_tokens", 0) or 0,
+                "estimated_cost_usd": self.session_estimated_cost_usd,
+                "cost_status": self.session_cost_status,
+                "cost_source": self.session_cost_source,
+                "agent_system_status": _agent_system_result.get("agent_system_status"),
+                "agent_system_result": _agent_system_result.get("agent_system_result"),
+            }
 
         # Notify memory providers of the new turn so cadence tracking works.
         # Must happen BEFORE prefetch_all() so providers know which turn it is
