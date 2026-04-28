@@ -113,6 +113,84 @@ git status --short --branch
 
 ---
 
+# Agent System Three-Layer Experience Isolation Plan
+
+## Goal
+
+将 Hermes Agent System 的私域经验从“统一追加摘要”升级为三层隔离闭环：系统级经验、专家级经验、Skill 级经验各自独立管理、独立写入、可追溯审计。成功标准是运行器、模板和测试都能证明：专家和 Skill 可以按规则读取上层上下文，但写入只进入自身层级；临时子专家产生的经验按专家/Skill 归属写入，不直接污染系统级经验；复盘摘要能说明本次更新了哪些层级经验。
+
+## Scope
+
+- 更新 `agent_system/runtime.py` 的经验写入逻辑，拆分系统级、专家级、Skill 级经验记录。
+- 在任务包和 Skill 执行上下文中加入经验访问/写入策略字段，供真实 Agent / LLM 执行时参考。
+- 更新 `review_summary.json` 和 `audit.jsonl` 的经验字段，记录经验归属、路径和写入原因。
+- 更新 `EXPERT_LAYER_TEMPLATE.md` 及生成后的专家文档，明确三层经验隔离和访问规则。
+- 补充测试，验证三层经验文件独立生成、内容不混写、复盘摘要包含经验更新记录。
+
+## Non-goals
+
+- 不实现新的长期记忆数据库或外部向量库。
+- 不把 Skill 经验提升为专家级经验，也不让专家经验覆盖 Skill 经验。
+- 不让临时子专家直接写系统级经验。
+- 不改变已有 DAG、optional、user_gate、真实 `delegate_task`、权重公式和审计闭环。
+
+## Context
+
+- 当前运行器已有专家/Skill `MEMORY.md` 写入，但写入内容相同，尚未表达分层边界。
+- `agent_system/hermes_sdk.py` 已有系统用户记忆目录 `memory/user_mem`，但运行器闭环缺少系统级经验摘要目录。
+- 用户明确要求：系统级由 Hermes 主代理维护；专家级由对应专家维护并记录 Skill 使用；Skill 级由对应 Skill 维护执行历史、异常统计、复盘反馈；跨层允许读取，不允许跨层覆盖写入。
+
+## Milestones
+
+1. 定义运行器中的三层经验策略字段和写入记录结构。
+2. 拆分经验写入：系统级、专家级、Skill 级分别写入不同目录和不同内容。
+3. 将经验更新摘要写入 `review_summary.json` 和 `audit.jsonl`。
+4. 更新模板和专家文档，固化三层隔离规则。
+5. 补充并运行聚焦测试。
+
+## Validation
+
+- `python -m py_compile agent_system/runtime.py agent_system/hermes_sdk.py tests/agent_system/test_runtime.py`
+- `scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py`
+- `scripts/run_tests.sh tests/tools/test_delegate.py tests/tools/test_delegate_toolset_scope.py tests/tools/test_skills_tool.py`
+- `rg -n "三层经验|系统级经验|专家级经验|Skill级经验|experience_updates|memory_access_policy|write_scope" agent_system/EXPERT_LAYER_TEMPLATE.md agent_system/experts/*/EXPERT.md agent_system/runtime.py tests/agent_system`
+
+## Progress
+
+- [x] 明确三层经验隔离设计原则。
+- [x] 更新运行器经验访问和写入字段。
+- [x] 更新模板和专家文档。
+- [x] 补充测试。
+- [x] 完成验证。
+
+## Decision Log
+
+- 经验写入按执行角色归属，默认不跨层写入。
+- 系统级经验只记录运行级全局摘要、用户偏好或全局规则信号；临时子专家不直接写系统级。
+- 专家级经验记录该专家参与的节点、决策状态、异常、Skill 使用和复盘结果。
+- Skill 级经验记录该 Skill 的调用次数、成功/异常、输出质量和复盘反馈。
+- `review_summary.json` 作为复盘总索引，记录三层经验更新清单，但不把三个层级的经验正文混在一起。
+- 运行验证结果：`scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py` 通过 11 个测试，覆盖三层经验写入、审批和 DAG 闭环。
+- 回归验证结果：`scripts/run_tests.sh tests/tools/test_delegate.py tests/tools/test_delegate_toolset_scope.py tests/tools/test_skills_tool.py` 通过 204 个测试。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+```
+
+优先查看：
+
+```bash
+sed -n '1,260p' agent_system/runtime.py
+sed -n '1,460p' agent_system/EXPERT_LAYER_TEMPLATE.md
+sed -n '130,230p' tests/agent_system/test_runtime.py
+```
+
+---
+
 # Agent System Expert Template Group Collaboration And Human Review Plan
 
 ## Goal

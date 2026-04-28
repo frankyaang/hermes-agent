@@ -222,7 +222,10 @@ class HermesAgentSystemRuntime:
             started_at=started_at,
             results=ordered_results,
         )
-        self._append_private_memory(run_id, ordered_results, review_summary)
+        experience_updates = self._append_private_memory(run_id, ordered_results, review_summary)
+        review_summary["experience_isolation"] = self._experience_isolation_policy()
+        review_summary["experience_updates"] = experience_updates
+        self._persist_review_summary(run_id, review_summary)
 
         return {
             "run_id": run_id,
@@ -381,6 +384,8 @@ class HermesAgentSystemRuntime:
             "human_input_summary": human_input_summary,
             "skill_execution_modes": skill_execution_modes,
             "real_skill_execution": real_skill_execution,
+            "memory_access_policy": package["memory_access_policy"],
+            "experience_write_scope": package["experience_write_scope"],
             "output": output,
             "exceptions": exceptions,
             "missing_inputs": sorted(set(missing_inputs)),
@@ -546,6 +551,13 @@ class HermesAgentSystemRuntime:
             "input_payload": input_payload,
             "prior_results": prior_results,
             "max_spawn_depth": self.max_spawn_depth,
+            "memory_access_policy": package["memory_access_policy"],
+            "experience_write_scope": {
+                "system_level": "read_only",
+                "expert_level": f"read_only:{expert_id}" if expert_id else "read_only",
+                "skill_level": f"write:{skill_id}",
+                "write_rule": "Skill 执行结果只能写入本 Skill 经验；专家决策由运行器写入对应专家经验。",
+            },
         }
         started_at = self.now_fn().isoformat()
         try:
@@ -684,6 +696,52 @@ class HermesAgentSystemRuntime:
                 "context": delegate_context,
                 "role": delegate_role,
             },
+            "memory_access_policy": self._memory_access_policy(
+                primary_expert=primary,
+                secondary_experts=secondary,
+                skill_ids=sorted(default_skill_weights),
+            ),
+            "experience_write_scope": {
+                "system_level": "Hermes 主代理 / 运行器全局摘要",
+                "expert_level": [expert_id for expert_id in [primary, *secondary] if expert_id],
+                "skill_level": sorted(default_skill_weights),
+                "isolation_rule": "各层只写自身经验库，不跨层覆盖；复盘摘要只记录索引和路径。",
+            },
+        }
+
+    def _memory_access_policy(
+        self,
+        *,
+        primary_expert: str | None,
+        secondary_experts: list[str],
+        skill_ids: list[str],
+    ) -> dict[str, Any]:
+        expert_ids = [expert_id for expert_id in [primary_expert, *secondary_experts] if expert_id]
+        return {
+            "system_level": {
+                "read": True,
+                "write": "Hermes 主代理 / 全局运行器",
+                "path": str(self.project_root / "memory" / "system_mem" / "MEMORY.md"),
+            },
+            "expert_level": {
+                "read": expert_ids,
+                "write": expert_ids,
+                "paths": {
+                    expert_id: str(self.experts_root / expert_id / "expert_mem" / "MEMORY.md")
+                    for expert_id in expert_ids
+                },
+            },
+            "skill_level": {
+                "read": skill_ids,
+                "write": skill_ids,
+                "paths": {
+                    skill_id: str(self.skills_root / skill_id / "skill_mem" / "MEMORY.md")
+                    for skill_id in skill_ids
+                },
+            },
+            "write_boundary": (
+                "专家只写专家级经验，Skill 只写 Skill 级经验，系统级经验只由 Hermes 主代理维护。"
+            ),
         }
 
     def _default_skill_weights(
@@ -838,6 +896,14 @@ class HermesAgentSystemRuntime:
             "dynamic_overrides": [],
             "human_review_required": package["human_review_required"],
             "human_input_summary": package["human_input_summary"],
+            "human_review_ui_available": self.human_review_callback is not None,
+            "human_review_decision": "missing",
+            "human_review_blocking": True,
+            "human_review_channel": package["human_review_channel"],
+            "skill_execution_modes": [],
+            "real_skill_execution": False,
+            "memory_access_policy": package["memory_access_policy"],
+            "experience_write_scope": package["experience_write_scope"],
             "output": {"result_summary": "依赖节点未完成，当前节点暂停", "blocked_by": blocked_by},
             "exceptions": [
                 {
@@ -1042,9 +1108,15 @@ class HermesAgentSystemRuntime:
         self._write_skill_weights(skill_weight_suggestions)
         review_path = self.reviews_root / f"{run_id}.json"
         latest_path = self.audit_root / "review_summary.json"
-        review_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        latest_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        self._write_json(review_path, summary)
+        self._write_json(latest_path, summary)
         return summary
+
+    def _persist_review_summary(self, run_id: str, summary: dict[str, Any]) -> None:
+        self.reviews_root.mkdir(parents=True, exist_ok=True)
+        self.audit_root.mkdir(parents=True, exist_ok=True)
+        self._write_json(self.reviews_root / f"{run_id}.json", summary)
+        self._write_json(self.audit_root / "review_summary.json", summary)
 
     def _compute_skill_weight_suggestions(
         self,
@@ -1164,6 +1236,8 @@ class HermesAgentSystemRuntime:
             "human_input_summary": result.get("human_input_summary"),
             "skill_execution_modes": result.get("skill_execution_modes", []),
             "real_skill_execution": result.get("real_skill_execution"),
+            "memory_access_policy": result.get("memory_access_policy", {}),
+            "experience_write_scope": result.get("experience_write_scope", {}),
             "exceptions": result.get("exceptions", []),
             "audit_checks": result.get("audit_checks", {}),
             "dynamic_overrides": result.get("dynamic_overrides", []),
@@ -1177,34 +1251,158 @@ class HermesAgentSystemRuntime:
         run_id: str,
         results: list[dict[str, Any]],
         review_summary: dict[str, Any],
-    ) -> None:
-        line = (
-            f"- {self.now_fn().isoformat()} `{run_id}`: "
-            f"success_rate={review_summary['success_rate']}%, "
-            f"exceptions={review_summary['exception_count']}, "
-            f"human_reviews={review_summary['human_review_count']}\n"
+    ) -> list[dict[str, Any]]:
+        timestamp = self.now_fn().isoformat()
+        updates: list[dict[str, Any]] = []
+
+        system_path = self.project_root / "memory" / "system_mem" / "MEMORY.md"
+        system_line = (
+            f"- {timestamp} `{run_id}` 系统级经验: pipeline={review_summary['pipeline_id']}; "
+            f"success_rate={review_summary['success_rate']}%; "
+            f"review_triggers={','.join(review_summary.get('review_triggers', [])) or 'none'}; "
+            "写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。\n"
         )
-        touched_experts = {
+        self._append_memory_line(system_path, "# 系统级经验\n\n", system_line)
+        updates.append(
+            {
+                "layer": "system",
+                "owner": "hermes_main_agent",
+                "path": str(system_path),
+                "write_reason": "运行级全局摘要与复盘触发索引",
+                "write_scope": "system_only",
+            }
+        )
+
+        for expert_id in sorted(self._touched_experts(results)):
+            expert_results = [
+                result
+                for result in results
+                if expert_id in [result.get("primary_expert"), *result.get("secondary_experts", [])]
+            ]
+            skill_usage = sorted(
+                {
+                    call.get("skill_id")
+                    for result in expert_results
+                    for call in [
+                        *result.get("primary_expert_skill_calls", []),
+                        *result.get("secondary_expert_skill_calls", []),
+                    ]
+                    if call.get("expert_id") == expert_id and call.get("skill_id")
+                }
+            )
+            exceptions = sum(len(result.get("exceptions", [])) for result in expert_results)
+            expert_path = self.experts_root / expert_id / "expert_mem" / "MEMORY.md"
+            expert_line = (
+                f"- {timestamp} `{run_id}` 专家级经验: expert={expert_id}; "
+                f"nodes={','.join(result['node_id'] for result in expert_results)}; "
+                f"skill_usage={','.join(skill_usage) or 'none'}; "
+                f"exceptions={exceptions}; "
+                f"human_reviews={sum(1 for result in expert_results if result.get('human_review_required') == '是')}; "
+                "写入主体=对应专家；仅记录专家决策、复盘和 Skill 调用摘要。\n"
+            )
+            self._append_memory_line(expert_path, f"# {expert_id} 私域经验\n\n", expert_line)
+            updates.append(
+                {
+                    "layer": "expert",
+                    "owner": expert_id,
+                    "path": str(expert_path),
+                    "write_reason": "专家决策、复盘结果和 Skill 使用摘要",
+                    "write_scope": "expert_only",
+                    "skill_usage": skill_usage,
+                }
+            )
+
+        for skill_id in sorted(self._touched_skills(results)):
+            calls = [
+                call
+                for result in results
+                for call in [
+                    *result.get("primary_expert_skill_calls", []),
+                    *result.get("secondary_expert_skill_calls", []),
+                ]
+                if call.get("skill_id") == skill_id
+            ]
+            completed = sum(1 for call in calls if call.get("status") == "completed")
+            quality_scores = [float(call.get("output_quality", 0)) for call in calls]
+            exceptions = sum(len(call.get("exceptions", [])) for call in calls)
+            skill_path = self.skills_root / skill_id / "skill_mem" / "MEMORY.md"
+            average_quality = round(sum(quality_scores) / len(quality_scores), 2) if quality_scores else 0.0
+            skill_line = (
+                f"- {timestamp} `{run_id}` Skill级经验: skill={skill_id}; "
+                f"calls={len(calls)}; completed={completed}; "
+                f"average_quality={average_quality}; exceptions={exceptions}; "
+                "写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。\n"
+            )
+            self._append_memory_line(skill_path, f"# {skill_id} Skill级经验\n\n", skill_line)
+            updates.append(
+                {
+                    "layer": "skill",
+                    "owner": skill_id,
+                    "path": str(skill_path),
+                    "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+                    "write_scope": "skill_only",
+                    "call_count": len(calls),
+                    "exception_count": exceptions,
+                    "average_output_quality": average_quality,
+                }
+            )
+
+        self._append_experience_index(run_id, updates)
+        return updates
+
+    @staticmethod
+    def _append_memory_line(path: Path, header: str, line: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text(header, encoding="utf-8")
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+
+    def _append_experience_index(self, run_id: str, updates: list[dict[str, Any]]) -> None:
+        index_path = self.audit_root / "experience_updates.jsonl"
+        self.audit_root.mkdir(parents=True, exist_ok=True)
+        with index_path.open("a", encoding="utf-8") as handle:
+            for update in updates:
+                payload = {"run_id": run_id, "timestamp": self.now_fn().isoformat(), **update}
+                handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+    @staticmethod
+    def _touched_experts(results: list[dict[str, Any]]) -> set[str]:
+        return {
             expert_id
             for result in results
             for expert_id in [result.get("primary_expert"), *result.get("secondary_experts", [])]
             if expert_id
         }
-        touched_skills = {
+
+    @staticmethod
+    def _touched_skills(results: list[dict[str, Any]]) -> set[str]:
+        return {
             skill_id
             for result in results
             for skill_id in result.get("skills_loaded", [])
         }
-        for expert_id in touched_experts:
-            memory_path = self.experts_root / expert_id / "expert_mem" / "MEMORY.md"
-            memory_path.parent.mkdir(parents=True, exist_ok=True)
-            with memory_path.open("a", encoding="utf-8") as handle:
-                handle.write(line)
-        for skill_id in touched_skills:
-            memory_path = self.skills_root / skill_id / "skill_mem" / "MEMORY.md"
-            memory_path.parent.mkdir(parents=True, exist_ok=True)
-            with memory_path.open("a", encoding="utf-8") as handle:
-                handle.write(line)
+
+    @staticmethod
+    def _experience_isolation_policy() -> dict[str, Any]:
+        return {
+            "system_level": {
+                "owner": "Hermes 主代理",
+                "write_scope": "系统级经验库",
+                "contains": "全局策略、用户偏好、会话记忆、运行级复盘索引",
+            },
+            "expert_level": {
+                "owner": "对应专家",
+                "write_scope": "本专家 expert_mem",
+                "contains": "专家决策、历史任务、复盘结果、Skill 调用摘要",
+            },
+            "skill_level": {
+                "owner": "对应 Skill",
+                "write_scope": "本 Skill skill_mem",
+                "contains": "Skill 执行历史、成功率、异常统计、复盘反馈",
+            },
+            "rule": "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。",
+        }
 
     @staticmethod
     def _review_triggers(started_at: datetime, results: list[dict[str, Any]]) -> list[str]:
@@ -1282,6 +1480,11 @@ class HermesAgentSystemRuntime:
         if not path.exists():
             raise FileNotFoundError(f"Required agent_system file does not exist: {path}")
         return json.loads(path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _write_json(path: Path, payload: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     @staticmethod
     def _make_run_id(started_at: datetime, pipeline_id: str) -> str:

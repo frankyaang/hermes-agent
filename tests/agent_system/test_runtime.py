@@ -169,17 +169,35 @@ def test_runtime_executes_dag_writes_audit_review_and_skill_weights(tmp_path: Pa
     review_summary = json.loads((root / "audit" / "review_summary.json").read_text(encoding="utf-8"))
     assert "human_intervention" in review_summary["review_triggers"]
     assert review_summary["skill_weights_updated"] is True
+    assert review_summary["experience_isolation"]["rule"] == "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。"
+    assert {update["layer"] for update in review_summary["experience_updates"]} == {
+        "system",
+        "expert",
+        "skill",
+    }
     weights = json.loads((root / "skill_weights.json").read_text(encoding="utf-8"))
     assert "voc_insight" in weights["skills"]
     assert weights["skills"]["voc_insight"]["weight"] == 100
+    system_memory = (root / "memory" / "system_mem" / "MEMORY.md").read_text(encoding="utf-8")
     expert_memory = (root / "experts" / "user_analyst" / "expert_mem" / "MEMORY.md").read_text(
         encoding="utf-8"
     )
     skill_memory = (root / "skills" / "voc_insight" / "skill_mem" / "MEMORY.md").read_text(
         encoding="utf-8"
     )
+    assert result["run_id"] in system_memory
     assert result["run_id"] in expert_memory
     assert result["run_id"] in skill_memory
+    assert "系统级经验" in system_memory
+    assert "专家级经验" in expert_memory
+    assert "Skill级经验" in skill_memory
+    assert "Skill级经验" not in expert_memory
+    assert "专家级经验" not in skill_memory
+    experience_index = (root / "audit" / "experience_updates.jsonl").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    assert len(experience_index) == len(review_summary["experience_updates"])
+    assert json.loads(experience_index[0])["write_scope"] == "system_only"
 
 
 def test_user_gate_blocks_downstream_without_human_input(tmp_path: Path) -> None:

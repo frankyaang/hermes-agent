@@ -686,7 +686,7 @@ class HermesExpertManager:
             r"(\| Skill ID \| Skill 名称 \| Base Weight \| 默认用途 \| 加载策略 \| 当前状态 \|\n"
             r"\| --- \| --- \| --- \| --- \| --- \| --- \|\n)"
             r"(?:\|.*\|\n)+"
-            r"(?=\n### 3\.1 权重公式)"
+            r"(?=\n### (?:3|4)\.1 权重公式)"
         )
         replacement = r"\1" + "\n".join(skill_rows) + "\n"
         content, replacements = re.subn(table_pattern, replacement, content, count=1)
