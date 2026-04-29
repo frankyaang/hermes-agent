@@ -103,6 +103,25 @@ def _tool_display_name(tool_name: str | None) -> str:
         return "工具"
     return TOOL_DISPLAY_NAMES.get(tool_name, tool_name)
 
+
+def _extract_leading_expert_layer_ui(text: str | None) -> tuple[str | None, str]:
+    """Extract a leading expert-layer UI block for gateway progress display."""
+    if not text:
+        return None, text or ""
+    lines = text.splitlines()
+    if not lines or not re.match(r"^\s{0,3}#{1,6}\s*专家层调度\s*$", lines[0].strip()):
+        return None, text
+    split_at = None
+    for idx, line in enumerate(lines[1:], start=1):
+        if not line.strip():
+            split_at = idx
+            break
+    if split_at is None:
+        return text.strip(), ""
+    block = "\n".join(lines[:split_at]).strip()
+    remainder = "\n".join(lines[split_at + 1:]).lstrip()
+    return block, remainder
+
 # ---------------------------------------------------------------------------
 # SSL certificate auto-detection for NixOS and other non-standard systems.
 # Must run BEFORE any HTTP library (discord, aiohttp, etc.) is imported.
@@ -10062,14 +10081,21 @@ class GatewayRunner:
                         except Exception:
                             break
                     # Final edit with all remaining tools (only if editing works)
-                    if can_edit and progress_lines and progress_msg_id:
+                    if can_edit and progress_lines:
                         full_text = "\n".join(progress_lines)
                         try:
-                            await adapter.edit_message(
-                                chat_id=source.chat_id,
-                                message_id=progress_msg_id,
-                                content=full_text,
-                            )
+                            if progress_msg_id:
+                                await adapter.edit_message(
+                                    chat_id=source.chat_id,
+                                    message_id=progress_msg_id,
+                                    content=full_text,
+                                )
+                            else:
+                                await adapter.send(
+                                    chat_id=source.chat_id,
+                                    content=full_text,
+                                    metadata=_progress_metadata,
+                                )
                         except Exception:
                             pass
                     return
@@ -10274,6 +10300,13 @@ class GatewayRunner:
             def _interim_assistant_cb(text: str, *, already_streamed: bool = False) -> None:
                 if not _run_still_current():
                     return
+                if not already_streamed and tool_progress_enabled and progress_queue:
+                    _expert_ui, _remaining_text = _extract_leading_expert_layer_ui(text)
+                    if _expert_ui:
+                        progress_queue.put(f"🧭 {_expert_ui}")
+                        text = _remaining_text
+                        if not str(text or "").strip():
+                            return
                 if _stream_consumer is not None:
                     if already_streamed:
                         _stream_consumer.on_segment_break()
@@ -10950,6 +10983,49 @@ class GatewayRunner:
 
         _notify_task = asyncio.create_task(_notify_long_running())
 
+        async def _flush_remaining_progress_queue_direct():
+            """Deliver queued progress if the progress task never got a turn."""
+            if not progress_queue or progress_queue.empty():
+                return
+            adapter = self.adapters.get(source.platform)
+            if not adapter:
+                while not progress_queue.empty():
+                    try:
+                        progress_queue.get_nowait()
+                    except Exception:
+                        break
+                return
+            if type(adapter).edit_message is BasePlatformAdapter.edit_message:
+                while not progress_queue.empty():
+                    try:
+                        progress_queue.get_nowait()
+                    except Exception:
+                        break
+                return
+
+            progress_lines = []
+            while not progress_queue.empty():
+                try:
+                    raw = progress_queue.get_nowait()
+                    if isinstance(raw, tuple) and len(raw) == 3 and raw[0] == "__dedup__":
+                        _, base_msg, count = raw
+                        if progress_lines:
+                            progress_lines[-1] = f"{base_msg} (×{count + 1})"
+                    else:
+                        progress_lines.append(raw)
+                except Exception:
+                    break
+            if not progress_lines:
+                return
+            try:
+                await adapter.send(
+                    chat_id=source.chat_id,
+                    content="\n".join(progress_lines),
+                    metadata=_progress_metadata,
+                )
+            except Exception as _flush_err:
+                logger.debug("Final progress queue flush failed: %s", _flush_err)
+
         try:
             # Run in thread pool to not block.  Use an *inactivity*-based
             # timeout instead of a wall-clock limit: the agent can run for
@@ -11124,6 +11200,16 @@ class GatewayRunner:
                     "history_offset": 0,
                     "failed": True,
                 }
+
+            # Move a leading expert-layer UI block into the editable gateway
+            # progress module, keeping the final answer body focused.
+            if tool_progress_enabled and progress_queue and isinstance(response, dict):
+                _expert_ui, _stripped_response = _extract_leading_expert_layer_ui(
+                    response.get("final_response")
+                )
+                if _expert_ui:
+                    progress_queue.put(f"🧭 {_expert_ui}")
+                    response["final_response"] = _stripped_response
 
             # Track fallback model state: if the agent switched to a
             # fallback model during this run, persist it so /model shows
@@ -11386,6 +11472,9 @@ class GatewayRunner:
                         await task
                     except asyncio.CancelledError:
                         pass
+
+            if progress_task:
+                await _flush_remaining_progress_queue_direct()
 
         # If streaming already delivered the response, mark it so the
         # caller's send() is skipped (avoiding duplicate messages).

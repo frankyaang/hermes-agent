@@ -196,7 +196,7 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
     assert adapter.sent == [
         {
             "chat_id": "-1001",
-            "content": '💻 terminal: "pwd"',
+            "content": '💻 终端: "pwd"',
             "reply_to": None,
             "metadata": {"thread_id": "17585"},
         }
@@ -259,6 +259,12 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
     fake_run_agent = types.ModuleType("run_agent")
     fake_run_agent.AIAgent = FakeAgent
     monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    import yaml
+
+    (tmp_path / "config.yaml").write_text(
+        yaml.dump({"display": {"tool_progress": "all"}}),
+        encoding="utf-8",
+    )
 
     adapter = ProgressCaptureAdapter(platform=Platform.SLACK)
     runner = _make_runner(adapter)
@@ -403,6 +409,41 @@ class CommentaryAgent:
             self.stream_delta_callback("done")
         return {
             "final_response": "done",
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
+class ExpertLayerInterimAgent:
+    EXPERT_UI = "# 专家层调度\n- 主专家：用户洞察\n- 辅专家：风险复核"
+    COMMENTARY = "我会继续处理正文。"
+
+    def __init__(self, **kwargs):
+        self.interim_assistant_callback = kwargs.get("interim_assistant_callback")
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        if self.interim_assistant_callback:
+            self.interim_assistant_callback(
+                f"{self.EXPERT_UI}\n\n{self.COMMENTARY}",
+                already_streamed=False,
+            )
+        return {
+            "final_response": "done",
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
+class ExpertLayerFinalAgent:
+    EXPERT_UI = "# 专家层调度\n- 主专家：用户洞察\n- 辅专家：风险复核"
+
+    def __init__(self, **kwargs):
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        return {
+            "final_response": f"{self.EXPERT_UI}\n\n最终结论。",
             "messages": [],
             "api_calls": 1,
         }
@@ -583,6 +624,43 @@ async def test_run_agent_surfaces_interim_commentary_by_default(monkeypatch, tmp
     )
 
     assert any(call["content"] == "I'll inspect the repo first." for call in adapter.sent)
+
+
+@pytest.mark.asyncio
+async def test_run_agent_moves_interim_expert_layer_ui_to_progress(monkeypatch, tmp_path):
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        ExpertLayerInterimAgent,
+        session_id="sess-expert-layer-interim",
+        config_data={"display": {"tool_progress": "all", "interim_assistant_messages": True}},
+    )
+
+    progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
+    assert result["final_response"] == "done"
+    assert any("🧭 # 专家层调度" in text for text in progress_texts)
+    assert any(call["content"] == ExpertLayerInterimAgent.COMMENTARY for call in adapter.sent)
+    assert not any(
+        call["content"].startswith("# 专家层调度")
+        for call in adapter.sent
+        if call["content"] != ExpertLayerInterimAgent.COMMENTARY
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_agent_moves_final_expert_layer_ui_to_progress(monkeypatch, tmp_path):
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        ExpertLayerFinalAgent,
+        session_id="sess-expert-layer-final",
+        config_data={"display": {"tool_progress": "all"}},
+    )
+
+    progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
+    assert result["final_response"] == "最终结论。"
+    assert any("🧭 # 专家层调度" in text for text in progress_texts)
+    assert "专家层调度" not in result["final_response"]
 
 
 @pytest.mark.asyncio

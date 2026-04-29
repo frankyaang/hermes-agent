@@ -1,3 +1,71 @@
+# Gateway Expert Layer UI Progress Injection Plan
+
+## Goal
+
+将 assistant 输出开头的“专家层调度”UI 块从正文中抽离，并在 Gateway 工具进度模块中展示。成功标准是：`gateway/run.py` 能识别 leading expert layer UI，`_interim_assistant_cb` 和 final response 都能把该 UI 注入 `progress_queue`，最终正文不重复携带 UI 内容，普通中间消息、Skill 渲染、DAG/Skill/复盘闭环不受影响。
+
+## Scope
+
+- 在 official `gateway/run.py` 增加 `_extract_leading_expert_layer_ui(...)`。
+- 在 `_interim_assistant_cb` 里将 leading expert layer UI 写入工具进度队列，并继续发送剩余普通 commentary。
+- 在 final response 返回前剥离 leading expert layer UI，并写入工具进度队列。
+- 增加 Gateway 聚焦回归测试，验证进度模块展示 UI、正文剥离 UI、普通 commentary 不受影响。
+
+## Non-goals
+
+- 不改变 agent_system DAG、Skill 执行、复盘和审计逻辑。
+- 不改变普通工具进度事件格式。
+- 不引入新的 UI 协议；本轮仅兼容当前 leading “专家层调度”块。
+
+## Context
+
+- dev 环境已有 `_extract_leading_expert_layer_ui(...)`，规则为仅识别正文开头的 `#` 到 `######` “专家层调度”标题块，遇到首个空行后切分。
+- official Gateway 已有 `progress_queue`、`send_progress_messages()` 和 `_interim_assistant_cb`，但没有 expert layer UI 抽离。
+- final response 在 run_sync 内返回，progress task 在外层 finally 中取消并 drain 队列，因此 final response 注入的 UI 仍可被最终编辑到工具进度消息。
+
+## Milestones
+
+1. 复用 dev 的 expert layer UI 提取逻辑。
+2. 接入 interim assistant callback。
+3. 接入 final response 剥离和 progress_queue 注入。
+4. 补充 Gateway 测试。
+5. 运行聚焦验证并提交本地改动。
+
+## Validation
+
+- `python -m py_compile gateway/run.py tests/gateway/test_run_progress_topics.py`
+- `scripts/run_tests.sh tests/gateway/test_run_progress_topics.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 完成 official 与 dev 差异核查。
+- [x] 完成 `gateway/run.py` 注入逻辑。
+- [x] 完成 Gateway 回归测试。
+- [x] 完成聚焦验证。
+
+## Decision Log
+
+- 仅抽取 leading “专家层调度”标题块，避免普通说明或其他标题被误剥离。
+- UI 注入工具进度模块时保留 `🧭` 前缀，与 dev 行为一致，便于用户识别专家层展示。
+- tool progress 关闭时不额外发送 expert UI，保持“工具进度模块显示”语义，不把 UI 重新塞回正文。
+- progress task 取消时如果队列里只有 final expert UI 且尚未创建进度消息，也会发送一次完整进度内容，避免快速完成的 final UI 丢失。
+- 验证结果：`scripts/run_tests.sh tests/gateway/test_run_progress_topics.py` 通过 26 个测试，覆盖 progress_queue 展示、正文剥离、普通 commentary 保留。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '90,170p' gateway/run.py
+sed -n '10270,10310p' gateway/run.py
+sed -n '11090,11140p' gateway/run.py
+git status --short --branch
+```
+
+---
+
 # Agent System Runtime Closed Loop Plan
 
 ## Goal
