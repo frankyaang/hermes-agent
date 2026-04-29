@@ -45,6 +45,7 @@ TOOL_DISPLAY_NAMES = {
     # 核心技能
     "skill_view": "技能视图",
     "skills_list": "技能列表",
+    "skill_manage": "技能管理",
     # 终端与进程
     "execute_code": "执行代码",
     "terminal": "终端",
@@ -97,11 +98,47 @@ TOOL_DISPLAY_NAMES = {
 }
 
 
+SKILL_DISPLAY_NAMES = {
+    "expert-layer-ui": "专家层展示",
+    "feishu-chat-history-audit": "飞书会话审计",
+    "feishu-doc-append-via-api": "飞书文档写入",
+    "feishu-open-platform-change-notices": "飞书变更公告",
+    "product-ops-dashboard": "产品运营看板",
+    "robot-product-voc-survey-insight": "机器人 VOC 洞察",
+    "voc-dashboard-html": "VOC 看板 HTML",
+    "writing-plans": "计划写作",
+    "systematic-debugging": "系统化调试",
+    "test-driven-development": "测试驱动开发",
+    "subagent-driven-development": "子代理开发",
+    "hermes-agent": "Hermes 智能体",
+}
+
+
 def _tool_display_name(tool_name: str | None) -> str:
     """返回网关进度消息使用的本地化工具名。"""
     if not tool_name:
         return "工具"
     return TOOL_DISPLAY_NAMES.get(tool_name, tool_name)
+
+
+def _skill_display_name(skill_name: str | None) -> str | None:
+    """返回简洁中文技能名，同时保留精确 skill ID。"""
+    if not skill_name:
+        return None
+    cn_name = SKILL_DISPLAY_NAMES.get(skill_name)
+    return f"{cn_name}（{skill_name}）" if cn_name else skill_name
+
+
+def _tool_preview_display(tool_name: str | None, preview: str | None, args: Any = None) -> str | None:
+    """本地化网关进度预览，保留工具/skill 精确 ID 便于定位。"""
+    if not preview:
+        return preview
+    if tool_name in {"skill_view", "skill_manage"}:
+        skill_name = args.get("name") if isinstance(args, dict) else None
+        return _skill_display_name(skill_name) or preview
+    if tool_name == "memory":
+        return preview.replace("~memory:", "长期记忆（memory）：").replace("~user:", "用户画像（user）：")
+    return preview
 
 
 _EXPERT_LAYER_PROGRESS_HEADING = "### 🧭 任务规划"
@@ -9917,6 +9954,7 @@ class GatewayRunner:
             from agent.display import get_tool_emoji
             emoji = get_tool_emoji(tool_name, default="⚙️")
             display_tool_name = _tool_display_name(tool_name)
+            preview = _tool_preview_display(tool_name, preview, args)
             
             # Verbose mode: show detailed arguments, respects tool_preview_length
             if progress_mode == "verbose":
