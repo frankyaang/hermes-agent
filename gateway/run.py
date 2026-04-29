@@ -104,20 +104,33 @@ def _tool_display_name(tool_name: str | None) -> str:
     return TOOL_DISPLAY_NAMES.get(tool_name, tool_name)
 
 
+_EXPERT_LAYER_PROGRESS_HEADING = "### 🧭 任务规划"
+_EXECUTION_PROGRESS_HEADING = "### 🛠 执行记录"
+_TASK_PLAN_PROGRESS_EVENT = "__task_plan__"
+_EXECUTION_LOG_PROGRESS_EVENT = "__execution_log__"
+
+
 def _extract_leading_expert_layer_ui(text: str | None) -> tuple[str | None, str]:
-    """Extract a leading expert-layer UI block for gateway progress display."""
+    """Extract and normalize a leading expert-layer UI block for progress display."""
     if not text:
         return None, text or ""
     lines = text.splitlines()
-    if not lines or not re.match(r"^\s{0,3}#{1,6}\s*专家层调度\s*$", lines[0].strip()):
+    if not lines or not re.match(
+        r"^\s{0,3}(?:🧭\s*)?#{1,6}\s*(?:🧭\s*)?(?:专家层调度|任务规划)\s*$",
+        lines[0].strip(),
+    ):
         return None, text
+    # The assistant-facing prompt may still say "专家层调度" for backwards
+    # compatibility. The Gateway progress UI uses the cleaner user-facing
+    # module name, with the Markdown heading marker before the emoji.
+    lines[0] = _EXPERT_LAYER_PROGRESS_HEADING
     split_at = None
     for idx, line in enumerate(lines[1:], start=1):
         if not line.strip():
             split_at = idx
             break
     if split_at is None:
-        return text.strip(), ""
+        return "\n".join(lines).strip(), ""
     block = "\n".join(lines[:split_at]).strip()
     remainder = "\n".join(lines[split_at + 1:]).lstrip()
     return block, remainder
@@ -9832,6 +9845,18 @@ class GatewayRunner:
             if not progress_queue or not _run_still_current():
                 return
 
+            if event_type in (_TASK_PLAN_PROGRESS_EVENT, _EXECUTION_LOG_PROGRESS_EVENT):
+                payload_key = "plan_text" if event_type == _TASK_PLAN_PROGRESS_EVENT else "log_line"
+                payload = (
+                    preview
+                    or kwargs.get(payload_key)
+                    or (args or {}).get(payload_key)
+                    or tool_name
+                    or ""
+                )
+                progress_queue.put((event_type, payload))
+                return
+
             # First-touch onboarding: the first time a tool takes longer than
             # _LONG_TOOL_THRESHOLD_S during a run that's streaming every tool
             # (progress_mode == "all"), append a one-time hint suggesting
@@ -9852,7 +9877,12 @@ class GatewayRunner:
                         gate_on = bool(_cfg.get("display", {}).get("tool_progress_command", False))
                         if gate_on and not is_seen(_cfg, TOOL_PROGRESS_FLAG):
                             long_tool_hint_fired[0] = True
-                            progress_queue.put(tool_progress_hint_gateway())
+                            progress_queue.put(
+                                (
+                                    _EXECUTION_LOG_PROGRESS_EVENT,
+                                    tool_progress_hint_gateway(),
+                                )
+                            )
                             mark_seen(_hermes_home / "config.yaml", TOOL_PROGRESS_FLAG)
                 except Exception as _hint_err:
                     logger.debug("tool-progress onboarding hint failed: %s", _hint_err)
@@ -9904,7 +9934,7 @@ class GatewayRunner:
                     msg = f"{emoji} {display_tool_name}: \"{preview}\""
                 else:
                     msg = f"{emoji} {display_tool_name}..."
-                progress_queue.put(msg)
+                progress_queue.put((_EXECUTION_LOG_PROGRESS_EVENT, msg))
                 return
             
             # "all" / "new" modes: short preview, respects tool_preview_length
@@ -9932,7 +9962,7 @@ class GatewayRunner:
             last_progress_msg[0] = msg
             repeat_count[0] = 0
             
-            progress_queue.put(msg)
+            progress_queue.put((_EXECUTION_LOG_PROGRESS_EVENT, msg))
         
         # Background task to send progress messages
         # Accumulates tool lines into a single message that gets edited.
@@ -9947,6 +9977,78 @@ class GatewayRunner:
         else:
             _progress_thread_id = source.thread_id
         _progress_metadata = {"thread_id": _progress_thread_id} if _progress_thread_id else None
+
+        progress_render_state = {"task_plan": None, "execution_lines": []}
+
+        def _normalize_task_plan_progress(plan_text: Any) -> str | None:
+            plan = str(plan_text or "").strip()
+            if not plan:
+                return None
+            first_line = plan.splitlines()[0].strip() if plan.splitlines() else ""
+            if first_line.startswith(_EXPERT_LAYER_PROGRESS_HEADING):
+                return plan
+            if "全局任务规划" in first_line or "当前阶段任务规划" in first_line:
+                return plan
+            return f"{_EXPERT_LAYER_PROGRESS_HEADING}\n{plan}"
+
+        def _append_execution_progress(log_line: Any) -> None:
+            line = str(log_line or "").strip()
+            if line:
+                progress_render_state["execution_lines"].append(line)
+
+        def _replace_last_execution_progress(base_msg: str, new_msg: str) -> None:
+            execution_lines = progress_render_state["execution_lines"]
+            if not execution_lines:
+                _append_execution_progress(new_msg)
+                return
+            previous = execution_lines[-1]
+            if isinstance(previous, str) and previous.endswith(base_msg):
+                execution_lines[-1] = previous[: -len(base_msg)] + new_msg
+            else:
+                execution_lines[-1] = new_msg
+
+        def _apply_progress_event(raw: Any) -> str | None:
+            if isinstance(raw, tuple):
+                if len(raw) == 2 and raw[0] == _TASK_PLAN_PROGRESS_EVENT:
+                    plan = _normalize_task_plan_progress(raw[1])
+                    if plan:
+                        progress_render_state["task_plan"] = plan
+                    return _render_progress_text()
+                if len(raw) == 2 and raw[0] == _EXECUTION_LOG_PROGRESS_EVENT:
+                    _append_execution_progress(raw[1])
+                    return str(raw[1] or "").strip() or _render_progress_text()
+                if len(raw) == 3 and raw[0] == "__dedup__":
+                    _, base_msg, count = raw
+                    _replace_last_execution_progress(base_msg, f"{base_msg} (×{count + 1})")
+                    return progress_render_state["execution_lines"][-1]
+
+            if isinstance(raw, str):
+                plan = _normalize_task_plan_progress(raw)
+                first_line = raw.splitlines()[0].strip() if raw.splitlines() else ""
+                if (
+                    raw.lstrip().startswith(_EXPERT_LAYER_PROGRESS_HEADING)
+                    or "全局任务规划" in first_line
+                    or "当前阶段任务规划" in first_line
+                ):
+                    progress_render_state["task_plan"] = plan
+                    return _render_progress_text()
+                _append_execution_progress(raw)
+                return raw
+
+            _append_execution_progress(raw)
+            return str(raw or "").strip() or _render_progress_text()
+
+        def _render_progress_text() -> str:
+            sections = []
+            task_plan = progress_render_state["task_plan"]
+            execution_lines = progress_render_state["execution_lines"]
+            if task_plan:
+                sections.append(task_plan)
+            if execution_lines:
+                execution_section = _EXECUTION_PROGRESS_HEADING
+                execution_section = f"{execution_section}\n" + "\n".join(execution_lines)
+                sections.append(execution_section)
+            return "\n---\n".join(sections)
 
         async def send_progress_messages():
             if not progress_queue:
@@ -9967,7 +10069,6 @@ class GatewayRunner:
                         break
                 return
 
-            progress_lines = []      # Accumulated tool lines
             progress_msg_id = None   # ID of the progress message to edit
             can_edit = True          # False once an edit fails (platform doesn't support it)
             _last_edit_ts = 0.0      # Throttle edits to avoid Telegram flood control
@@ -10001,15 +10102,13 @@ class GatewayRunner:
                     except Exception:
                         pass
 
-                    # Handle dedup messages: update last line with repeat counter
-                    if isinstance(raw, tuple) and len(raw) == 3 and raw[0] == "__dedup__":
-                        _, base_msg, count = raw
-                        if progress_lines:
-                            progress_lines[-1] = f"{base_msg} (×{count + 1})"
-                        msg = progress_lines[-1] if progress_lines else base_msg
-                    else:
-                        msg = raw
-                        progress_lines.append(msg)
+                    # Apply structured progress events. Task plans replace the
+                    # current planning block; execution logs append to history.
+                    msg = _apply_progress_event(raw)
+                    full_text = _render_progress_text()
+                    if not full_text:
+                        continue
+                    msg = msg or full_text
 
                     # Throttle edits: batch rapid tool updates into fewer
                     # API calls to avoid hitting Telegram flood control.
@@ -10029,7 +10128,6 @@ class GatewayRunner:
 
                     if can_edit and progress_msg_id is not None:
                         # Try to edit the existing progress message
-                        full_text = "\n".join(progress_lines)
                         result = await adapter.edit_message(
                             chat_id=source.chat_id,
                             message_id=progress_msg_id,
@@ -10050,7 +10148,6 @@ class GatewayRunner:
                     else:
                         if can_edit:
                             # First tool: send all accumulated text as new message
-                            full_text = "\n".join(progress_lines)
                             result = await adapter.send(chat_id=source.chat_id, content=full_text, metadata=_progress_metadata)
                         else:
                             # Editing unsupported: send just this line
@@ -10072,17 +10169,12 @@ class GatewayRunner:
                     while not progress_queue.empty():
                         try:
                             raw = progress_queue.get_nowait()
-                            if isinstance(raw, tuple) and len(raw) == 3 and raw[0] == "__dedup__":
-                                _, base_msg, count = raw
-                                if progress_lines:
-                                    progress_lines[-1] = f"{base_msg} (×{count + 1})"
-                            else:
-                                progress_lines.append(raw)
+                            _apply_progress_event(raw)
                         except Exception:
                             break
                     # Final edit with all remaining tools (only if editing works)
-                    if can_edit and progress_lines:
-                        full_text = "\n".join(progress_lines)
+                    full_text = _render_progress_text()
+                    if can_edit and full_text:
                         try:
                             if progress_msg_id:
                                 await adapter.edit_message(
@@ -10303,7 +10395,7 @@ class GatewayRunner:
                 if not already_streamed and tool_progress_enabled and progress_queue:
                     _expert_ui, _remaining_text = _extract_leading_expert_layer_ui(text)
                     if _expert_ui:
-                        progress_queue.put(f"🧭 {_expert_ui}")
+                        progress_queue.put((_TASK_PLAN_PROGRESS_EVENT, _expert_ui))
                         text = _remaining_text
                         if not str(text or "").strip():
                             return
@@ -11003,24 +11095,19 @@ class GatewayRunner:
                         break
                 return
 
-            progress_lines = []
             while not progress_queue.empty():
                 try:
                     raw = progress_queue.get_nowait()
-                    if isinstance(raw, tuple) and len(raw) == 3 and raw[0] == "__dedup__":
-                        _, base_msg, count = raw
-                        if progress_lines:
-                            progress_lines[-1] = f"{base_msg} (×{count + 1})"
-                    else:
-                        progress_lines.append(raw)
+                    _apply_progress_event(raw)
                 except Exception:
                     break
-            if not progress_lines:
+            full_text = _render_progress_text()
+            if not full_text:
                 return
             try:
                 await adapter.send(
                     chat_id=source.chat_id,
-                    content="\n".join(progress_lines),
+                    content=full_text,
                     metadata=_progress_metadata,
                 )
             except Exception as _flush_err:
@@ -11208,7 +11295,7 @@ class GatewayRunner:
                     response.get("final_response")
                 )
                 if _expert_ui:
-                    progress_queue.put(f"🧭 {_expert_ui}")
+                    progress_queue.put((_TASK_PLAN_PROGRESS_EVENT, _expert_ui))
                     response["final_response"] = _stripped_response
 
             # Track fallback model state: if the agent switched to a

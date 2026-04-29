@@ -196,7 +196,7 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
     assert adapter.sent == [
         {
             "chat_id": "-1001",
-            "content": '💻 终端: "pwd"',
+            "content": '### 🛠 执行记录\n💻 终端: "pwd"',
             "reply_to": None,
             "metadata": {"thread_id": "17585"},
         }
@@ -449,6 +449,31 @@ class ExpertLayerFinalAgent:
         }
 
 
+class TaskPlanProgressEventAgent:
+    def __init__(self, **kwargs):
+        self.tool_progress_callback = kwargs.get("tool_progress_callback")
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        self.tool_progress_callback(
+            "__task_plan__",
+            preview="🧭 全局任务规划\n* 当前阶段：诊断阶段\n* 下一步：查配置",
+        )
+        self.tool_progress_callback(
+            "__execution_log__",
+            preview='💻 终端: "ps -axo pid,ppid,lstart,etime,command"',
+        )
+        self.tool_progress_callback(
+            "__task_plan__",
+            preview="🧭 全局任务规划\n* 当前阶段：验收阶段\n* 下一步：输出结论",
+        )
+        return {
+            "final_response": "done",
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
 class PreviewedResponseAgent:
     def __init__(self, **kwargs):
         self.interim_assistant_callback = kwargs.get("interim_assistant_callback")
@@ -638,7 +663,7 @@ async def test_run_agent_moves_interim_expert_layer_ui_to_progress(monkeypatch, 
 
     progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
     assert result["final_response"] == "done"
-    assert any("🧭 # 专家层调度" in text for text in progress_texts)
+    assert any("### 🧭 任务规划" in text for text in progress_texts)
     assert any(call["content"] == ExpertLayerInterimAgent.COMMENTARY for call in adapter.sent)
     assert not any(
         call["content"].startswith("# 专家层调度")
@@ -659,8 +684,28 @@ async def test_run_agent_moves_final_expert_layer_ui_to_progress(monkeypatch, tm
 
     progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
     assert result["final_response"] == "最终结论。"
-    assert any("🧭 # 专家层调度" in text for text in progress_texts)
+    assert any("### 🧭 任务规划" in text for text in progress_texts)
     assert "专家层调度" not in result["final_response"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_refreshes_task_plan_and_appends_execution_log(monkeypatch, tmp_path):
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        TaskPlanProgressEventAgent,
+        session_id="sess-task-plan-events",
+        config_data={"display": {"tool_progress": "all"}},
+    )
+
+    assert result["final_response"] == "done"
+    progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
+    assert progress_texts
+    latest_progress = progress_texts[-1]
+    assert "验收阶段" in latest_progress
+    assert "诊断阶段" not in latest_progress
+    assert "### 🛠 执行记录" in latest_progress
+    assert '💻 终端: "ps -axo pid,ppid,lstart,etime,command"' in latest_progress
 
 
 @pytest.mark.asyncio

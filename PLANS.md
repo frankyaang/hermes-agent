@@ -1,3 +1,65 @@
+# Gateway Dynamic Task Plan Progress Rendering Plan
+
+## Goal
+
+在 Gateway 工具进度模块中实现动态任务规划刷新与执行记录追加。成功标准是：`("__task_plan__", plan_text)` 能替换当前任务规划区域，`("__execution_log__", log_line)` 能持续追加执行流水，渲染时固定组合为“最新任务规划 + 完整执行记录”，并兼容当前 leading “专家层调度 / 任务规划”正文抽离逻辑。
+
+## Scope
+
+- 扩展 official `gateway/run.py` 的 progress queue 协议，新增 `__task_plan__` 和 `__execution_log__` 事件。
+- 将工具启动进度改为结构化执行记录事件，保留 dedup 计数能力。
+- 将 interim/final 的 leading 专家层/任务规划 UI 注入为结构化任务规划事件，支持后续刷新替换。
+- 更新快速完成时的 progress queue 兜底 flush，使用同一套任务规划 + 执行记录渲染状态。
+- 补充 Gateway 测试，覆盖任务规划替换、执行记录追加、最终正文剥离和普通进度兼容。
+
+## Non-goals
+
+- 不改变 DAG、Skill、人工审批和复盘运行逻辑。
+- 不实现独立前端组件；本轮仍通过现有 Gateway 工具进度消息渲染。
+- 不要求模型每次都输出任务规划；仅在收到结构化事件或 leading 规划块时刷新。
+
+## Context
+
+- 当前 Gateway 工具进度由 `progress_queue` 驱动，已有 `("__dedup__", msg, count)` 事件。
+- 当前 working tree 已有任务规划标题归一化和执行记录分区的未提交逻辑，本轮在其上继续实现替换/追加状态模型。
+- 用户要求模板顺序为：全局任务规划、专家分工、当前阶段任务规划、执行记录。
+
+## Validation
+
+- `python -m py_compile gateway/run.py tests/gateway/test_run_progress_topics.py`
+- `scripts/run_tests.sh tests/gateway/test_run_progress_topics.py`
+- `scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 完成现有 progress queue 和未提交变更核查。
+- [x] 实现结构化任务规划/执行记录事件。
+- [x] 补充回归测试。
+- [x] 完成验证。
+
+## Decision Log
+
+- `__task_plan__` 事件替换当前规划，不保留旧规划文本。
+- `__execution_log__` 事件追加到执行记录区，不覆盖历史记录。
+- 旧式 raw string 仍兼容：任务规划标题开头的 raw string 视为规划刷新，其他 raw string 视为执行记录追加。
+- dedup 只作用于执行记录最后一行，不影响任务规划区域。
+- 验证结果：`scripts/run_tests.sh tests/gateway/test_run_progress_topics.py` 通过 27 个测试；`scripts/run_tests.sh tests/agent_system/test_runtime.py tests/agent_system/test_cli_bridge.py` 通过 11 个测试；`git diff --check` 通过。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '100,150p' gateway/run.py
+sed -n '9950,10130p' gateway/run.py
+sed -n '10980,11045p' gateway/run.py
+git status --short --branch
+```
+
+---
+
 # Gateway Expert Layer UI Progress Injection Plan
 
 ## Goal
