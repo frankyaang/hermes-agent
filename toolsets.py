@@ -102,6 +102,12 @@ TOOLSETS = {
         "tools": ["mixture_of_agents"],
         "includes": []
     },
+
+    "knowledge": {
+        "description": "Business knowledge base — query and write product line knowledge with ACL enforcement",
+        "tools": ["knowledge_query", "knowledge_write"],
+        "includes": [],
+    },
     
     "skills": {
         "description": "Access, create, edit, and manage skill documents with specialized instructions and knowledge",
