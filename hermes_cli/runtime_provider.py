@@ -69,9 +69,9 @@ def _detect_api_mode_for_url(base_url: str) -> Optional[str]:
       protocol under a ``/anthropic`` suffix — treat those as
       ``anthropic_messages`` transport instead of the default
       ``chat_completions``.
-    - Kimi Code's ``api.kimi.com/coding`` endpoint also speaks the
-      Anthropic Messages protocol (the /coding route accepts Claude
-      Code's native request shape).
+    - Kimi Code's ``api.kimi.com/coding/v1`` endpoint is OpenAI-compatible
+      for Hermes fallback usage.  Do not auto-route it to Anthropic Messages;
+      the OpenAI SDK targets ``/chat/completions`` correctly from that base.
     """
     normalized = (base_url or "").strip().lower().rstrip("/")
     hostname = base_url_hostname(base_url)
@@ -80,8 +80,6 @@ def _detect_api_mode_for_url(base_url: str) -> Optional[str]:
     if hostname == "api.openai.com":
         return "codex_responses"
     if normalized.endswith("/anthropic"):
-        return "anthropic_messages"
-    if hostname == "api.kimi.com" and "/coding" in normalized:
         return "anthropic_messages"
     return None
 
