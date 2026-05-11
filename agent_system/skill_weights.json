@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "updated_at": "2026-05-11T02:49:49.842095+00:00",
+  "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1",
+  "skills": {
+    "voc_insight": {
+      "base_weight": 100,
+      "success_rate": 0.0,
+      "output_quality": 30.0,
+      "exception_count": 1,
+      "dynamic_coverage_frequency": 0,
+      "weight": 100,
+      "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1"
+    },
+    "ops_dashboard": {
+      "base_weight": 100,
+      "success_rate": 0.0,
+      "output_quality": 30.0,
+      "exception_count": 1,
+      "dynamic_coverage_frequency": 1,
+      "weight": 100,
+      "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1"
+    }
+  }
+}

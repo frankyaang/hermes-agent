@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 import os
 import random
 import re
+import sqlite3
 import ssl
 import sys
 import tempfile
@@ -1615,15 +1616,46 @@ class AIAgent:
                 self._memory_enabled = mem_config.get("memory_enabled", False)
                 self._user_profile_enabled = mem_config.get("user_profile_enabled", False)
                 self._memory_nudge_interval = int(mem_config.get("nudge_interval", 10))
+                self._memory_backend = mem_config.get("backend", "files")  # 'files' or 'sqlite'
+
                 if self._memory_enabled or self._user_profile_enabled:
-                    from tools.memory_tool import MemoryStore
-                    self._memory_store = MemoryStore(
-                        memory_char_limit=mem_config.get("memory_char_limit", 2200),
-                        user_char_limit=mem_config.get("user_char_limit", 1375),
-                    )
-                    self._memory_store.load_from_disk()
+                    if self._memory_backend == "sqlite":
+                        # SQLite backend (Phase 2)
+                        try:
+                            from pathlib import Path
+                            from agent.memory_database import MemoryDatabase
+                            db_path = get_hermes_home() / "memories" / f"{self.user_id or 'default'}.db"
+                            self._memory_db = MemoryDatabase(db_path, self.user_id or "default")
+                            self._memory_store = None  # SQLite doesn't use MemoryStore
+                        except Exception as e:
+                            print(f"Warning: Failed to initialize SQLite memory backend: {e}")
+                            self._memory_db = None
+                            self._memory_store = None
+                    else:
+                        # File-based backend (default, backward compatible)
+                        from tools.memory_tool import MemoryStore
+                        self._memory_store = MemoryStore(
+                            memory_char_limit=mem_config.get("memory_char_limit", 2200),
+                            user_char_limit=mem_config.get("user_char_limit", 1375),
+                            user_id=self.user_id,  # Per-user isolation
+                        )
+                        self._memory_store.load_from_disk()
+                        self._memory_db = None  # Not using SQLite
             except Exception:
                 pass  # Memory is optional -- don't break agent init
+
+        # Working Memory - session-scoped immediate memory
+        self._working_memory = None
+        if not skip_memory and (self._memory_enabled or self._user_profile_enabled):
+            try:
+                from agent.working_memory import WorkingMemory
+                self._working_memory = WorkingMemory(
+                    session_id=self.session_id,
+                    user_id=self.user_id or "default",
+                    channel_id=self.chat_id,
+                )
+            except Exception:
+                pass  # Working memory is optional
         
 
 
@@ -3421,6 +3453,147 @@ class AIAgent:
         if tool_call_id:
             metadata["tool_call_id"] = tool_call_id
         return {k: v for k, v in metadata.items() if v not in (None, "")}
+
+    def _handle_sqlite_memory(
+        self,
+        action: str,
+        target: str,
+        content: str,
+        old_text: Optional[str] = None,
+    ) -> str:
+        """Handle memory tool calls using SQLite backend."""
+        import uuid
+        from agent.memory_database import Memory
+        from agent.working_memory import MemoryEntry
+
+        if not self._memory_db:
+            return json.dumps({
+                "success": False,
+                "error": "SQLite memory backend not initialized"
+            })
+
+        # Determine memory type and scope from target
+        memory_type = "preference" if target == "user" else "fact"
+        scope = "user"
+
+        if action == "add":
+            # Check character limits
+            total_count = self._memory_db.count_active_memories()
+            if total_count >= 1000:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Memory limit reached ({total_count}/1000). Please delete old memories first."
+                })
+
+            # Insert new memory
+            memory = Memory(
+                memory_id=str(uuid.uuid4()),
+                user_id=self.user_id or "default",
+                content=content,
+                memory_type=memory_type,
+                scope=scope,
+                channel_id=self.chat_id,
+                source_session_id=self.session_id,
+                priority=50,
+            )
+
+            try:
+                self._memory_db.insert(memory)
+
+                # Update Working Memory for immediate visibility
+                if self._working_memory:
+                    entry = MemoryEntry(
+                        content=content,
+                        memory_type=memory_type,
+                        confidence=1.0,
+                        metadata={"source": "sqlite_memory", "memory_id": memory.memory_id}
+                    )
+                    self._working_memory.add_pending(entry)
+
+                return json.dumps({
+                    "success": True,
+                    "memory_id": memory.memory_id,
+                    "message": f"Added to {target} memory"
+                })
+            except sqlite3.IntegrityError:
+                return json.dumps({
+                    "success": False,
+                    "error": "Duplicate memory: This entry already exists"
+                })
+
+        elif action == "delete":
+            # Find and delete by content
+            results = self._memory_db.search_by_keywords(
+                keywords=[content],
+                limit=1
+            )
+            if results and results[0].content == content:
+                self._memory_db.delete(results[0].memory_id, soft=True)
+                return json.dumps({
+                    "success": True,
+                    "message": f"Deleted from {target} memory"
+                })
+            return json.dumps({
+                "success": False,
+                "error": "Memory entry not found"
+            })
+
+        elif action == "replace":
+            # Find old entry and replace
+            if not old_text:
+                return json.dumps({
+                    "success": False,
+                    "error": "old_text required for replace action"
+                })
+
+            results = self._memory_db.search_by_keywords(
+                keywords=[old_text],
+                limit=1
+            )
+            if results and results[0].content == old_text:
+                self._memory_db.update(results[0].memory_id, {"content": content})
+                return json.dumps({
+                    "success": True,
+                    "memory_id": results[0].memory_id,
+                    "message": f"Updated {target} memory"
+                })
+            return json.dumps({
+                "success": False,
+                "error": "Memory entry not found for replacement"
+            })
+
+        elif action == "list":
+            # List all memories of this type
+            results = self._memory_db.search(
+                memory_type=memory_type if target != "memory" else None,
+                limit=100
+            )
+            entries = [m.content for m in results]
+            return json.dumps({
+                "success": True,
+                "entries": entries,
+                "count": len(entries)
+            })
+
+        elif action == "search":
+            # Search memories by content
+            query = content or ""
+            results = self._memory_db.search_by_keywords(
+                keywords=query.split() if query else [],
+                limit=10
+            )
+            entries = [m.content for m in results]
+            return json.dumps({
+                "success": True,
+                "entries": entries,
+                "count": len(entries)
+            })
+
+        else:
+            return json.dumps({
+                "success": False,
+                "error": f"Unknown action: {action}"
+            })
 
     def _apply_persist_user_message_override(self, messages: List[Dict]) -> None:
         """Rewrite the current-turn user message before persistence/return.
@@ -8101,6 +8274,7 @@ class AIAgent:
             qwen_session_metadata=_qwen_meta,
             fixed_temperature=_fixed_temp,
             omit_temperature=_omit_temp,
+            base_url=self.base_url,
             supports_reasoning=self._supports_reasoning_extra_body(),
             github_reasoning_extra=self._github_models_reasoning_extra_body() if _is_gh else None,
             anthropic_max_output=_ant_max,
@@ -8824,22 +8998,46 @@ class AIAgent:
                 current_session_id=self.session_id,
             )
         elif function_name == "memory":
+            action = function_args.get("action")
             target = function_args.get("target", "memory")
+            content = function_args.get("content", "")
+            old_text = function_args.get("old_text")
+
+            # Handle SQLite backend
+            if self._memory_db:
+                return self._handle_sqlite_memory(action, target, content, old_text)
+
+            # Handle file-based backend (default)
             from tools.memory_tool import memory_tool as _memory_tool
             result = _memory_tool(
-                action=function_args.get("action"),
+                action=action,
                 target=target,
-                content=function_args.get("content"),
-                old_text=function_args.get("old_text"),
+                content=content,
+                old_text=old_text,
                 store=self._memory_store,
             )
+
+            # Update Working Memory for immediate visibility
+            if self._working_memory and action == "add":
+                try:
+                    from agent.working_memory import MemoryEntry
+                    entry = MemoryEntry(
+                        content=content,
+                        memory_type="user_profile" if target == "user" else "fact",
+                        confidence=1.0,
+                        metadata={"source": "explicit_memory_tool"}
+                    )
+                    self._working_memory.add_pending(entry)
+                except Exception:
+                    pass  # Don't break if working memory fails
+
             # Bridge: notify external memory provider of built-in memory writes
-            if self._memory_manager and function_args.get("action") in ("add", "replace"):
+            if self._memory_manager and action in ("add", "replace"):
                 try:
                     self._memory_manager.on_memory_write(
-                        function_args.get("action", ""),
+                        action,
                         target,
-                        function_args.get("content", ""),
+                        content,
                         metadata=self._build_memory_write_metadata(
                             task_id=effective_task_id,
                             tool_call_id=tool_call_id,
@@ -10135,6 +10333,7 @@ class AIAgent:
                 user_message,
                 parent_agent=self,
                 task_id=effective_task_id,
+                progress_callback=self.tool_progress_callback,
             )
         except Exception as exc:
             logger.warning("agent_system CLI bridge failed before LLM loop: %s", exc)
@@ -10377,6 +10576,13 @@ class AIAgent:
             # External recall context is injected into the user message, not the system
             # prompt, so the stable cache prefix remains unchanged.
             effective_system = active_system_prompt or ""
+
+            # Inject Working Memory (session-scoped immediate memory)
+            if self._working_memory and self._working_memory:
+                working_mem_block = self._working_memory.format_for_context()
+                if working_mem_block:
+                    effective_system = (effective_system + "\n\n" + working_mem_block).strip()
+
             if self.ephemeral_system_prompt:
                 effective_system = (effective_system + "\n\n" + self.ephemeral_system_prompt).strip()
             # NOTE: Plugin context from pre_llm_call hooks is injected into the

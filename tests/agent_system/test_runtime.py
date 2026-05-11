@@ -367,6 +367,92 @@ def test_exception_mapping_enters_audit_and_review(tmp_path: Path) -> None:
     assert "exception_event" in result["review_summary"]["review_triggers"]
 
 
+def _single_node_routes() -> list[dict]:
+    """无 user_gate、无依赖、无 secondary_experts 的单节点路由，用于心跳测试。"""
+    return [
+        {
+            "pipeline_id": "insight_flow",
+            "pipeline_name": "洞察流程",
+            "step": 1,
+            "node": "voc_insight",
+            "display_name": "用户洞察",
+            "constraints": {
+                "input_type": "VOC",
+                "output_type": "洞察结论",
+                "max_runtime": 300,
+            },
+            "supervision": {
+                "expert_required": True,
+                "primary_expert": "user_analyst",
+                "secondary_experts": [],
+            },
+        },
+    ]
+
+
+def test_heartbeat_progress_emitted_for_slow_sequential_node(tmp_path: Path) -> None:
+    """顺序执行时，长耗时节点应触发心跳进度回调。"""
+    import time as _time
+
+    root = _create_base_project(tmp_path, _single_node_routes())
+    progress_events: list[tuple[str, str]] = []
+
+    def _slow_executor(context: dict) -> dict:
+        _time.sleep(0.35)
+        return {"status": "completed", "output": {"skill_id": context.get("skill_id", "?")}}
+
+    def _progress_cb(event_type: str, msg: str) -> None:
+        progress_events.append((event_type, msg))
+
+    runtime = HermesAgentSystemRuntime(
+        root_dir=root,
+        skill_executor=_slow_executor,
+        now_fn=_fixed_now,
+        progress_callback=_progress_cb,
+        _heartbeat_interval=0.1,
+        _heartbeat_min_elapsed=0.05,
+    )
+    result = runtime.run_pipeline(
+        pipeline_id="insight_flow",
+        input_payload={"source_materials": ["test_voc"]},
+        parallel=False,
+    )
+    assert result["status"] == "completed"
+    heartbeats = [(t, m) for t, m in progress_events if "仍在执行" in m]
+    assert len(heartbeats) >= 1, f"期望至少 1 个心跳，实际 progress_events={progress_events}"
+    assert heartbeats[0][0] == "__execution_log__"
+    assert "⏳" in heartbeats[0][1]
+
+
+def test_task_plan_emitted_before_node_execution(tmp_path: Path) -> None:
+    """顺序执行时，每个节点开始前应发出包含专家和技能字段的 __task_plan__ 事件。"""
+    root = _create_base_project(tmp_path, _dashboard_routes())
+    events: list[tuple[str, str]] = []
+
+    def _progress_cb(event_type: str, msg: str) -> None:
+        events.append((event_type, msg))
+
+    runtime = HermesAgentSystemRuntime(
+        root_dir=root,
+        skill_executor=_skill_executor,
+        now_fn=_fixed_now,
+        progress_callback=_progress_cb,
+    )
+    runtime.run_pipeline(
+        pipeline_id="dashboard_flow",
+        input_payload={"source_materials": ["VOC 表"]},
+        human_inputs={"voc_insight": "确认", "ops_dashboard": "确认"},
+        parallel=False,
+    )
+    plan_events = [(t, m) for t, m in events if t == "__task_plan__"]
+    assert len(plan_events) >= 1, f"期望至少 1 个任务规划事件，实际 events={events[:5]}"
+    first_plan = plan_events[0][1]
+    assert "🧭 任务规划" in first_plan
+    assert "主专家" in first_plan
+    assert "工具层技能" in first_plan
+    assert "执行路径" in first_plan
+
+
 def test_runtime_exposes_configured_max_spawn_depth_in_task_packages(tmp_path: Path) -> None:
     root = _create_base_project(tmp_path, _dashboard_routes())
     runtime = HermesAgentSystemRuntime(root_dir=root, max_spawn_depth=2, now_fn=_fixed_now)

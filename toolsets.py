@@ -54,6 +54,8 @@ _HERMES_CORE_TOOLS = [
     "clarify",
     # Code execution + delegation
     "execute_code", "delegate_task",
+    # Codex pipeline (Plan→Execute→Audit via Claude Opus 4.7 + Codex CLI)
+    "codex_pipeline",
     # Cronjob management
     "cronjob",
     # Cross-platform messaging (gated on gateway running via check_fn)
@@ -107,6 +109,12 @@ TOOLSETS = {
         "description": "Business knowledge base — query and write product line knowledge with ACL enforcement",
         "tools": ["knowledge_query", "knowledge_write"],
         "includes": [],
+    },
+
+    "codex-pipeline": {
+        "description": "Plan→Execute→Audit pipeline for coding tasks (Claude Opus 4.7 plans, Codex CLI executes and audits)",
+        "tools": ["codex_pipeline"],
+        "includes": []
     },
     
     "skills": {

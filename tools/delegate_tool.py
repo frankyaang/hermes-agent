@@ -1820,6 +1820,8 @@ def delegate_task(
     acp_args: Optional[List[str]] = None,
     role: Optional[str] = None,
     parent_agent=None,
+    override_provider: Optional[str] = None,
+    override_model: Optional[str] = None,
 ) -> str:
     """
     Spawn one or more child agents to handle delegated tasks.
@@ -1883,14 +1885,25 @@ def delegate_task(
     effective_max_iter = default_max_iter
 
     # Resolve delegation credentials (provider:model pair).
-    # When delegation.provider is configured, this resolves the full credential
-    # bundle (base_url, api_key, api_mode) via the same runtime provider system
-    # used by CLI/gateway startup.  When unconfigured, returns None values so
-    # children inherit from the parent.
-    try:
-        creds = _resolve_delegation_credentials(cfg, parent_agent)
-    except ValueError as exc:
-        return tool_error(str(exc))
+    # Callers (e.g. cli_bridge) may pass override_provider / override_model to
+    # select a per-node provider without touching the global delegation config.
+    # When neither override is set, reads from delegation.* in config as usual.
+    if override_provider or override_model:
+        override_cfg = dict(cfg)
+        if override_provider:
+            override_cfg["provider"] = override_provider
+            override_cfg["base_url"] = ""  # clear so provider-name path is used
+        if override_model:
+            override_cfg["model"] = override_model
+        try:
+            creds = _resolve_delegation_credentials(override_cfg, parent_agent)
+        except ValueError as exc:
+            return tool_error(str(exc))
+    else:
+        try:
+            creds = _resolve_delegation_credentials(cfg, parent_agent)
+        except ValueError as exc:
+            return tool_error(str(exc))
 
     # Normalize to task list
     max_children = _get_max_concurrent_children()

@@ -22,7 +22,7 @@
           "ops_expert"
         ]
       },
-      "user_gate": true
+      "user_gate": false
     },
     {
       "pipeline_id": "insight_flow",
@@ -68,7 +68,7 @@
           "ops_expert"
         ]
       },
-      "user_gate": true
+      "user_gate": false
     },
     {
       "pipeline_id": "dashboard_flow",
@@ -93,7 +93,7 @@
           "user_analyst"
         ]
       },
-      "user_gate": true,
+      "user_gate": false,
       "final_output": true
     },
     {
@@ -140,7 +140,7 @@
           "ops_expert"
         ]
       },
-      "user_gate": true
+      "user_gate": false
     },
     {
       "pipeline_id": "html_flow",
@@ -165,7 +165,7 @@
           "user_analyst"
         ]
       },
-      "user_gate": true
+      "user_gate": false
     },
     {
       "pipeline_id": "html_flow",
@@ -214,7 +214,7 @@
           "ops_expert"
         ]
       },
-      "user_gate": true,
+      "user_gate": false,
       "optional": true
     }
   ]

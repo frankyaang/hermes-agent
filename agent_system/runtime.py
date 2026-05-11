@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +14,9 @@ from agent_system.human_approval import normalize_approval_response
 
 SkillExecutor = Callable[[dict[str, Any]], dict[str, Any]]
 HumanReviewCallback = Callable[[dict[str, Any]], str | dict[str, Any] | None]
+
+_HEARTBEAT_INTERVAL = 30.0    # 心跳间隔（秒）
+_HEARTBEAT_MIN_ELAPSED = 60.0  # 超过此时长才开始发心跳（秒）
 
 
 @dataclass(frozen=True)
@@ -89,6 +94,9 @@ class HermesAgentSystemRuntime:
         human_review_callback: HumanReviewCallback | None = None,
         now_fn: Callable[[], datetime] | None = None,
         max_spawn_depth: int = DEFAULT_MAX_SPAWN_DEPTH,
+        progress_callback: Callable[[str, str], None] | None = None,
+        _heartbeat_interval: float = _HEARTBEAT_INTERVAL,
+        _heartbeat_min_elapsed: float = _HEARTBEAT_MIN_ELAPSED,
     ) -> None:
         self.project_name = project_name
         self.project_root = Path(root_dir) if root_dir else Path(__file__).resolve().parent
@@ -98,6 +106,9 @@ class HermesAgentSystemRuntime:
         self.human_review_callback = human_review_callback
         self.now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self.max_spawn_depth = max(1, int(max_spawn_depth))
+        self.progress_callback = progress_callback
+        self._heartbeat_interval = _heartbeat_interval
+        self._heartbeat_min_elapsed = _heartbeat_min_elapsed
         self.scheduler_root = self.project_root / "scheduler"
         self.skills_root = self.project_root / "skills"
         self.experts_root = self.project_root / "experts"
@@ -197,23 +208,99 @@ class HermesAgentSystemRuntime:
                         ): route_node.key
                         for route_node in executable_nodes
                     }
-                    for future in as_completed(futures):
-                        result = future.result()
-                        results[result["node_key"]] = result
-                        self._append_audit_event(result)
+                    # Send start progress for parallel nodes
+                    for route_node in executable_nodes:
+                        display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                        if self.progress_callback:
+                            self.progress_callback("__execution_log__", f"🔄 {display_name}: 开始执行")
+
+                    _node_starts = {f: time.monotonic() for f in futures}
+                    _last_hb: dict = {}
+                    _pending = set(futures)
+                    while _pending:
+                        done, _pending = wait(
+                            _pending, timeout=self._heartbeat_interval,
+                            return_when=FIRST_COMPLETED,
+                        )
+                        for future in done:
+                            result = future.result()
+                            results[result["node_key"]] = result
+                            self._append_audit_event(result)
+                            node_key = futures[future]
+                            route_node = nodes[node_key]
+                            display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                            status = result.get("status", "unknown")
+                            status_emoji = "✅" if status == "completed" else "❌" if status == "failed" else "⚠️"
+                            if self.progress_callback:
+                                self.progress_callback("__execution_log__", f"{status_emoji} {display_name}: {status}")
+                        if self.progress_callback and _pending:
+                            _now = time.monotonic()
+                            for future in _pending:
+                                _elapsed = _now - _node_starts[future]
+                                if (
+                                    _elapsed >= self._heartbeat_min_elapsed
+                                    and (_now - _last_hb.get(future, 0)) >= self._heartbeat_interval
+                                ):
+                                    _dn = nodes[futures[future]].route.get(
+                                        "display_name", nodes[futures[future]].route.get("node")
+                                    )
+                                    _mins = int(_elapsed / 60)
+                                    self.progress_callback(
+                                        "__execution_log__", f"⏳ {_dn}: 仍在执行，已运行 {_mins} 分钟"
+                                    )
+                                    _last_hb[future] = _now
             else:
                 for route_node in executable_nodes:
-                    result = self._execute_node(
-                        run_id=run_id,
-                        pipeline_id=pipeline_id,
-                        route_node=route_node,
-                        input_payload=input_payload,
-                        human_inputs=human_inputs,
-                        prior_results=results,
-                        parallel_group=group_index,
-                    )
+                    display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                    if self.progress_callback:
+                        try:
+                            self.progress_callback("__task_plan__", self._format_node_task_plan(route_node))
+                        except Exception:
+                            pass
+                        self.progress_callback("__execution_log__", f"🔄 {display_name}: 开始执行")
+
+                    _stop_hb = threading.Event()
+                    _node_start = time.monotonic()
+
+                    def _hb_worker(
+                        _dn=display_name,
+                        _start=_node_start,
+                        _stop=_stop_hb,
+                        _cb=self.progress_callback,
+                        _interval=self._heartbeat_interval,
+                        _min_elapsed=self._heartbeat_min_elapsed,
+                    ):
+                        while not _stop.wait(timeout=_interval):
+                            _elapsed = time.monotonic() - _start
+                            if _elapsed >= _min_elapsed:
+                                _mins = int(_elapsed / 60)
+                                _cb("__execution_log__", f"⏳ {_dn}: 仍在执行，已运行 {_mins} 分钟")
+
+                    _hb_thread = threading.Thread(target=_hb_worker, daemon=True) if self.progress_callback else None
+                    if _hb_thread:
+                        _hb_thread.start()
+                    try:
+                        result = self._execute_node(
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            prior_results=results,
+                            parallel_group=group_index,
+                        )
+                    finally:
+                        _stop_hb.set()
+                        if _hb_thread:
+                            _hb_thread.join(timeout=1.0)
+
                     results[result["node_key"]] = result
                     self._append_audit_event(result)
+
+                    status = result.get("status", "unknown")
+                    status_emoji = "✅" if status == "completed" else "❌" if status == "failed" else "⚠️"
+                    if self.progress_callback:
+                        self.progress_callback("__execution_log__", f"{status_emoji} {display_name}: {status}")
 
         ordered_results = [results[key] for group in groups for key in group if key in results]
         review_summary = self._write_review_summary(
@@ -1474,6 +1561,76 @@ class HermesAgentSystemRuntime:
 
     def _load_skill(self, skill_id: str) -> dict[str, Any]:
         return self._read_json(self.skills_root / skill_id / "skill.json")
+
+    def _format_node_task_plan(self, route_node: "RouteNode") -> str:
+        """Generate a structured markdown task plan for the given route node."""
+        route = route_node.route
+        supervision = route.get("supervision") or {}
+        constraints = route.get("constraints") or {}
+        node_id = route.get("node", route_node.key)
+        display_name = route.get("display_name", node_id)
+
+        # 主专家
+        primary_id = supervision.get("primary_expert", "")
+        primary_display = primary_id
+        if primary_id:
+            try:
+                exp = self._load_expert(primary_id)
+                primary_display = f"{exp.get('display_name', primary_id)}（{primary_id}）"
+            except Exception:
+                pass
+
+        # 子专家
+        secondary_ids = supervision.get("secondary_experts") or []
+        secondary_parts = []
+        for eid in secondary_ids:
+            try:
+                exp = self._load_expert(eid)
+                secondary_parts.append(f"{exp.get('display_name', eid)}（{eid}）")
+            except Exception:
+                secondary_parts.append(eid)
+        secondary_display = "、".join(secondary_parts) if secondary_parts else "无"
+
+        # 工具层技能 / SOP
+        skill_display = f"{display_name}（{node_id}）"
+        skill_desc = ""
+        try:
+            skill = self._load_skill(node_id)
+            skill_display = f"{skill.get('display_name', display_name)}（{node_id}）"
+            skill_desc = skill.get("description", "")
+        except Exception:
+            pass
+
+        # 执行路径
+        input_type = constraints.get("input_type", "")
+        output_type = constraints.get("output_type", "")
+        exec_path = (
+            f"{input_type} → {output_type}"
+            if input_type and output_type
+            else (input_type or output_type or display_name)
+        )
+
+        # 验收标准
+        acceptance = output_type
+        if route.get("user_gate"):
+            acceptance = f"{output_type}，需人工确认" if output_type else "需人工确认"
+
+        # 权限边界
+        expert_mode = "专家模式" if supervision.get("expert_required") else "自主模式"
+        boundary = f"{expert_mode}，max_depth={self.max_spawn_depth}"
+
+        lines = [
+            f"- 主专家：{primary_display}" if primary_display else None,
+            f"- 子专家：{secondary_display}",
+            f"- 工具层技能：{skill_display}",
+            f"- SOP / 流程资产：{skill_desc}" if skill_desc else None,
+            f"- 工具/数据源：{input_type}" if input_type else None,
+            f"- 执行路径：{exec_path}" if exec_path else None,
+            f"- 验收标准：{acceptance}" if acceptance else None,
+            f"- 权限边界：{boundary}",
+        ]
+        body = "\n".join(line for line in lines if line)
+        return f"### 🧭 任务规划\n{body}"
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:
