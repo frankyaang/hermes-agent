@@ -16,6 +16,6 @@
     "COMMIT",
     "NEXT_OR_EXIT"
   ],
-  "state_file_pattern": "agent_system/temp/skill_creation_{user_id}_{channel_id}.json",
+  "state_file_pattern": "agent_system/temp/skill_creation_<session_identity>.json",
   "status": "skeleton_defined"
 }
