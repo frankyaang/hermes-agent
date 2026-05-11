@@ -10,12 +10,15 @@ reasoning configuration, temperature handling, and extra_body assembly.
 """
 
 import copy
+import logging
 from typing import Any, Dict, List, Optional
 
 from agent.moonshot_schema import is_moonshot_model, sanitize_moonshot_tools
 from agent.prompt_builder import DEVELOPER_ROLE_MODELS
 from agent.transports.base import ProviderTransport
 from agent.transports.types import NormalizedResponse, ToolCall, Usage
+
+logger = logging.getLogger(__name__)
 
 
 class ChatCompletionsTransport(ProviderTransport):
@@ -190,6 +193,7 @@ class ChatCompletionsTransport(ProviderTransport):
         is_kimi = params.get("is_kimi", False)
         is_tokenhub = params.get("is_tokenhub", False)
         reasoning_config = params.get("reasoning_config")
+        base_url = str(params.get("base_url") or "")
 
         if ephemeral is not None and max_tokens_fn:
             api_kwargs.update(max_tokens_fn(ephemeral))
@@ -204,21 +208,6 @@ class ChatCompletionsTransport(ProviderTransport):
             api_kwargs.update(max_tokens_fn(32000))
         elif anthropic_max_out is not None:
             api_kwargs["max_tokens"] = anthropic_max_out
-
-        # Kimi: top-level reasoning_effort (unless thinking disabled)
-        if is_kimi:
-            _kimi_thinking_off = bool(
-                reasoning_config
-                and isinstance(reasoning_config, dict)
-                and reasoning_config.get("enabled") is False
-            )
-            if not _kimi_thinking_off:
-                _kimi_effort = "medium"
-                if reasoning_config and isinstance(reasoning_config, dict):
-                    _e = (reasoning_config.get("effort") or "").strip().lower()
-                    if _e in ("low", "medium", "high"):
-                        _kimi_effort = _e
-                api_kwargs["reasoning_effort"] = _kimi_effort
 
         # Tencent TokenHub: top-level reasoning_effort (unless thinking disabled)
         if is_tokenhub:
@@ -249,12 +238,18 @@ class ChatCompletionsTransport(ProviderTransport):
         # Kimi extra_body.thinking
         if is_kimi:
             _kimi_thinking_enabled = True
+            _kimi_effort = ""
             if reasoning_config and isinstance(reasoning_config, dict):
                 if reasoning_config.get("enabled") is False:
                     _kimi_thinking_enabled = False
+                _kimi_effort = (reasoning_config.get("effort") or "").strip().lower()
             extra_body["thinking"] = {
                 "type": "enabled" if _kimi_thinking_enabled else "disabled",
             }
+            if _kimi_thinking_enabled and _kimi_effort in {"high", "xhigh"}:
+                extra_body["thinking"]["keep"] = "all"
+            if _kimi_thinking_enabled and _kimi_effort == "xhigh":
+                api_kwargs["temperature"] = 1.0
 
         # Reasoning
         if params.get("supports_reasoning", False):
@@ -305,6 +300,18 @@ class ChatCompletionsTransport(ProviderTransport):
         overrides = params.get("request_overrides")
         if overrides:
             api_kwargs.update(overrides)
+
+        if is_kimi:
+            logger.info(
+                "Kimi fallback request: provider=kimi-coding model=%s "
+                "base_url=%s endpoint=/chat/completions stream=%s "
+                "max_tokens=%s thinking=%s",
+                model,
+                base_url or "(unknown)",
+                api_kwargs.get("stream", False),
+                api_kwargs.get("max_tokens"),
+                extra_body.get("thinking"),
+            )
 
         return api_kwargs
 

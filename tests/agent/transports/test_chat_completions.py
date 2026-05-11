@@ -204,15 +204,15 @@ class TestChatCompletionsKimi:
         # Kimi CLI default: 32000
         assert kw["max_tokens"] == 32000
 
-    def test_kimi_reasoning_effort_top_level(self, transport):
+    def test_kimi_does_not_send_reasoning_effort_top_level(self, transport):
         kw = transport.build_kwargs(
             model="kimi-k2", messages=[{"role": "user", "content": "Hi"}],
             is_kimi=True,
             reasoning_config={"effort": "high"},
             max_tokens_param_fn=lambda n: {"max_tokens": n},
         )
-        # Kimi requires reasoning_effort as a top-level parameter
-        assert kw["reasoning_effort"] == "high"
+        assert "reasoning_effort" not in kw
+        assert "output_config" not in kw
 
     def test_kimi_reasoning_effort_omitted_when_thinking_disabled(self, transport):
         kw = transport.build_kwargs(
@@ -231,6 +231,21 @@ class TestChatCompletionsKimi:
             max_tokens_param_fn=lambda n: {"max_tokens": n},
         )
         assert kw["extra_body"]["thinking"] == {"type": "enabled"}
+
+    def test_kimi_xhigh_maps_to_official_thinking_body(self, transport):
+        kw = transport.build_kwargs(
+            model="kimi-for-coding",
+            messages=[{"role": "user", "content": "Hi"}],
+            is_kimi=True,
+            reasoning_config={"enabled": True, "effort": "xhigh"},
+            max_tokens_param_fn=lambda n: {"max_tokens": n},
+            base_url="https://api.kimi.com/coding/v1",
+        )
+        assert kw["max_tokens"] == 32000
+        assert kw["temperature"] == 1.0
+        assert kw["extra_body"]["thinking"] == {"type": "enabled", "keep": "all"}
+        assert "reasoning_effort" not in kw
+        assert "output_config" not in kw
 
     def test_kimi_thinking_disabled_extra_body(self, transport):
         kw = transport.build_kwargs(

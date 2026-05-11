@@ -83,7 +83,8 @@ CUSTOM_POOL_PREFIX = "custom:"
 _EXTRA_KEYS = frozenset({
     "token_type", "scope", "client_id", "portal_base_url", "obtained_at",
     "expires_in", "agent_key_id", "agent_key_expires_in", "agent_key_reused",
-    "agent_key_obtained_at", "tls",
+    "agent_key_obtained_at", "tls", "id_token", "account_id", "user_id",
+    "auth_mode", "source_account_id", "plan_type", "last_used_at",
 })
 
 
