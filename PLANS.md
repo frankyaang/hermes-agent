@@ -1,3 +1,184 @@
+# Agent-System Model Routing Fix
+
+## Goal
+
+修复 Hermes agent-system 的模型路由问题：insight_flow / dashboard_flow 中的执行节点（voc_insight、ops_dashboard、briefing）通过 delegate_task 静默继承父代理 claude-opus-4-7。目标是执行/audit 节点改用 kimi-for-coding (via kimi-coding provider)，规划/DAG 路由保持 claude-opus-4-7。同时修复 `_format_final_response` 捞历史旧报告的 bug。
+
+## Root Cause
+
+1. `config.yaml` 中 `delegation.model/provider` 均为空字符串
+2. `_resolve_delegation_credentials` 返回全 None → `_build_child_agent` 执行 `effective_model = model or parent_agent.model` = `claude-opus-4-7`
+3. kimi-coding provider 已在 `auth.json credential_pool` 中配置（key 完整），可直接用于 delegation
+
+## Changes
+
+1. `~/.hermes/config.yaml` — 设置 `delegation.model: kimi-for-coding` / `delegation.provider: kimi-coding`；新增 `agent_system.models` 文档节
+2. `agent_system/cli_bridge.py` — `_make_delegate_skill_executor` 新增执行模型日志；`_format_final_response` 按 run_id 时间戳过滤旧文件
+3. dev workspace 同步相同改动
+
+## Validation
+
+1. 重启 gateway
+2. 触发 insight_flow / dashboard_flow 测试任务
+3. 日志中规划阶段 claude-opus-4-7，执行节点 kimi-for-coding
+
+## Status
+
+- [x] 根因分析完成
+- [x] config.yaml：delegation.model=kimi-for-coding，delegation.provider=kimi-coding；agent_system.models 文档节
+- [x] cli_bridge.py（official + dev）：执行模型日志 + stale-report 时间戳过滤
+- [x] gateway 重启：PID 51172，Feishu 已连接
+- [x] 验证：凭据解析 PASS，时间戳解析 PASS，12 测试通过（1 个预存在失败）
+
+---
+
+# Kimi Fallback Real Request Repair Plan
+
+## Goal
+
+修复 Hermes fallback 到 Kimi 后的 HTTP 404。成功标准是：真实 Kimi API smoke test 返回 200，Hermes fallback 使用真实 key 可访问的 OpenAI-compatible Chat Completions endpoint 和 `/models` 返回的模型名，`xhigh` 作为 Hermes 内部抽象映射为 Kimi thinking 请求参数，而不是透传 `output_config.effort`。
+
+## Scope
+
+- 用最小真实请求验证 Kimi key、base_url、endpoint、model。
+- 将 `/Users/frank/.hermes/config.yaml` 的 fallback 模型保持为真实 `/models` 返回的 `kimi-for-coding`，并保留 `agent.reasoning_effort=xhigh`。
+- 修正 Kimi provider 的 base_url / api_mode 解析，避免 `sk-kimi-*` 自动落到 `https://api.kimi.com/coding/`。
+- 修正 Chat Completions Kimi 请求构造：不发送 `output_config`，按官方参数启用 thinking、max_tokens、temperature、stream。
+- 增加 sanitized debug log，打印 provider/model/base_url/endpoint/stream/max_tokens/thinking，不打印 API key。
+- 增加聚焦单测和真实 smoke 脚本。
+
+## Non-goals
+
+- 不修改无关飞书消息路由、专家层 UI、Gateway progress 逻辑。
+- 不暴露或打印任何 Kimi API key。
+- 不把 OpenAI Codex 主模型切换掉；本轮只修 fallback。
+
+## Context
+
+- 当前配置为 `fallback_providers: kimi-coding / kimi-for-coding`，且 `agent.reasoning_effort=xhigh`。
+- 之前为了尝试 xhigh 修改了 Anthropic adapter，使 Kimi `/coding` 发送 `output_config.effort=xhigh`；这与 Kimi 官方 OpenAI-compatible Chat Completions 文档不一致，且可能导致 404/参数错误。
+- 真实验证显示：当前 `sk-kimi-*` key 访问 `https://api.moonshot.ai/v1` 返回 401；访问 `https://api.kimi.com/coding/v1/models` 返回 200，且唯一模型是 `kimi-for-coding`，display name 为 Kimi-k2.6。
+- `https://api.kimi.com/coding/v1/chat/completions` 在带 Coding Agent User-Agent 时返回 200；因此本轮以该 OpenAI-compatible Chat Completions endpoint 修复 fallback。
+
+## Milestones
+
+1. 真实 curl/smoke 验证 key、endpoint、model。
+2. 修正配置和 provider/runtime 路由。
+3. 修正 Kimi Chat Completions 参数映射与日志。
+4. 增加测试和 smoke 脚本。
+5. 运行验证并重启 Gateway。
+
+## Validation
+
+- `curl https://api.moonshot.ai/v1/chat/completions ... model=kimi-k2-thinking` 预期对当前 key 返回 401，用于确认 key 类型。
+- `curl https://api.kimi.com/coding/v1/models` 预期返回 `kimi-for-coding`。
+- `curl https://api.kimi.com/coding/v1/chat/completions ... model=kimi-for-coding` 预期返回 200。
+- `scripts/run_tests.sh tests/agent/transports/test_chat_completions.py tests/hermes_cli/test_api_key_providers.py`
+- `MOONSHOT_API_KEY=... python scripts/smoke_test_kimi_fallback.py`
+- `venv/bin/python -m hermes_cli.main gateway restart`
+
+## Progress
+
+- [x] 确认当前仓库有未提交无关改动，保留不动。
+- [x] 核对官方文档方向：Moonshot Chat Completions，而不是 Kimi `/coding` Anthropic path。
+- [x] 完成真实 curl 验证：Moonshot endpoint 401，Kimi Coding `/models` 和 `/chat/completions` 200。
+- [x] 完成配置和代码修正。
+- [x] 完成测试与 smoke。
+- [x] 重启 Gateway 并记录最终状态：launchd service definition 已匹配当前 checkout，Gateway loaded，PID 59302。
+- [x] 触发真实 Hermes chat 验证 fallback：session `20260506_103454_feafb9` 返回 `OK`，agent.log 记录 `provider=kimi-coding model=kimi-for-coding base_url=https://api.kimi.com/coding/v1/ endpoint=/chat/completions ... thinking={'type': 'enabled', 'keep': 'all'}`。
+
+## Decision Log
+
+- 不再把 `xhigh` 直接透传给 Kimi；它只映射为 Kimi thinking 模型的请求策略。
+- 不选 `kimi-k2-thinking`，因为当前 key 对 Moonshot endpoint 返回 401；按真实 `/models` 结果使用 `kimi-for-coding`。
+- 对 `sk-kimi-*` 继续使用 `https://api.kimi.com/coding/v1`，但运行协议改为 OpenAI-compatible Chat Completions 的 `/chat/completions`，不再走 Anthropic `/messages`。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '1,40p' /Users/frank/.hermes/config.yaml
+sed -n '200,280p' agent/transports/chat_completions.py
+sed -n '860,950p' hermes_cli/auth.py
+git status --short
+```
+
+---
+
+# Codex Switcher Takeover Import Plan
+
+## Goal
+
+实现一次性 takeover import：从 Codex Switcher 账号池复制 token bundle 到 Hermes `credential_pool.openai-codex`，由 Hermes 后续负责刷新和轮转，并归档 Switcher 原 token store，避免两个程序共用同一批 refresh token。
+
+## Scope
+
+- 增加正式命令 `hermes auth import-codex-switcher --provider openai-codex --mode takeover [--dry-run]`。
+- 增加正式命令 `hermes auth test openai-codex --label <label>`，输出仅包含 label/provider/auth_mode/status。
+- 自动定位并解析 Codex Switcher 存储，当前真实文件为 `/Users/frank/.codex-switcher/accounts.json`。
+- 导入前备份 Hermes auth store，并设置安全权限。
+- 导入时重建 Hermes credential metadata，不迁移 Switcher 运行态、冷却、错误状态。
+- 导入成功后归档 Switcher token store，确保 takeover 不是共享。
+- 更新 `credential_pool_strategies.openai-codex=least_used`。
+
+## Non-goals
+
+- 不做实时同步，不做 symlink，不让 Hermes 和 Codex Switcher 同时读写同一份 token。
+- 不打印 access_token、refresh_token、id_token、Authorization、Bearer 或完整 token 字段。
+- 不删除 Switcher 数据；只做归档或脱敏保留。
+
+## Context
+
+- 当前 Hermes `openai-codex` 池只有 1 个账号，且状态为 429 rate-limited。
+- Codex Switcher 存储文件 `/Users/frank/.codex-switcher/accounts.json` 包含 4 个账号，结构为 `accounts[].auth_data.{access_token, refresh_token, id_token, account_id, type}`。
+- Hermes 代码当前故意不在运行时自动读取 `~/.codex/auth.json`，以避免 refresh token 被不同程序复用。
+
+## Milestones
+
+1. 只读定位 Switcher 存储并输出非敏感摘要。
+2. 实现 import/test 命令与单测。
+3. dry-run 验证。
+4. 正式导入、备份 Hermes auth store、归档 Switcher token store。
+5. 更新 config、运行 smoke test、重启 Gateway。
+
+## Validation
+
+- `hermes auth list openai-codex`
+- `hermes auth import-codex-switcher --provider openai-codex --mode takeover --dry-run`
+- `hermes auth import-codex-switcher --provider openai-codex --mode takeover`
+- `hermes auth test openai-codex --label <label>`
+- `scripts/run_tests.sh tests/hermes_cli/test_codex_switcher_import.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 确认当前 Hermes `openai-codex` 池只有 1 个 rate-limited 账号。
+- [x] 定位 Switcher token store：`/Users/frank/.codex-switcher/accounts.json`，发现 4 个账号。
+- [x] 实现正式命令和测试。
+- [x] dry-run 验证：只输出来源、账号数、label、auth_mode、token 布尔状态、label 冲突和 action。
+- [x] 正式导入和归档：导入 4 个账号，Hermes auth backup 为 `/Users/frank/.hermes/auth.json.bak.20260506-105235`，Switcher 原 token store 归档到 `/Users/frank/.codex-switcher-archived/accounts.imported-to-hermes.20260506-105235.json`。
+- [x] smoke test、重启 Gateway、总结最终状态：3 个导入账号 auth test 通过，1 个导入账号 401 且刷新失败后标记短期 exhausted；Hermes chat session `20260506_105508_4f2a95` 返回 `OK`；Gateway loaded，PID 70571。
+
+## Decision Log
+
+- takeover import 后，Switcher token store 必须归档，不能继续让 Switcher 使用同一批 refresh token。
+- 导入只复制 token bundle 和账号标识；Hermes 自己生成 credential id、状态、计数和轮转元数据。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+hermes auth list openai-codex
+ls -la /Users/frank/.codex-switcher /Users/frank/.codex-switcher-archived 2>/dev/null
+git status --short
+```
+
+---
+
 # Gateway Dynamic Task Plan Progress Rendering Plan
 
 ## Goal
@@ -1069,3 +1250,41 @@ tail -n 120 /Users/frank/.hermes/logs/gateway.log
     - `预研及技术储备`
     - `产品规划整体逻辑串联skill`
 - gateway 已重启，日志显示 **2026-04-24 02:23:32** 重新连上飞书 WebSocket。
+
+---
+
+# Final Output Selection Fix（Task #13）
+
+## Goal
+
+修复"用户要报告/云文档，但系统把执行记录发出去"的 bug。成功标准：final response 优先展示 analysis/report_generation 型 skill 的用户产物；云文档失败时如实告知；执行记录仅在无用户产物时作为 fallback（带标签）。
+
+## Scope
+
+- `agent_system/output_selector.py`（新建）— 产物分类 + 优先级选择
+- `agent_system/cli_bridge.py` — `_make_delegate_skill_executor` 提取 `main_report_path`；`_format_final_response` 使用 output_selector
+- `tests/agent_system/test_output_selector.py`（新建）— 3 个场景测试
+
+## Non-goals
+
+- 不改 runtime.py、skill.json、routes.json、gateway 层
+
+## Milestones
+
+1. 新建 output_selector.py + 单测（Scenario A/B/C）
+2. 修改 cli_bridge.py 两处
+3. 运行 scripts/run_tests.sh 验证无退化
+
+## Validation
+
+```bash
+scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py
+```
+
+## Progress
+
+- [ ] 新建 agent_system/output_selector.py
+- [ ] 修改 _make_delegate_skill_executor（提取 main_report_path）
+- [ ] 修改 _format_final_response（优先 main_report_path，次选 select_output_files）
+- [ ] 新建 tests/agent_system/test_output_selector.py
+- [ ] 运行测试，确认无退化
