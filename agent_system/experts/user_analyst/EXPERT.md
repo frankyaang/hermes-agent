@@ -75,7 +75,7 @@
 | 反馈去向 | 主专家复盘、辅专家节点修正、Skill 权重优化、审计记录 |
 | 占位字段 | `human_review_required`、`human_review_decision`、`human_review_blocking`、`human_input_summary` |
 
-### 2.4 调度层职责
+### 2.4 调度层
 
 | 项目 | 内容 |
 | --- | --- |
