@@ -19,6 +19,8 @@ class ProgressCaptureAdapter(BasePlatformAdapter):
         super().__init__(PlatformConfig(enabled=True, token="***"), platform)
         self.sent = []
         self.edits = []
+        self.send_times = []
+        self.edit_times = []
         self.typing = []
 
     async def connect(self) -> bool:
@@ -28,6 +30,7 @@ class ProgressCaptureAdapter(BasePlatformAdapter):
         return None
 
     async def send(self, chat_id, content, reply_to=None, metadata=None) -> SendResult:
+        self.send_times.append(time.monotonic())
         self.sent.append(
             {
                 "chat_id": chat_id,
@@ -39,6 +42,7 @@ class ProgressCaptureAdapter(BasePlatformAdapter):
         return SendResult(success=True, message_id="progress-1")
 
     async def edit_message(self, chat_id, message_id, content) -> SendResult:
+        self.edit_times.append(time.monotonic())
         self.edits.append(
             {
                 "chat_id": chat_id,
@@ -474,6 +478,38 @@ class TaskPlanProgressEventAgent:
         }
 
 
+class WokenProgressAgent:
+    probe = None
+    saw_progress_before_return = False
+
+    def __init__(self, **kwargs):
+        self.tool_progress_callback = kwargs.get("tool_progress_callback")
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        type(self).saw_progress_before_return = False
+        # Let the async progress sender enter its empty-queue wait first.  The
+        # regression this covers used a fixed polling sleep, so a fast turn
+        # could enqueue progress and finish before the sender woke up.
+        time.sleep(0.05)
+        self.tool_progress_callback(
+            "__task_plan__",
+            preview="🧭 全局任务规划\n* 当前阶段：诊断阶段\n* 下一步：查配置",
+        )
+        deadline = time.monotonic() + 0.22
+        while time.monotonic() < deadline:
+            probe = type(self).probe
+            if probe and probe():
+                type(self).saw_progress_before_return = True
+                break
+            time.sleep(0.01)
+        return {
+            "final_response": "done",
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
 class PreviewedResponseAgent:
     def __init__(self, **kwargs):
         self.interim_assistant_callback = kwargs.get("interim_assistant_callback")
@@ -706,6 +742,45 @@ async def test_run_agent_refreshes_task_plan_and_appends_execution_log(monkeypat
     assert "诊断阶段" not in latest_progress
     assert "### 🛠 执行记录" in latest_progress
     assert '💻 终端: "ps -axo pid,ppid,lstart,etime,command"' in latest_progress
+
+
+@pytest.mark.asyncio
+async def test_run_agent_wakes_progress_sender_before_fast_turn_finishes(monkeypatch, tmp_path):
+    fake_dotenv = types.ModuleType("dotenv")
+    fake_dotenv.load_dotenv = lambda *args, **kwargs: None
+    monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
+
+    fake_run_agent = types.ModuleType("run_agent")
+    fake_run_agent.AIAgent = WokenProgressAgent
+    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+
+    adapter = ProgressCaptureAdapter()
+    WokenProgressAgent.probe = lambda: bool(adapter.sent or adapter.edits)
+    WokenProgressAgent.saw_progress_before_return = False
+
+    runner = _make_runner(adapter)
+    gateway_run = importlib.import_module("gateway.run")
+    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
+    source = SessionSource(
+        platform=Platform.TELEGRAM,
+        chat_id="-1001",
+        chat_type="group",
+        thread_id="17585",
+    )
+
+    result = await runner._run_agent(
+        message="hello",
+        context_prompt="",
+        history=[],
+        source=source,
+        session_id="sess-progress-wakeup",
+        session_key="agent:main:telegram:group:-1001:17585",
+    )
+
+    assert result["final_response"] == "done"
+    assert WokenProgressAgent.saw_progress_before_return, adapter.sent + adapter.edits
+    assert any("全局任务规划" in call["content"] for call in adapter.sent + adapter.edits)
 
 
 @pytest.mark.asyncio

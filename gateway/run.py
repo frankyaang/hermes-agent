@@ -9867,8 +9867,28 @@ class GatewayRunner:
             )
         )
         
-        # Queue for progress messages (thread-safe)
+        # Queue for progress messages (thread-safe).  The async progress
+        # sender is event-woken by sync callbacks running in the executor
+        # thread; otherwise short tool batches can finish during the sender's
+        # polling sleep and only get flushed at final-response time.
         progress_queue = queue.Queue() if tool_progress_enabled else None
+        _progress_loop = asyncio.get_running_loop()
+        progress_wakeup_event = asyncio.Event() if tool_progress_enabled else None
+
+        def _wake_progress_sender() -> None:
+            if progress_wakeup_event is None:
+                return
+            try:
+                _progress_loop.call_soon_threadsafe(progress_wakeup_event.set)
+            except RuntimeError:
+                pass
+
+        def _put_progress_event(item: Any) -> None:
+            if not progress_queue:
+                return
+            progress_queue.put(item)
+            _wake_progress_sender()
+
         last_tool = [None]  # Mutable container for tracking in closure
         last_progress_msg = [None]  # Track last message for dedup
         repeat_count = [0]  # How many times the same message repeated
@@ -9891,7 +9911,7 @@ class GatewayRunner:
                     or tool_name
                     or ""
                 )
-                progress_queue.put((event_type, payload))
+                _put_progress_event((event_type, payload))
                 return
 
             # First-touch onboarding: the first time a tool takes longer than
@@ -9914,7 +9934,7 @@ class GatewayRunner:
                         gate_on = bool(_cfg.get("display", {}).get("tool_progress_command", False))
                         if gate_on and not is_seen(_cfg, TOOL_PROGRESS_FLAG):
                             long_tool_hint_fired[0] = True
-                            progress_queue.put(
+                            _put_progress_event(
                                 (
                                     _EXECUTION_LOG_PROGRESS_EVENT,
                                     tool_progress_hint_gateway(),
@@ -9972,7 +9992,7 @@ class GatewayRunner:
                     msg = f"{emoji} {display_tool_name}: \"{preview}\""
                 else:
                     msg = f"{emoji} {display_tool_name}..."
-                progress_queue.put((_EXECUTION_LOG_PROGRESS_EVENT, msg))
+                _put_progress_event((_EXECUTION_LOG_PROGRESS_EVENT, msg))
                 return
             
             # "all" / "new" modes: short preview, respects tool_preview_length
@@ -9995,12 +10015,12 @@ class GatewayRunner:
                 repeat_count[0] += 1
                 # Update the last line in progress_lines with a counter
                 # via a special "dedup" queue message.
-                progress_queue.put(("__dedup__", msg, repeat_count[0]))
+                _put_progress_event(("__dedup__", msg, repeat_count[0]))
                 return
             last_progress_msg[0] = msg
             repeat_count[0] = 0
             
-            progress_queue.put((_EXECUTION_LOG_PROGRESS_EVENT, msg))
+            _put_progress_event((_EXECUTION_LOG_PROGRESS_EVENT, msg))
         
         # Background task to send progress messages
         # Accumulates tool lines into a single message that gets edited.
@@ -10076,6 +10096,28 @@ class GatewayRunner:
             _append_execution_progress(raw)
             return str(raw or "").strip() or _render_progress_text()
 
+        def _drain_pending_progress_events(current_msg: str | None = None) -> str | None:
+            """Apply all immediately queued events so the next send is complete.
+
+            The sender is woken as soon as sync callbacks enqueue progress, but
+            those callbacks often enqueue plan + tool lines as one rapid burst.
+            Drain non-blockingly before sending so the user sees the latest
+            task-plan/execution state now, not in the final cancellation flush.
+            """
+            msg = current_msg
+            while True:
+                try:
+                    queued_raw = progress_queue.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    queued_msg = _apply_progress_event(queued_raw)
+                    if queued_msg:
+                        msg = queued_msg
+                except Exception:
+                    logger.debug("Failed to apply batched progress event", exc_info=True)
+            return msg
+
         def _render_progress_text() -> str:
             sections = []
             task_plan = progress_render_state["task_plan"]
@@ -10143,6 +10185,7 @@ class GatewayRunner:
                     # Apply structured progress events. Task plans replace the
                     # current planning block; execution logs append to history.
                     msg = _apply_progress_event(raw)
+                    msg = _drain_pending_progress_events(msg)
                     full_text = _render_progress_text()
                     if not full_text:
                         continue
@@ -10155,11 +10198,22 @@ class GatewayRunner:
                     _now = time.monotonic()
                     _remaining = _PROGRESS_EDIT_INTERVAL - (_now - _last_edit_ts)
                     if _remaining > 0:
-                        # Wait out the throttle interval, then loop back to
-                        # drain any additional queued messages before sending
-                        # a single batched edit.
+                        # Wait out the throttle interval, then drain any events
+                        # that arrived while sleeping and send one batched edit.
+                        # Previously this branch used ``continue`` after the
+                        # sleep: the event had already been removed from the
+                        # queue and applied to in-memory progress state, but no
+                        # send/edit happened until task cancellation at the end
+                        # of the run.  That made 任务规划/执行记录 appear only
+                        # right before the final answer for quick tool batches.
                         await asyncio.sleep(_remaining)
-                        continue
+                        if not _run_still_current():
+                            return
+                        msg = _drain_pending_progress_events(msg)
+                        full_text = _render_progress_text()
+                        if not full_text:
+                            continue
+                        msg = msg or full_text
 
                     if not _run_still_current():
                         return
@@ -10201,7 +10255,15 @@ class GatewayRunner:
                         await adapter.send_typing(source.chat_id, metadata=_progress_metadata)
 
                 except queue.Empty:
-                    await asyncio.sleep(0.3)
+                    if progress_wakeup_event is not None:
+                        progress_wakeup_event.clear()
+                        if progress_queue.empty():
+                            try:
+                                await asyncio.wait_for(progress_wakeup_event.wait(), timeout=0.3)
+                            except asyncio.TimeoutError:
+                                pass
+                    else:
+                        await asyncio.sleep(0.3)
                 except asyncio.CancelledError:
                     # Drain remaining queued messages
                     while not progress_queue.empty():
