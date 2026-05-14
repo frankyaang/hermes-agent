@@ -377,10 +377,21 @@ def _common_betas_for_base_url(base_url: str | None) -> list[str]:
     The ``context-1m-2025-08-07`` beta is also stripped for Bearer-auth
     endpoints — MiniMax hosts its own models, not Claude, so the header is
     irrelevant at best and risks request rejection at worst.
+
+    For generic third-party Anthropic-compatible endpoints (e.g. custom proxies)
+    that are neither Azure AI Foundry nor AWS Bedrock, ``context-1m`` is also
+    stripped: unknown providers may reject unrecognised beta headers, and the
+    1M window is only gated behind this header on the two known providers above.
     """
     if _requires_bearer_auth(base_url):
         _stripped = {_TOOL_STREAMING_BETA, _CONTEXT_1M_BETA}
         return [b for b in _COMMON_BETAS if b not in _stripped]
+    normalized = _normalize_base_url_text(base_url).lower()
+    if normalized and "anthropic.com" not in normalized:
+        _is_azure = "azure.com" in normalized
+        _is_bedrock = "amazonaws.com" in normalized or "bedrock" in normalized
+        if not _is_azure and not _is_bedrock:
+            return [b for b in _COMMON_BETAS if b != _CONTEXT_1M_BETA]
     return _COMMON_BETAS
 
 
