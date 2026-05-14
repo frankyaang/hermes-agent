@@ -23,6 +23,10 @@ class PendingCapture:
     failure_reason: str = ""
     session_id: str = ""
     user_id: str = ""
+    platform: str = ""
+    suggested_next_action: str = ""
+    structured_candidate: str = ""
+    terminal_state: str = ""
     status: str = "pending"
     created_at: str = ""
 
@@ -38,6 +42,9 @@ def write_pending_capture(
     failure_reason: str,
     session_id: str,
     user_id: str,
+    platform: str = "",
+    suggested_next_action: str = "",
+    structured_candidate: dict | None = None,
     hermes_home: Path | None = None,
 ) -> str:
     """Append a failed knowledge candidate to pending_captures.jsonl.
@@ -61,6 +68,10 @@ def write_pending_capture(
             failure_reason=failure_reason,
             session_id=session_id,
             user_id=user_id,
+            platform=platform,
+            suggested_next_action=suggested_next_action,
+            structured_candidate=json.dumps(structured_candidate or {}, ensure_ascii=False),
+            terminal_state="",
             status="pending",
             created_at=datetime.now(timezone.utc).isoformat(),
         )
@@ -69,3 +80,45 @@ def write_pending_capture(
     except Exception as exc:
         logger.warning("write_pending_capture failed (non-fatal): %s", exc)
     return capture_id
+
+
+def list_pending(hermes_home: Path | None = None) -> list[dict]:
+    """Return all records from pending_captures.jsonl as dicts."""
+    base = hermes_home or get_hermes_home()
+    path = base / "knowledge" / "pending_captures.jsonl"
+    if not path.exists():
+        return []
+    records = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                records.append(json.loads(line))
+    except Exception as exc:
+        logger.warning("list_pending failed: %s", exc)
+    return records
+
+
+def mark_terminal(
+    capture_id: str,
+    terminal_state: str,
+    hermes_home: Path | None = None,
+) -> None:
+    """Update terminal_state of a pending capture in-place (rewrites file)."""
+    base = hermes_home or get_hermes_home()
+    path = base / "knowledge" / "pending_captures.jsonl"
+    if not path.exists():
+        return
+    try:
+        records = list_pending(hermes_home=hermes_home)
+        updated = False
+        for rec in records:
+            if rec.get("capture_id") == capture_id:
+                rec["terminal_state"] = terminal_state
+                updated = True
+        if updated:
+            with open(path, "w", encoding="utf-8") as f:
+                for rec in records:
+                    f.write(json.dumps(rec) + "\n")
+    except Exception as exc:
+        logger.warning("mark_terminal failed (non-fatal): %s", exc)
