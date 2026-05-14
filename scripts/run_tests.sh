@@ -87,18 +87,23 @@ WORKERS="${HERMES_TEST_WORKERS:-4}"
 # ── Run pytest ──────────────────────────────────────────────────────────────
 cd "$REPO_ROOT"
 
-# If the first argument starts with `-` treat all args as pytest flags;
-# otherwise treat them as test paths.
-ARGS=("$@")
-
 echo "▶ running pytest with $WORKERS workers, hermetic env, in $REPO_ROOT"
 echo "  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; all credential env vars unset)"
 
 # -o "addopts=" clears pyproject.toml's `-n auto` so our -n wins.
-exec "$PYTHON" -m pytest \
-  -o "addopts=" \
-  -n "$WORKERS" \
-  --ignore=tests/integration \
-  --ignore=tests/e2e \
-  -m "not integration" \
-  "${ARGS[@]}"
+if [ "$#" -gt 0 ]; then
+  exec "$PYTHON" -m pytest \
+    -o "addopts=" \
+    -n "$WORKERS" \
+    --ignore=tests/integration \
+    --ignore=tests/e2e \
+    -m "not integration" \
+    "$@"
+else
+  exec "$PYTHON" -m pytest \
+    -o "addopts=" \
+    -n "$WORKERS" \
+    --ignore=tests/integration \
+    --ignore=tests/e2e \
+    -m "not integration"
+fi

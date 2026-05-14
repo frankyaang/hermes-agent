@@ -1616,9 +1616,16 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
 
 - [x] 创建 dev WIP 快照分支并提交：`071b80c62`
 - [x] 创建整合工作区与 `codex/integrate-dev-official`
-- [ ] 解决 merge 冲突并提交整合分支
-- [ ] 运行聚焦测试和完整测试
+- [x] 解决 merge 冲突并提交整合分支：`e8e257a8b`
+- [x] 聚焦测试通过：277 passed, 1 skipped
+- [ ] 完整测试通过（当前失败：82 failed, 22 errors）
 - [ ] 测试通过后 merge 回 `codex/dev-env`
+
+## Validation Notes
+
+- 2026-05-14：新 worktree 没有本地虚拟环境；测试时临时创建 `.venv` 软链接指向 `/Users/frank/.hermes/hermes-agent-official/venv`，测试结束后删除，不纳入 Git。
+- 2026-05-14：完整测试首次执行未进入 pytest，`scripts/run_tests.sh` 在 macOS bash 3.2 + `set -u` 下空参数展开触发 `ARGS[@]: unbound variable`。已改为有参/无参两个 `exec pytest` 分支后重跑。
+- 2026-05-14：完整测试已进入 pytest 并跑完，结果为 17504 passed, 54 skipped, 82 failed, 22 errors。代表性失败包括 `tools.memory_tool.get_memory_dir` monkeypatch 参数不兼容、Anthropic beta header 期望缺少 `context-1m-2025-08-07`、builtin registry 期望列表缺少 `codex_pipeline_tool` / `feishu_sheet_tool` / `knowledge_tool`。按整合计划，未合回 `codex/dev-env`。
 
 ## Recovery
 
