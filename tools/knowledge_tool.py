@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timezone
 from tools.registry import registry
 from gateway.session_context import get_session_env
+from agent.knowledge_alias import resolve_product_line_alias
+from agent.pending_capture import write_pending_capture
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +108,19 @@ def _knowledge_query(query: str, product_line_id: str, finance: bool, task_id: s
     })
 
 
+def _next_action_hint(reason: str, scope_id: str, session_id: str) -> str:
+    if reason == "product_line_not_authorized":
+        return (
+            f"Add {scope_id} to your product_line_ids in ~/.hermes/knowledge/users.yaml, "
+            "or use ecovacs_company for company-level facts"
+        )
+    if reason == "source_uri_required":
+        return f"Provide source_uri (e.g. feishu://doc/xxx or hermes://session/{session_id})"
+    if reason == "finance_write_not_authorized":
+        return f"Add {scope_id} to finance_product_line_ids in users.yaml"
+    return "Check pending captures at ~/.hermes/knowledge/pending_captures.jsonl"
+
+
 def _knowledge_write(
     title: str,
     content: str,
@@ -125,33 +140,68 @@ def _knowledge_write(
     if mgr is None:
         return json.dumps({"error": "access_denied", "reason": "user_not_registered_or_config_error"})
 
+    # Normalize alias before any ACL check
+    product_line_id = resolve_product_line_alias(product_line_id)
+
+    if not product_line_id:
+        product_line_id = mgr._ctx.default_product_line_id
+    if not product_line_id:
+        capture_id = write_pending_capture(
+            title=title, summary=content[:500], candidate_type="knowledge",
+            scope_id="", source_uri=source_uri, confidence=confidence,
+            missing_fields=["product_line_id"], failure_reason="no_product_line",
+            session_id=task_id, user_id=mgr._ctx.user_id,
+        )
+        return json.dumps({
+            "error": "no_product_line",
+            "reason": "specify product_line_id or set default",
+            "pending_capture_id": capture_id,
+            "next_action": "Check pending captures at ~/.hermes/knowledge/pending_captures.jsonl",
+        })
+
     if not doc_slug:
         doc_slug = re.sub(r"[^a-z0-9]+", "-", title.lower())[:50].strip("-")
 
     now = datetime.now(timezone.utc).isoformat()
     doc = KnowledgeDoc(
-        slug=doc_slug,
-        title=title,
-        content=content,
-        product_line_id=product_line_id,
-        finance_flag=finance_flag,
-        source_uri=source_uri,
-        knowledge_type=knowledge_type,
-        sensitivity_level=sensitivity_level,
-        confidence=confidence,
-        owner=mgr._ctx.user_id,
-        created_at=now,
-        updated_at=now,
+        slug=doc_slug, title=title, content=content,
+        product_line_id=product_line_id, finance_flag=finance_flag,
+        source_uri=source_uri, knowledge_type=knowledge_type,
+        sensitivity_level=sensitivity_level, confidence=confidence,
+        owner=mgr._ctx.user_id, created_at=now, updated_at=now,
         updated_by=mgr._ctx.user_id,
     )
     try:
         slug = mgr.write(doc)
         return json.dumps({"success": True, "slug": slug, "product_line_id": product_line_id})
     except PermissionDenied as exc:
-        return json.dumps({"error": "permission_denied", "reason": str(exc)})
+        reason = str(exc)
+        capture_id = write_pending_capture(
+            title=title, summary=content[:500], candidate_type="knowledge",
+            scope_id=product_line_id, source_uri=source_uri, confidence=confidence,
+            missing_fields=[], failure_reason=reason,
+            session_id=task_id, user_id=mgr._ctx.user_id,
+        )
+        return json.dumps({
+            "error": "permission_denied",
+            "reason": reason,
+            "pending_capture_id": capture_id,
+            "next_action": _next_action_hint(reason, product_line_id, task_id),
+        })
     except Exception as exc:
         logger.error("knowledge write failed: %s", exc)
-        return json.dumps({"error": "write_failed", "reason": str(exc)})
+        capture_id = write_pending_capture(
+            title=title, summary=content[:500], candidate_type="knowledge",
+            scope_id=product_line_id, source_uri=source_uri, confidence=confidence,
+            missing_fields=[], failure_reason=f"write_failed:{type(exc).__name__}",
+            session_id=task_id, user_id=mgr._ctx.user_id,
+        )
+        return json.dumps({
+            "error": "write_failed",
+            "reason": str(exc),
+            "pending_capture_id": capture_id,
+            "next_action": "Check pending captures at ~/.hermes/knowledge/pending_captures.jsonl",
+        })
 
 
 registry.register(

@@ -1583,3 +1583,51 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
 - [ ] 修改 _format_final_response（优先 main_report_path，次选 select_output_files）
 - [ ] 新建 tests/agent_system/test_output_selector.py
 - [ ] 运行测试，确认无退化
+
+---
+
+# Dev / Official 环境完整整合（2026-05-14）
+
+## Goal
+
+将 `hermes-agent-official` 当前 snapshot 与 `hermes-agent-dev` 当前 Git 可见工作区完整整合到独立工作区，并在验证通过后合回 `codex/dev-env`。
+
+## Scope
+
+- 基线：`snapshot/hermes-local-20260514-224006` at `18bf580df`
+- Dev 快照：`codex/dev-wip-snapshot-20260514-232334` at `071b80c62`
+- 整合分支：`codex/integrate-dev-official`
+- 整合工作区：`/Users/frank/.hermes/hermes-agent-integrate`
+
+## Decisions
+
+- 保留完整 Git 可见内容，包括 `dist/`、`dist_skills/`、`extracted_data/`、运行输出和本地快照。
+- `agent_system` 核心入口、runtime、planner、routes 和模型路由测试以 official 较新版本为主，保留 planning LLM、progress heartbeat、internal skill call、防递归和 Codex auth fail-closed。
+- `knowledge_tool.py` 与知识提示词测试以 dev 快照为主，保留 product-line alias、pending capture 和失败可恢复提示。
+- `toolsets.py` 以 official 版本为主，因为它已包含 `codex_pipeline` 与 `knowledge_query` / `knowledge_write` 的并集。
+- `PLANS.md` 主体保留 official 的现场计划记录，并在本节记录整合恢复信息；dev 知识系统计划同时保留在 `.plans/2026-05-10-knowledge-system-poc.md` 与 `KNOWLEDGE_SYSTEM_PLAN.md`。
+
+## Validation
+
+- `scripts/run_tests.sh tests/agent/test_knowledge_user_registry.py tests/tools/test_knowledge_tool.py tests/agent/test_prompt_builder.py tests/agent_system/test_model_routing.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/hermes_cli/test_tools_config.py tests/tools/test_session_search.py`
+- `scripts/run_tests.sh`
+
+## Progress
+
+- [x] 创建 dev WIP 快照分支并提交：`071b80c62`
+- [x] 创建整合工作区与 `codex/integrate-dev-official`
+- [ ] 解决 merge 冲突并提交整合分支
+- [ ] 运行聚焦测试和完整测试
+- [ ] 测试通过后 merge 回 `codex/dev-env`
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short
+git diff --name-only --diff-filter=U
+```
+
+如需重来，保留 `codex/dev-wip-snapshot-20260514-232334` 不删，删除并重建 `codex/integrate-dev-official` 工作区即可。

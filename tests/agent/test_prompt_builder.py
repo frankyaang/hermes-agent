@@ -57,6 +57,19 @@ class TestGuidanceConstants:
         assert "Never dump raw chat logs" in KNOWLEDGE_GUIDANCE
         assert "failed closed" in KNOWLEDGE_GUIDANCE
 
+    def test_memory_guidance_excludes_business_facts(self):
+        assert "Business facts" in MEMORY_GUIDANCE
+        assert "do NOT belong in memory" in MEMORY_GUIDANCE
+        assert "knowledge_write" in MEMORY_GUIDANCE
+
+    def test_knowledge_guidance_has_routing_table(self):
+        assert "Asset routing" in KNOWLEDGE_GUIDANCE
+        assert "memory tool" in KNOWLEDGE_GUIDANCE
+        assert "skill_manage" in KNOWLEDGE_GUIDANCE
+        assert "pending capture" in KNOWLEDGE_GUIDANCE
+        assert "ecovacs_company" in KNOWLEDGE_GUIDANCE
+        assert "cleaning_robot" in KNOWLEDGE_GUIDANCE
+
 
 # =========================================================================
 # Context injection scanning
