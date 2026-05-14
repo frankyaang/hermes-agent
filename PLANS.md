@@ -1,3 +1,198 @@
+# Knowledge System — Dev 验证与发布计划
+
+## Goal
+
+在 dev 仓库（`hermes-agent-dev`）中完成知识系统 PoC 的全链路验证，确认 `knowledge_query` / `knowledge_write` 工具可在 Hermes 中使用 gbrain 作为后端，ACL 和财务隔离生效，审计日志可查；随后给出最小发布步骤，将代码同步到 official 仓库。
+
+## Scope
+
+- `agent/knowledge_acl.py` — 双层 ACL 校验（pre-query + post-filter）
+- `agent/knowledge_audit.py` — append-only JSONL 审计日志
+- `agent/knowledge_manager.py` — 编排 ACL + 审计 + provider
+- `agent/knowledge_models.py` — 数据模型（UserContext / Doc / AccessDecision / AuditEvent）
+- `agent/knowledge_provider.py` — KnowledgeProvider ABC
+- `agent/knowledge_user_registry.py` — YAML 用户注册表（`~/.hermes/knowledge/users.yaml`）
+- `plugins/knowledge/gbrain/provider.py` — gbrain CLI subprocess 适配器（PGLite 串行锁）
+- `tools/knowledge_tool.py` — knowledge_query / knowledge_write 工具注册
+- `toolsets.py` — "knowledge" toolset 定义（已添加）
+- `~/.hermes/knowledge/users.yaml` — 本地用户配置（**不提交**）
+- `~/.hermes/knowledge/audit/` — 审计日志目录（**不提交**）
+
+## Non-goals
+
+- 不改动 official gateway 运行进程（需确认后再切换）
+- 不实现 gbrain MCP sidecar 模式（PoC 用 CLI subprocess）
+- 不实现多产品线动态注册 UI
+
+## Risks
+
+| 风险 | 影响 | 缓解措施 |
+|---|---|---|
+| PGLite 不支持并发进程 | 高并发时 gbrain 写入失败 | `_GBRAIN_LOCK` 串行化全部 subprocess 调用 |
+| gbrain 无 RLS，ACL 全靠 Hermes | 代码 bug 可能跨产品线泄露 | 双层过滤：check_read 前置 + filter_results 后置 |
+| users.yaml 本地维护 | 用户增删需手动更新 | PoC 阶段可接受；生产建议迁移到 Supabase |
+| official 无知识代码 | 切换前 official 无法使用知识工具 | 见"发布步骤"，patch 模式同步，不中断当前 gateway |
+
+## Validation（已验证，2026-05-10）
+
+```
+scripts/run_tests.sh tests/agent/test_knowledge_manager.py   → 12 passed
+```
+
+集成场景（Python 直接调用）：
+
+| 场景 | 用户 | 结果 |
+|---|---|---|
+| frank 查询 test_product_a 普通知识 | cli:frank:default | ✓ 2 条，无财务泄露 |
+| frank 查询 test_product_a 财务知识 | cli:frank:default | ✓ 1 条财务结果 |
+| restricted 用户查财务被拒 | feishu:ou_restricted_test | ✓ 拒绝，0 条 |
+| 普通查询不泄露财务内容 | cli:frank:default | ✓ finance doc 被过滤 |
+| 未授权产品线查询被拒 | cli:frank:default | ✓ test_product_b 拒绝 |
+| knowledge_write 工具写入 | cli:frank:default | ✓ slug 正确 |
+
+审计日志：`~/.hermes/knowledge/audit/YYYY-MM/audit.jsonl` 记录 13 条，含允许/拒绝记录。
+
+## Progress
+
+- [x] 数据模型 (knowledge_models.py)
+- [x] ACL Guard (knowledge_acl.py) — 含 16 个测试
+- [x] 用户注册表 (knowledge_user_registry.py)
+- [x] 审计日志 (knowledge_audit.py)
+- [x] KnowledgeProvider ABC + KnowledgeManager
+- [x] gbrain CLI 输出格式探查
+- [x] GBrainCLIKnowledgeProvider (PGLite 锁 + slug 命名)
+- [x] 工具注册 (knowledge_tool.py + toolsets.py)
+- [x] 测试数据初始化 (gbrain put)
+- [x] 集成验证：全部 6 个场景通过，审计日志确认
+
+## 自动业务事实沉淀优化（2026-05-11）
+
+### Goal
+
+让知识沉淀不依赖用户显式说“写入知识库”：当 CLI / Feishu 会话中已经启用 `knowledge_write`，模型需要在业务分析、产品线讨论、会议结论、客户反馈整理等场景结束前，自主判断是否产生了稳定、可复用、可归属产品线的业务事实，并在满足来源、权限和置信度条件时主动写入知识系统。
+
+### Scope
+
+- `toolsets.py`：将 `knowledge_query` / `knowledge_write` 纳入默认 Hermes 核心工具面，使默认 CLI / Feishu 能解析出 `knowledge` toolset。
+- `hermes_cli/tools_config.py`：让 `knowledge` 出现在可配置工具列表，避免默认启用后在工具 UI 中不可见。
+- `agent/prompt_builder.py` + `run_agent.py`：当 `knowledge_write` 可用时注入自动业务事实沉淀协议。
+- `KNOWLEDGE_SYSTEM_PLAN.md`：澄清禁止的是原始聊天记录自动入库，不是禁止结构化业务事实自动沉淀。
+- `tests/hermes_cli/test_tools_config.py`、`tests/agent/test_prompt_builder.py`、新增 agent prompt 测试：覆盖默认可用、显式禁用、协议注入与不可用时不注入。
+
+### Non-goals
+
+- 不把整段聊天记录自动写入知识库。
+- 不绕过 `KnowledgeACLGuard`、`source_uri_required` 或用户注册表。
+- 不为未知真实飞书用户或未知真实产品线伪造 ACL 配置。
+- 不实现新的后台异步抽取 worker；本轮使用模型运行时自主判断 + 工具调用协议。
+
+### Risks / Unknowns
+
+- 若真实 Feishu 用户未写入 `~/.hermes/knowledge/users.yaml`，`knowledge_write` 会 fail closed；这是预期安全行为。
+- 当前 `~/.hermes/config.yaml` 顶层 `toolsets: [hermes-cli, knowledge]` 不等于平台工具集配置；需要通过默认 toolset 与可配置列表修正运行时可见性。
+- 自动沉淀依赖模型遵循协议；后续若要更强保证，可增加会话后置审稿 agent，但那会改变执行链路和成本。
+
+### Validation
+
+```bash
+scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py -q
+python - <<'PY'
+from hermes_cli.config import load_config
+from hermes_cli.tools_config import _get_platform_tools
+from model_tools import get_tool_definitions
+cfg = load_config()
+for platform in ["cli", "feishu"]:
+    toolsets = sorted(_get_platform_tools(cfg, platform))
+    names = [
+        (t.get("function") or {}).get("name") or t.get("name")
+        for t in get_tool_definitions(enabled_toolsets=toolsets, quiet_mode=True)
+    ]
+    print(platform, "knowledge" in toolsets, "knowledge_write" in names)
+PY
+```
+
+2026-05-11 验证结果：
+
+- `scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py -q` → 174 passed, 1 skipped
+- `scripts/run_tests.sh tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q` → 32 passed
+- 本地运行时检查：`cli` / `feishu` 均解析出 `knowledge` toolset，且可用工具名包含 `knowledge_write`
+
+### Progress
+
+- [x] 现状确认：`knowledge` 工具存在，但默认 CLI / Feishu 未解析出 `knowledge_write`
+- [x] 默认工具集与工具 UI 接入
+- [x] 自动业务事实沉淀协议注入
+- [x] 测试覆盖
+- [x] 运行验证并记录结果
+
+### Recovery
+
+如中断，从 `git diff toolsets.py hermes_cli/tools_config.py agent/prompt_builder.py run_agent.py tests/...` 查看增量；先跑 `tests/hermes_cli/test_tools_config.py` 确认工具面，再跑 agent prompt 测试确认协议注入。
+
+## 发布步骤（切换到 official 前需确认）
+
+> **下列操作会影响正在运行的 official gateway，需在低峰期或重启前执行。确认前不执行。**
+
+### 1. 将 dev 知识系统代码同步到 official（patch 模式，不破坏现有功能）
+
+```bash
+# 确保 official 是干净的
+cd /Users/frank/.hermes/hermes-agent-official
+git status
+
+# 从 dev 提取知识系统相关 commits（cherry-pick）
+# dev 的知识系统 commits：
+#   86bb6cb  feat(knowledge): add data models
+#   fbc0e6d  feat(knowledge): add KnowledgeACLGuard
+#   71e442e  feat(knowledge): add KnowledgeUserRegistry
+#   d0b709e  feat(knowledge): add KnowledgeAuditLogger
+#   09ef7fe  feat(knowledge): add KnowledgeProvider ABC + KnowledgeManager
+#   66971778 feat(knowledge): add GBrainCLIKnowledgeProvider
+#   bdeedb3  feat(knowledge): register knowledge_query and knowledge_write tools
+git -C /Users/frank/.hermes/hermes-agent-dev log --oneline -- agent/knowledge*.py tools/knowledge_tool.py toolsets.py plugins/knowledge/
+```
+
+```bash
+# 方案 A：cherry-pick（推荐，保留 commit 历史）
+cd /Users/frank/.hermes/hermes-agent-official
+git remote add dev /Users/frank/.hermes/hermes-agent-dev 2>/dev/null || true
+git fetch dev
+git cherry-pick 86bb6cb fbc0e6d 71e442e d0b709e 09ef7fe 66971778 bdeedb3
+```
+
+### 2. 复制本地配置（不提交）
+
+```bash
+# users.yaml 已存在于 ~/.hermes/knowledge/users.yaml，official gateway 会自动读取
+# 确认路径
+ls ~/.hermes/knowledge/users.yaml
+```
+
+### 3. 验证 official 环境
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+scripts/run_tests.sh tests/agent/test_knowledge_manager.py
+python3 -c "
+import sys; sys.path.insert(0,'.')
+from model_tools import discover_builtin_tools
+discover_builtin_tools()
+from tools.registry import registry
+print([t for t in registry._tools if 'knowledge' in t])
+"
+```
+
+### 4. 重启 gateway（若需要）
+
+```bash
+# 查看当前 gateway 进程
+pgrep -af "hermes-agent-official" | head -5
+# 重启命令（按实际启动方式）
+# 注意：重启会断开当前会话，需在低峰期操作
+```
+
+---
+
 # Gateway Dynamic Task Plan Progress Rendering Plan
 
 ## Goal
@@ -1069,3 +1264,248 @@ tail -n 120 /Users/frank/.hermes/logs/gateway.log
     - `预研及技术储备`
     - `产品规划整体逻辑串联skill`
 - gateway 已重启，日志显示 **2026-04-24 02:23:32** 重新连上飞书 WebSocket。
+
+---
+
+# 会话历史 conversation_access 接入
+
+## Goal
+
+让 `~/.hermes/knowledge/users.yaml` 中的 `conversation_access: all_users` 不再只是扩展元数据，而是被 Hermes 用户注册表加载，并在 Hermes 内部历史会话读取路径 `session_search` 中形成显式、可测试的权限模式。
+
+成功标准：
+
+- `KnowledgeUserContext` 能保存 `conversation_access`，未配置时默认 `default`。
+- 只有 `is_admin: true` 且 `conversation_access: all_users` 的用户拥有显式全量会话读取权限。
+- 普通用户 `session_search` 保持现有 legacy 行为，不收紧。
+- `session_search` 在加载完整 transcript 和辅助模型总结前完成权限模式解析。
+- dev 验证通过后同步 official。
+
+## Scope
+
+- 目标代码库：
+  - `/Users/frank/.hermes/hermes-agent-dev`
+  - `/Users/frank/.hermes/hermes-agent-official`
+- 主要改动范围：
+  - `agent/knowledge_models.py`
+  - `agent/knowledge_user_registry.py`
+  - 新增轻量会话 ACL helper
+  - `tools/session_search_tool.py`
+  - `run_agent.py`
+  - 相关测试
+
+## Non-goals
+
+- 不接入飞书原始聊天历史或 UAT 读取路径。
+- 不收紧普通用户现有历史会话搜索行为。
+- 不把产品线/财务知识 ACL 与会话历史 ACL 合并。
+
+## Milestones
+
+1. 扩展用户上下文模型和注册表加载。
+2. 增加会话历史权限判定 helper。
+3. 接入 `session_search`，暴露可测试访问模式。
+4. 补充 dev 测试并运行目标套件。
+5. 同步 official 并运行同组测试。
+
+## Validation
+
+- `scripts/run_tests.sh tests/agent/test_knowledge_user_registry.py tests/agent/test_conversation_acl.py tests/tools/test_session_search.py -q`
+
+## Progress
+
+- [x] 只读确认当前 `conversation_access` 尚未被模型/注册表加载。
+- [x] 只读确认 `session_search` 在 FTS 命中后会加载完整会话并总结，权限模式解析必须放在此之前。
+- [x] 实现 dev 改动。
+- [x] 完成 dev 测试：`54 passed`。
+- [x] 同步 official。
+- [x] 完成 official 测试：`54 passed`。
+- [x] official 真实配置只读验证：杨子枫返回 `all_sessions`，张嫄返回 `legacy`。
+
+## Decision Log
+
+- 本轮选择兼容策略：普通用户继续走 legacy 全库搜索行为，仅让 `all_users` 成为显式模式。
+- 全量会话权限采用双条件：`is_admin` 和 `conversation_access == "all_users"` 必须同时成立。
+- 飞书原始历史读取不在本轮接入，避免把 Hermes 会话权限误用为飞书 OAuth 授权绕过。
+
+## Recovery
+
+本轮已完成。后续如需恢复或复查，从 `git diff agent/knowledge_models.py agent/knowledge_user_registry.py agent/conversation_acl.py tools/session_search_tool.py run_agent.py tests/agent/test_knowledge_user_registry.py tests/agent/test_conversation_acl.py tests/tools/test_session_search.py` 查看 dev 增量，并对照 official 同名文件。
+
+---
+
+# AI Studio 会话基础数据抽取
+
+## Goal
+
+从 Google AI Studio 会话 `https://aistudio.google.com/app/prompts/1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p` 中抽取可访问的基础数据，包含对话正文、可展开的 Thoughts/推理过程文本、附件或文件线索、截图与抽取日志。
+
+成功标准：
+
+- 产物保存在独立目录，包含原始文本、结构化摘要、截图和日志。
+- 对每个可见或可访问的 `Thoughts` 区块尝试展开并复制文本。
+- 明确记录未能抽取的原因，例如 Chrome 未开启 AppleScript JavaScript、页面虚拟滚动或附件无法下载。
+
+## Scope
+
+- 只操作 Chrome 中该 AI Studio 会话页面。
+- 只读抽取，不向 AI Studio 提交新 prompt，不修改 Salesforce 或其他业务系统。
+- 输出目录：`/Users/frank/.hermes/hermes-agent-dev/extracted_data/aistudio_1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p_20260512`
+
+## Non-goals
+
+- 不绕过 Google 权限或登录限制。
+- 不伪造不可见的推理过程。
+- 不重写、翻译或清洗掉原始文本含义。
+
+## Milestones
+
+1. 创建抽取目录并保存当前可见页面文本与截图。
+2. 尝试展开页面中的 Thoughts 区块并重复抽取。
+3. 尝试用滚动/复制方式覆盖更多历史内容。
+4. 盘点附件、链接、文件名和下载线索。
+5. 生成结构化索引与抽取限制说明。
+
+## Parallel Workstreams
+
+- 页面读取和截图依赖当前 Chrome 状态，保持串行，避免把页面滚动位置和剪贴板状态打乱。
+- 文本索引和附件线索扫描可在每轮复制后本地执行。
+
+## Risks / Unknowns
+
+- Chrome 当前禁用“允许 Apple 事件中的 JavaScript”，无法直接读取 DOM。
+- AI Studio 可能使用虚拟滚动，`Cmd+A/Cmd+C` 未必包含全部 41,760 tokens。
+- Thoughts 文本只有在 UI 可展开且复制可见文本时才能获取。
+- 附件若是 Google 私有对象或只在页面内部引用，可能只能记录线索，无法直接下载。
+
+## Validation
+
+- 检查输出目录文件列表。
+- 检查原始文本字节数和关键词命中。
+- 截图留证当前页面状态。
+- 明确记录抽取覆盖范围和失败信号。
+
+## Progress
+
+- [x] 确认 Chrome 能打开目标 AI Studio 会话。
+- [x] 确认 Chrome 禁用 AppleScript JavaScript，需走剪贴板/键盘兜底。
+- [x] 保存初始可见文本和截图。
+- [x] 展开 Thoughts 并重复抽取。
+- [x] 扫描附件和链接线索。
+- [x] 生成结构化索引与限制说明。
+
+## Decision Log
+
+- 选择只读抽取，避免误触运行按钮或修改会话。
+- 当前不依赖 Salesforce，因为用户本轮目标是建立 AI Studio 会话基础数据。
+- Chrome 插件未暴露专用 DOM 工具时，先用剪贴板/截图兜底；随后临时启用 AppleScript-JS 读取 `document.body.innerText`，并通过 `ms-autoscroll-container` 多位置滚动快照扩大覆盖。
+- 页面未暴露附件下载 URL 或二进制内容，本轮将附件保存为线索清单和截图证据，不伪造附件内容。
+- 抽取结束后已将 Chrome Profile 3 的 `allow_javascript_apple_events` 恢复为原始未设置状态；Default Profile 原本为开启，未改变。
+- 过程里生成过 Chrome Profile 偏好备份和缓存命中日志，因包含目标会话外的无关隐私数据，已从交付目录删除并重建 manifest。
+
+## Recovery
+
+本轮已完成。后续从 `/Users/frank/.hermes/hermes-agent-dev/extracted_data/aistudio_1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p_20260512/README.md` 开始查看；如需复跑，先读取 `logs/chrome_tabs_before_relaunch.txt`、`logs/js_scroll_expand_sizes.txt` 和 `logs/unique_raw_files_chronological.txt`，再从 `ms-autoscroll-container` 滚动抽取流程继续。
+
+---
+
+# evaluate-change-value Skill 创建与打包
+
+## Goal
+
+创建独立可安装的 Codex/Hermes Skill 包 `evaluate-change-value`，用于产品配置、SKU、价格、渠道、成本等变更的价值评估。成功标准是生成可校验的 Skill 文件夹和 zip 包，内置数据处理脚本、参考方法论、脱敏 golden case，并能用莎士比亚 T90 本地附件复算关键指标。
+
+## Scope
+
+- 输出 Skill 文件夹：`/Users/frank/.hermes/hermes-agent-dev/dist_skills/evaluate-change-value`
+- 输出 zip：`/Users/frank/.hermes/hermes-agent-dev/dist/evaluate-change-value-skill.zip`
+- 包含 `SKILL.md`、`agents/openai.yaml`、`references/`、`scripts/`、`examples/shakespeare_t90/`
+- 使用本地附件做验收，但不把原始 DOCX/XLSX 打入 zip。
+
+## Non-goals
+
+- 不修改 `agent_system` 的 routes、experts、skills。
+- 不安装到 `~/.codex/skills`。
+- 不把原始业务附件、AI Studio 原始抽取数据或敏感二进制文件打包。
+
+## Milestones
+
+1. 使用 `skill-creator` 初始化 Skill 骨架。
+2. 补齐 Skill 指令、reference 契约、脚本和脱敏样例。
+3. 用莎士比亚 T90 附件运行脚本验收关键指标。
+4. 运行 Skill 校验，打包 zip 并检查结构。
+
+## Validation
+
+- `quick_validate.py /Users/frank/.hermes/hermes-agent-dev/dist_skills/evaluate-change-value`
+- `python scripts/run_evaluation.py --input-dir <case_input> --output-dir <case_output> --case-name shakespeare_t90`
+- zip 解压后根目录为 `evaluate-change-value/`，脚本支持 `--help`，examples 不含原始附件。
+
+## Progress
+
+- [x] 确认目标目录不存在，可新建。
+- [x] 初始化 Skill 骨架。
+- [x] 补齐内容和脚本。
+- [x] 完成样例验收。
+- [x] 完成打包验证。
+
+## Decision Log
+
+- 交付选择独立 Skill 包，不接入 `agent_system`。
+- 默认包含脚本，保证指标桥接和审计可复验。
+- 案例仅保留脱敏摘要与预期输出，不携带原始业务附件。
+
+## Recovery
+
+中断后从 `dist_skills/evaluate-change-value` 检查已生成文件；若骨架损坏，可删除该未跟踪目录并重新运行 skill-creator 初始化脚本。用 `PLANS.md` 本节 Progress 恢复当前位置。
+
+---
+
+# 知识沉淀机制升级 Phase 1（2026-05-14）
+
+## Goal
+
+让 knowledge_write 失败时不再静默丢失候选知识；通过 alias 映射减少错误产品线写入；通过 prompt routing 规范减少 business facts 写入 memory。
+
+## Scope
+
+- `agent/knowledge_alias.py`（新增）
+- `agent/pending_capture.py`（新增）
+- `tools/knowledge_tool.py`（修改：alias 解析 + 失败 pending capture）
+- `agent/prompt_builder.py`（修改：MEMORY_GUIDANCE + KNOWLEDGE_GUIDANCE routing table）
+
+## Non-goals
+
+- 不新增 pending_capture_write 工具（auto-happens on failure）
+- 不实现 pending→approved 工作流 UI
+- 不修改 KnowledgeACLGuard / KnowledgeManager / provider
+
+## Decisions
+
+- JSONL append 而非 SQLite：与 audit log 模式一致，无额外依赖
+- capture_id 在 try 外生成：确保失败时 error response 仍有 pending_capture_id
+- alias 映射在 ACL 前：防止自然业务词被 ACL 误拒
+- mgr=None 不写 pending capture：这是用户配置问题，不是知识路由问题
+
+## Validation
+
+2026-05-14 验证结果：
+
+- `scripts/run_tests.sh tests/agent/test_knowledge_alias.py` → 9 passed
+- `scripts/run_tests.sh tests/agent/test_pending_capture.py` → 7 passed
+- `scripts/run_tests.sh tests/tools/test_knowledge_tool.py` → 9 passed（5 existing + 4 new）
+- `scripts/run_tests.sh tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py` → 120 passed, 1 skipped
+
+## Progress
+
+- [x] 新增 alias 解析模块（commit b6ea39751）
+- [x] 新增 pending capture 存储模块（commit 571fa310c）
+- [x] knowledge_tool.py 接入 alias + pending capture（commit e64274cea）
+- [x] prompt_builder.py 接入 routing table（commit 9db87cf41）
+- [x] 全量回归验证 + PLANS.md 记录
+
+## Recovery
+
+- alias 映射出错：删除 `PRODUCT_LINE_ALIASES` 中对应条目即可
+- pending capture 影响零：`write_pending_capture` 不影响主流程，失败静默
+- prompt 变更出错：恢复 `MEMORY_GUIDANCE` / `KNOWLEDGE_GUIDANCE` 对应段落
