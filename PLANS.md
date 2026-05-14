@@ -1619,7 +1619,7 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
 - [x] 解决 merge 冲突并提交整合分支：`e8e257a8b`
 - [x] 聚焦测试通过：277 passed, 1 skipped
 - [x] 5 个代表性失败全部修复并验证（2026-05-15）
-- [ ] 完整测试通过（进行中）
+- [ ] 完整测试通过（当前失败：81 failed, 17527 passed, 54 skipped）
 - [ ] 测试通过后 merge 回 `codex/dev-env`
 
 ## Validation Notes
@@ -1635,6 +1635,7 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
   - `test_project_with_broken_venv_falls_back`：CONDA_PREFIX 环境泄漏导致回退到 conda python → patch.dict 补充 `CONDA_PREFIX=""`
   - `test_inf_stays_string_for_integer_only`：`_coerce_number` 对 inf 统一返回字符串 → 区分 integer_only：False 返回 float，True 返回字符串
   - 完整测试正在进行中
+- 2026-05-15：复核 Claude Code 修复后状态：5 个代表性失败已通过（5 passed），聚焦整合测试继续通过（277 passed, 1 skipped）。但完整 `HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh` 未通过，结果为 17527 passed, 54 skipped, 81 failed。主要剩余失败集中在 subagent stop hook、Anthropic/Claude Code credentials keychain 隔离、gateway approval/session/status、systemd/WSL service tests、file read/staleness guards、model_tools inf/nan 契约、clipboard WSL detection、TUI protocol/provider 等。按整合计划，仍不能 merge 回 `codex/dev-env`。
 
 ## Recovery
 
