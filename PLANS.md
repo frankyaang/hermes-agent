@@ -1618,7 +1618,8 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
 - [x] 创建整合工作区与 `codex/integrate-dev-official`
 - [x] 解决 merge 冲突并提交整合分支：`e8e257a8b`
 - [x] 聚焦测试通过：277 passed, 1 skipped
-- [ ] 完整测试通过（当前失败：82 failed, 22 errors）
+- [x] 5 个代表性失败全部修复并验证（2026-05-15）
+- [ ] 完整测试通过（进行中）
 - [ ] 测试通过后 merge 回 `codex/dev-env`
 
 ## Validation Notes
@@ -1627,6 +1628,13 @@ scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_syst
 - 2026-05-14：完整测试首次执行未进入 pytest，`scripts/run_tests.sh` 在 macOS bash 3.2 + `set -u` 下空参数展开触发 `ARGS[@]: unbound variable`。已改为有参/无参两个 `exec pytest` 分支后重跑。
 - 2026-05-14：完整测试已进入 pytest 并跑完，结果为 17504 passed, 54 skipped, 82 failed, 22 errors。代表性失败包括 `tools.memory_tool.get_memory_dir` monkeypatch 参数不兼容、Anthropic beta header 期望缺少 `context-1m-2025-08-07`、builtin registry 期望列表缺少 `codex_pipeline_tool` / `feishu_sheet_tool` / `knowledge_tool`。按整合计划，未合回 `codex/dev-env`。
 - 2026-05-15：复测聚焦整合用例，结果为 277 passed, 1 skipped。复核完整测试代表性失败仍存在：`tests/tools/test_memory_tool.py::TestMemoryStoreAdd::test_add_entry` error，`tests/agent/test_anthropic_adapter.py::TestBuildAnthropicClient::test_custom_base_url` failed，`tests/tools/test_registry.py::TestBuiltinDiscovery::test_matches_previous_manual_builtin_tool_set` failed，`tests/tools/test_code_execution_modes.py::TestResolveChildPython::test_project_with_broken_venv_falls_back` failed，`tests/run_agent/test_tool_arg_coercion.py::TestCoerceNumber::test_inf_stays_string_for_integer_only` failed。由于代表性失败已确认，未重复执行完整套件。
+- 2026-05-15：建立归因矩阵并修复全部 5 个代表性失败（提交 87042c706..f5d9a33cf），5 passed 验证，聚焦测试 277 passed, 1 skipped。详细归因：
+  - `test_memory_tool::test_add_entry`：official 引入 `get_memory_dir(user_id)` 签名，fixture 0-arg lambda TypeError → 更新为 `lambda *a, **kw: tmp_path`（3 处）
+  - `test_custom_base_url`：`context-1m` 加入 `_COMMON_BETAS` 后 generic 第三方 URL 也携带 → `_common_betas_for_base_url` 对非 Azure/Bedrock 第三方端点剥除 context-1m
+  - `test_matches_previous_manual_builtin_tool_set`：integrate 引入 3 个自注册工具（codex_pipeline_tool/feishu_sheet_tool/knowledge_tool）→ 更新 expected 集合（27→30）
+  - `test_project_with_broken_venv_falls_back`：CONDA_PREFIX 环境泄漏导致回退到 conda python → patch.dict 补充 `CONDA_PREFIX=""`
+  - `test_inf_stays_string_for_integer_only`：`_coerce_number` 对 inf 统一返回字符串 → 区分 integer_only：False 返回 float，True 返回字符串
+  - 完整测试正在进行中
 
 ## Recovery
 
