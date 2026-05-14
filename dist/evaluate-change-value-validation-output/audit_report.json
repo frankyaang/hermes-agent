@@ -1,0 +1,33 @@
+{
+  "status": "passed_with_warnings",
+  "blockers": [],
+  "warnings": [
+    "Gross margin increased while gross margin rate declined; decision should be conditional and include portfolio controls"
+  ],
+  "checks": [
+    {
+      "check": "required_file:decision_card.md",
+      "passed": true
+    },
+    {
+      "check": "required_file:metric_bridge.csv",
+      "passed": true
+    },
+    {
+      "check": "required_file:attribution_table.csv",
+      "passed": true
+    },
+    {
+      "check": "required_file:evidence_matrix.json",
+      "passed": true
+    },
+    {
+      "check": "required_file:5w2h_action_plan.md",
+      "passed": true
+    },
+    {
+      "check": "required_file:metric_summary.json",
+      "passed": true
+    }
+  ]
+}

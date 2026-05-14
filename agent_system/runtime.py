@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from agent_system.human_approval import normalize_approval_response
+from agent_system.planner import DynamicPipelineSpec
 
 
 SkillExecutor = Callable[[dict[str, Any]], dict[str, Any]]
@@ -242,6 +243,166 @@ class HermesAgentSystemRuntime:
             "audit_log": str(self.audit_root / "audit.jsonl"),
             "review_summary": review_summary,
         }
+
+    def run_dynamic_pipeline(
+        self,
+        *,
+        pipeline_spec: DynamicPipelineSpec,
+        input_payload: dict[str, Any] | None = None,
+        human_inputs: dict[str, str] | None = None,
+        parallel: bool = True,
+    ) -> dict[str, Any]:
+        """Execute a DynamicPipelineSpec and return the closed-loop run record.
+
+        Behaves identically to run_pipeline but accepts a planner-generated spec
+        instead of loading nodes from routes.json.  Planning metadata is injected
+        into the returned dict and into every audit event.
+        """
+        input_payload = input_payload or {}
+        human_inputs = human_inputs or {}
+        started_at = self.now_fn()
+        pipeline_id = pipeline_spec.pipeline_id
+        run_id = self._make_run_id(started_at, pipeline_id)
+        nodes = self._nodes_from_dynamic_pipeline(pipeline_spec)
+        groups = self._topological_groups(nodes)
+        results: dict[str, dict[str, Any]] = {}
+
+        planning_meta = {
+            "task_context_summary": pipeline_spec.task_context_summary,
+            "expert_selection": pipeline_spec.expert_selection,
+            "task_spec": pipeline_spec.task_spec,
+            "dynamic_pipeline_spec": asdict(pipeline_spec),
+            "planning_source": pipeline_spec.planning_source,
+            "skipped_voc_insight_reason": pipeline_spec.skipped_voc_insight_reason,
+            "template_candidate": pipeline_spec.template_candidate,
+        }
+
+        for group_index, group in enumerate(groups, start=1):
+            blocked_results: list[dict[str, Any]] = []
+            executable_nodes: list[RouteNode] = []
+            for node_key in group:
+                route_node = nodes[node_key]
+                blocked = self._blocked_by_dependencies(route_node, nodes, results)
+                if blocked:
+                    blocked_results.append(
+                        self._dependency_blocked_result(
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            blocked_by=blocked,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            parallel_group=group_index,
+                        )
+                    )
+                else:
+                    executable_nodes.append(route_node)
+
+            for result in blocked_results:
+                results[result["node_key"]] = result
+                self._append_audit_event(result, planning_meta=planning_meta)
+
+            if parallel and len(executable_nodes) > 1:
+                with ThreadPoolExecutor(max_workers=len(executable_nodes)) as pool:
+                    futures = {
+                        pool.submit(
+                            self._execute_node,
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            prior_results=results,
+                            parallel_group=group_index,
+                        ): route_node.key
+                        for route_node in executable_nodes
+                    }
+                    for future in as_completed(futures):
+                        result = future.result()
+                        results[result["node_key"]] = result
+                        self._append_audit_event(result, planning_meta=planning_meta)
+            else:
+                for route_node in executable_nodes:
+                    result = self._execute_node(
+                        run_id=run_id,
+                        pipeline_id=pipeline_id,
+                        route_node=route_node,
+                        input_payload=input_payload,
+                        human_inputs=human_inputs,
+                        prior_results=results,
+                        parallel_group=group_index,
+                    )
+                    results[result["node_key"]] = result
+                    self._append_audit_event(result, planning_meta=planning_meta)
+
+        ordered_results = [results[key] for group in groups for key in group if key in results]
+        review_summary = self._write_review_summary(
+            run_id=run_id,
+            pipeline_id=pipeline_id,
+            started_at=started_at,
+            results=ordered_results,
+        )
+        review_summary["planning_source"] = pipeline_spec.planning_source
+        review_summary["template_candidate"] = pipeline_spec.template_candidate
+        review_summary["skipped_voc_insight_reason"] = pipeline_spec.skipped_voc_insight_reason
+        experience_updates = self._append_private_memory(run_id, ordered_results, review_summary)
+        review_summary["experience_isolation"] = self._experience_isolation_policy()
+        review_summary["experience_updates"] = experience_updates
+        self._persist_review_summary(run_id, review_summary)
+
+        return {
+            "run_id": run_id,
+            "pipeline_id": pipeline_id,
+            "status": self._overall_status(ordered_results),
+            "max_spawn_depth": self.max_spawn_depth,
+            "execution_groups": groups,
+            "results": ordered_results,
+            "audit_log": str(self.audit_root / "audit.jsonl"),
+            "review_summary": review_summary,
+            **planning_meta,
+        }
+
+    def _nodes_from_dynamic_pipeline(
+        self, pipeline_spec: DynamicPipelineSpec
+    ) -> dict[str, RouteNode]:
+        nodes: dict[str, RouteNode] = {}
+        for index, spec_node in enumerate(pipeline_spec.nodes):
+            route = {
+                "pipeline_id": pipeline_spec.pipeline_id,
+                "pipeline_name": pipeline_spec.pipeline_name,
+                "node": spec_node.node_id,
+                "display_name": spec_node.display_name,
+                "depends_on": list(spec_node.depends_on),
+                "constraints": dict(spec_node.constraints),
+                "supervision": {
+                    "scheduler_monitor": True,
+                    "expert_required": spec_node.primary_expert is not None,
+                    "primary_expert": spec_node.primary_expert,
+                    "secondary_experts": list(spec_node.secondary_experts),
+                },
+                "user_gate": spec_node.user_gate,
+                "optional": spec_node.optional,
+                "final_output": spec_node.final_output,
+            }
+            nodes[spec_node.node_id] = RouteNode(
+                key=spec_node.node_id,
+                route=route,
+                dependencies=tuple(spec_node.depends_on),
+                index=index,
+            )
+        missing_deps = sorted(
+            {
+                dep
+                for rn in nodes.values()
+                for dep in rn.dependencies
+                if dep not in nodes
+            }
+        )
+        if missing_deps:
+            raise ValueError(
+                "DynamicPipelineSpec references missing dependencies: " + ", ".join(missing_deps)
+            )
+        return nodes
 
     def _execute_node(
         self,
@@ -493,7 +654,16 @@ class HermesAgentSystemRuntime:
         input_payload: dict[str, Any],
         prior_results: dict[str, dict[str, Any]],
     ) -> dict[str, Any]:
-        expert = self._load_expert(expert_id)
+        try:
+            expert = self._load_expert(expert_id)
+        except FileNotFoundError:
+            # Ephemeral expert has no expert.json; fall through to skill-only execution.
+            return self._execute_skill_without_expert(
+                package=package,
+                route=route,
+                input_payload=input_payload,
+                prior_results=prior_results,
+            )
         requested_skill = route.get("node")
         skill_id = requested_skill if requested_skill in expert.get("skills", []) else expert["skills"][0]
         dynamic_override = skill_id != requested_skill
@@ -1217,7 +1387,11 @@ class HermesAgentSystemRuntime:
             return {}
         return self._read_json(path)
 
-    def _append_audit_event(self, result: dict[str, Any]) -> None:
+    def _append_audit_event(
+        self,
+        result: dict[str, Any],
+        planning_meta: dict[str, Any] | None = None,
+    ) -> None:
         self.audit_root.mkdir(parents=True, exist_ok=True)
         event = {
             "timestamp": self.now_fn().isoformat(),
@@ -1243,6 +1417,13 @@ class HermesAgentSystemRuntime:
             "dynamic_overrides": result.get("dynamic_overrides", []),
             "missing_inputs": result.get("missing_inputs", []),
         }
+        if planning_meta:
+            event["task_context_summary"] = planning_meta.get("task_context_summary", "")
+            event["expert_selection"] = planning_meta.get("expert_selection", {})
+            event["task_spec"] = planning_meta.get("task_spec", {})
+            event["planning_source"] = planning_meta.get("planning_source", "")
+            event["skipped_voc_insight_reason"] = planning_meta.get("skipped_voc_insight_reason", "")
+            event["template_candidate"] = planning_meta.get("template_candidate", False)
         with (self.audit_root / "audit.jsonl").open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False) + "\n")
 

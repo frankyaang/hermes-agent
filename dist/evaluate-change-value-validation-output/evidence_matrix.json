@@ -1,0 +1,85 @@
+{
+  "claim_count": 5,
+  "claims": [
+    {
+      "claim_id": "user_value",
+      "claim": "变更需要命中目标用户场景和痛点，不能只由配置变化推导。",
+      "evidence": [
+        {
+          "source": "user_evidence.json",
+          "fact": "extracted_user_evidence_count=79"
+        },
+        {
+          "source": "change_brief_used.json",
+          "fact": "change_name=莎士比亚 T90 中国区新增中配版"
+        }
+      ],
+      "confidence": "high",
+      "caveat": ""
+    },
+    {
+      "claim_id": "financial_value",
+      "claim": "变更后的总盘收入和毛利是否创造净增量。",
+      "evidence": [
+        {
+          "source": "metric_summary.json",
+          "fact": "delta_revenue=160153941.0"
+        },
+        {
+          "source": "metric_summary.json",
+          "fact": "delta_gross_margin=27285396.0"
+        }
+      ],
+      "confidence": "high",
+      "caveat": ""
+    },
+    {
+      "claim_id": "new_sku_contribution",
+      "claim": "目标变更对象对总盘增量的贡献需要单独量化。",
+      "evidence": [
+        {
+          "source": "metric_summary.json",
+          "fact": "new_sku_units=20000.0"
+        },
+        {
+          "source": "metric_summary.json",
+          "fact": "new_sku_gross_margin=26447787.0"
+        }
+      ],
+      "confidence": "high",
+      "caveat": ""
+    },
+    {
+      "claim_id": "portfolio_risk",
+      "claim": "即使毛利额增长，也要检查组合毛利率和主力 SKU 蚕食风险。",
+      "evidence": [
+        {
+          "source": "metric_summary.json",
+          "fact": "delta_gross_margin_rate=-0.03595216772622578"
+        },
+        {
+          "source": "attribution_table.csv",
+          "fact": "portfolio_related rows flag non-focus SKU/channel movements"
+        }
+      ],
+      "confidence": "medium",
+      "caveat": ""
+    },
+    {
+      "claim_id": "competitive_value",
+      "claim": "竞品价格用于判断价格带防守或进攻价值。",
+      "evidence": [
+        {
+          "source": "change_brief_used.json",
+          "fact": "competitor_price=3598"
+        },
+        {
+          "source": "metric_summary.json",
+          "fact": "new_sku_weighted_msrp=3297.15"
+        }
+      ],
+      "confidence": "high",
+      "caveat": "若只有竞品单点价格，缺少竞品销量和促销节奏，竞争判断需保守。"
+    }
+  ]
+}

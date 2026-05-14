@@ -338,7 +338,7 @@ TOOLSETS = {
     
     "hermes-cli": {
         "description": "Full interactive CLI toolset - all default tools plus cronjob management",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _HERMES_CORE_TOOLS + ["knowledge_query", "knowledge_write"],
         "includes": []
     },
 
@@ -424,7 +424,7 @@ TOOLSETS = {
 
     "hermes-feishu": {
         "description": "Feishu/Lark bot toolset - enterprise messaging via Feishu/Lark (full access)",
-        "tools": _HERMES_CORE_TOOLS,
+        "tools": _HERMES_CORE_TOOLS + ["knowledge_query", "knowledge_write"],
         "includes": ["feishu_doc", "feishu_sheet", "feishu_drive"]
     },
 

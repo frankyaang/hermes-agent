@@ -28,6 +28,7 @@ class KnowledgeUserRegistry:
                 finance_product_line_ids=list(user.get("finance_product_line_ids") or []),
                 role=user.get("role", "user"),
                 is_admin=bool(user.get("is_admin", False)),
+                conversation_access=user.get("conversation_access") or "default",
             )
             self._cache[ctx.user_id] = ctx
 

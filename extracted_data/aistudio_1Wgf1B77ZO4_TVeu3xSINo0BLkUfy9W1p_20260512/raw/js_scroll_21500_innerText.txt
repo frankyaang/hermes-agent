@@ -1,0 +1,457 @@
+Skip to main content
+expand_more
+chat_spark
+Playground
+chevron_right
+History
+design_services
+Build
+chevron_right
+Apps
+Gallery
+speed
+Dashboard
+chevron_right
+developer_guide
+Documentation
+arrow_outward
+Upgrade to unlock more
+Access higher limits, Pro models, and more.
+search
+Search
+⌘ /
+notifications
+What's new
+key
+Get API key
+settings
+Settings
+frank.yangzf@outlook.com
+menu_open
+Copy of Copy of Evaluate New Mid-Range Model
+edit
+
+41,760 tokens
+
+design_services
+share
+compare_arrows
+add
+more_vert
+more_vert
+more_vert
+more_vert
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Analyzing T-Series Data**
+
+I'm currently focused on the T-series user analysis, constructing user personas, mapping their purchase and usage journeys, and defining value propositions. I'm also creating a product configuration map, comparing the Shakespeare top-tier, high-tier, and mid-tier configurations' parameters. Further, I'm working to analyze the before and after changes in volume, price, and channel distribution, particularly noting the new "Shakespeare mid-tier" configuration introduced domestically.
+
+
+**Evaluating Configuration Changes**
+
+I'm currently focused on evaluating the value and impact of the recent product configuration changes. My initial thoughts center on understanding the updated configurations. I'm noting the specifics, like the 6400mAh battery for the mid-tier versus the "infinite" (fast charging + 4000mAh) battery in the high-tier. The high-tier also has a guide price of 4299 RMB. I'm considering user personas, their needs (especially regarding battery life in larger homes), the price strategy shift with a mid-tier offering, and how all this impacts volume, pricing, and channel dynamics.
+
+
+**Assessing Product Tier Strategy**
+
+I'm now diving deeper into how the mid-tier configuration addresses unmet user needs, comparing its large battery against the high-tier's fast-charging solution. I'm quantifying the financial impacts by examining sales, ASP, net sales, and margin shifts before and after the change. I'm also assessing if the mid-tier is creating incremental sales or cannibalizing existing tiers. Furthermore, I'm analyzing its position within the T80 series, evaluating its competitive stance against rivals like Roborock and Dreame in the 3000-3500 RMB price range. Finally, I'm considering the operational impacts, like supply chain complexities and after-sales implications of having two battery solutions.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Calculating Financial Impact**
+
+I'm currently focused on quantifying the financial implications of introducing the mid-tier model. I've initiated calculations for "Before" and "After" scenarios, specifically looking at total sales, net sales, and total profit (channel margin). Now I am pivoting into an analysis of the product mix shifts across Mid, High, and Top tiers.
+
+
+**Analyzing Ecovacs Details**
+
+I've been diving deep into Ecovacs T80 model specifics, focusing on the battery and charging logic. Early data highlights variations between the high-tier and mid-tier models; the high-tier features a 4000mAh battery with fast charging. This initial look should provide a solid basis for further analysis.
+
+
+**Quantifying Financial Impact**
+
+I'm now shifting gears to the financial impact, focusing on quantifying the sales shift from high-tier to mid-tier models. I'm crunching the numbers: total units pre and post-change, revenue, margin, and ASP. The data provided in the text files should let me perform these calculations and quantify the lost sales. I'll see how much the shift affected overall sales.
+
+
+**Formulating Calculation Framework**
+
+I'm solidifying the calculation plan, focusing on Tmall, JD, Douyin, DTC, and offline channels to capture sales volume, net sales, and margin. I'm building out the before-and-after analysis for both water tank and up-down water variants, breaking down volume distribution. I will then calculate ASP, total profit, and gross margin percentages before and after the shift.
+
+
+**Refining Comparison Parameters**
+
+I'm now zeroing in on the specific SKUs and table data. I'll need to extract totals for various high-tier and mid-tier SKUs in "变更后", like "莎士比亚-水箱 中配". I'm carefully double-checking the "After" scenario to catch all changes, especially any "Top" tier modifications. My focus will be on isolating the impact of the Mid-tier addition. The logic will be to generate conclusions after the calculations. I will make a Before-After SKU comparison.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Analyzing Configuration Change**
+
+I'm currently structuring the report for Chairman Qian, focusing on a product configuration change involving a new mid-range model. My process involves outlining the analysis logic, beginning with the initial inputs and then progressing through the analytical flow to arrive at the outputs, specifically the results, methods, and implications of the change.
+
+
+**Defining Strategic Scenarios**
+
+I've refined the approach, now incorporating strategic scenarios for the analysis. Specifically, I'm framing the mid-range model configuration change within either a "Portfolio/Profit Strategy" or a "Value/Experience Strategy," depending on the primary driver. These strategies help streamline the inputs, the process for segmentation, position quantification, and user validation. I'm also now structuring the analysis with a clear input-process-output model, further refining the method for clear presentation.
+
+
+**Constructing Evaluation Framework**
+
+I'm now structuring the evaluation around an Input-Processing-Synthesis-Output flow. The starting point is gathering data: user research, market trends, and financial targets. I've developed two analytical paths: one financial, focusing on profit and volume, and another qualitative, centered on user needs and competitor analysis. The key output will be the decision for Chairman Qian, along with a supporting 5W2H plan. The framework is explained in the methodology and demonstrated in the specific Shakespeare T80 SKU example.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Developing a framework**
+
+I'm structuring the financial scenario analysis for the T80/Shakespeare series update. I'm taking a phase-based approach: Start, Input, Process, and Output. I'll develop a clear flowchart and structured explanation for Chairman Qian, ensuring logic, rigor, and clarity are at the forefront.
+
+
+**Refining the Methodology**
+
+I'm now zeroing in on the financial change evaluation methodology, developing the logic chain. I'm focusing on the quantitative elements, specifically KPIs, margins, and cannibalization. I am defining clear inputs and a structured process: Data Integration (Before/After price matrices), Single Unit Economics, Volume & Revenue assessment, Total Profitability, and Risk/Opportunity assessment. The outputs are a go/no-go decision and an implementation plan, ensuring a rigorous approach for Chairman Qian.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Analyzing User Demand Methodology**
+
+My focus is solidifying a methodology for analyzing user demand in a non-financial context. I'm aiming for a standardized, reproducible structure. I'm currently structuring a flowchart to represent this process. It should be logically connected.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Defining Evaluation Methodology**
+
+I'm currently structuring a workflow for evaluating product change scenarios. My primary goal is to provide senior leadership, like Chairman Qian, with clear, actionable reports. I'm focusing on creating a robust methodology before diving into specific case data.
+
+
+**Refining Decision Gates**
+
+I've established two primary scenario types: "Growth/SKU Expansion" and "Optimization/Marketing". I'm now refining the decision gate to accurately categorize changes and guide the subsequent analysis. I'm building a flowchart-based methodology, presented with clear text, and tailored to provide Chairman Qian with a clear Methodology section and dedicated Case Analysis sections. I am focusing on detailed, structured approaches for each scenario, beginning with user fit and financial modeling for Growth/SKU changes.
+
+
+**Analyzing Scenario Structures**
+
+I'm now diving deeper into the two scenarios, structuring the evaluation frameworks. I'm building out checklists for "Growth/SKU Expansion" and "Refinement/Feature Optimization," focusing on user resonance, competitive edge, and marketing potential. My goal is to clearly explain each stage, the core logic, and resulting decisions in my updates. I am focusing on detailed, structured approaches for each scenario.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Considering Market Segmentation**
+
+I'm now focusing on segmenting the Shakespeare T80 series for the domestic Chinese market. The plan is to introduce a mid-range SKU, or a "中配" model. Key differentiators will be a 6400mAh battery with standard charging, contrasting with the high-end's 4000mAh battery paired with fast charging, intended to create an "infinite runtime" perception. This is being framed as Case Study 1, examining the impacts of adding a SKU/derivative.
+
+
+**Analyzing New SKU Viability**
+
+I'm now deep-diving into the viability of the "中配" SKU. My focus is on user demand, specifically the "Pragmatic Large Apartment" segment. The 6400mAh battery hits their need for uninterrupted cleaning, a strong point against the premium model's fast charging. Financially, the price differential seems attractive, and the cost structure is being analyzed to ensure profitability. The goal is to gauge the viability before moving to the competitive and cannibalization analyses.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Analyzing New SKU Strategy**
+
+I'm currently focused on analyzing the new mid-range T-Series/Shakespeare (T80) SKU strategy, specifically for presentation to Chairman Qian. My initial analysis involves user data: personas, journeys, and pain points. I'm also examining the before-and-after distribution across price, volume, and channels.
+
+
+**Refining Assessment Methodology**
+
+I'm now refining the decision evaluation methodology for the presentation. The aim is to convince Chairman Qian of the model's reliability for future changes. This first page will detail the analytical approach: a clear flowchart and a dual-track logic. It will include top-level management summary, the core flowchart, and scenario explanations, highlighting input-output relationships for robust decisions.
+
+
+**Constructing Presentation Structure**
+
+I'm now building out the presentation's structure, starting with the second page: "Shakespeare Mid-Range Value Assessment." The goal is a clear conclusion, a benefits discussion, and actionable next steps. This involves a quantitative financial comparison, qualitative user scenarios, competitor interception strategies, and a 5W2H analysis. I plan a top-down layout: a clear conclusion, key KPI comparisons, and a roadmap. The language will be data-driven, conclusion-oriented, and concise. The logic will highlight the causal relationship from user insights, to financial modeling, to the final SKU. I plan to use professional management language like "interception," "cannibalization," "marginal contribution," and "perceptual threshold," and will emphasize before-and-after comparisons.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+**Evaluating Product Change Value**
+
+I'm now focusing on a "Product Change Value Evaluation Decision Framework" to address requests from the board. This framework encompasses both "Requirement Change" and "Adding Configurations" aspects. I aim to keep this approach concise, making quick evaluations achievable.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+针对向钱董汇报的第一页（方法论页），我们需要体现出**严谨的决策流**和对**“需求/配置变更”**的深度解析。
+
+以下是为您设计的第一页 PPT 生成提示词（结构化指令），您可以直接用于设计或作为文案大纲：
+
+---
+
+### PPT 第 1 页：产品方案变更评估决策模型
+
+**【页面风格建议】**
+*   **底色：** 纯白色
+*   **色调：** 商务黑/深灰（文字）、科沃斯蓝（重点点缀）、浅绿（决策通过标识）
+*   **布局：** 逻辑流程型（左起右随 或 模块化分布），强调简洁与呼吸感
+
+---
+
+#### 1. 标题区 (Title)
+*   **主标题：** 产品方案变更评估决策模型 (Product Evaluation & Decision Model)
+*   **副标题：** 建立基于“财务损益”与“用户价值”的双驱动评估体系
+
+#### 2. 变更输入层 (Input - 侧重需求与配置)
+*   **核心模块名称：** 需求变更与配置导入 (Change Drivers)
+*   **内容点：**
+    *   **衍生需求识别：** 目标画像新场景（如大户型、极致静音等）的衍生。
+    *   **配置增加逻辑：** 基于技术迭代或竞争防御的主动配置加法（如：大电池、扫拖结构优化）。
+    *   **输入来源：** 用户画像、竞品对标、市场趋势。
+
+#### 3. 核心评估引擎 (The Dual-Track Engine - 核心视觉件)
+*   **分流展示：**
+    *   **路径 A：经营驱动型（针对新增 SKU）**
+        *   *重点：* 财务损益模拟（ASP/Margin）、渠道规模评估、品牌内部蚕食（踩脚）分析。
+    *   **路径 B：效能驱动型（针对功能优化）**
+        *   *重点：* 需求匹配度校验、用户感知阈值评估、营销卖点转化力。
+
+#### 4. 决策输出与原则 (Decision Output)
+*   **评估结果：** 认可上市 / 方案修正 / 终止变更。
+*   **决策红线：**
+    1.  **财务：** 边际利润贡献必须为正。
+    2.  **用户：** 新配置必须具备显性感知度，而非无效堆料。
+    3.  **竞争：** 必须在特定场景下实现对竞品的主力拦截。
+
+#### 5. 底部注脚 (Footer)
+*   **逻辑说明：** “通过分类分级评估，确保每一项‘配置增加’都能转化为‘盈利增长’或‘品牌锐度’。”
+
+---
+
+### 视觉元素提示（Design Clues）：
+*   **流程线：** 使用纤细的灰色虚线连接各模块，展示从“变更需求”到“决策结论”的因果关系。
+*   **关键图标：** 
+    *   “配置增加”使用 `+` 号立方体图标。
+    *   “需求变更”使用 `用户头像+齿轮` 图标。
+    *   “财务”使用 `趋势图`。
+*   **空白度：** 保持 40% 以上的留白，避免文字堆砌，字号清晰。
+
+---
+
+**是否符合您对“简洁、清晰、白底”的要求？如果满意，我们接着沟通第二页（实战案例页）的生成提示词。**
+edit
+more_vert
+User
+帮我生成第二页的提示词
+
+---
+
+主题是莎士比亚（T90）中国区新增中配版
+价格要说明是国补后的价格
+5W2H 重新刷新一下，需要是进一步策略的事。认可变更后本来就是会国内全渠道铺货，再讲没有意义。
+6400mAh并不能作为卖点来讲
+竞品长滚筒版机器国补后价格低至3598
+5W2H不要生成营销侧的内容
+more_vert
+Model
+Thoughts
+**Considering User Input Changes**
+
+I'm now focusing on incorporating the user's latest input, specifically the shift from "T80" to "T90." The updated request seems to prefer a white background that is clean and clear. I need to be sure that I am handling all references to T90 from now on.
+
+
+**Analyzing Pricing and Strategies**
+
+I've been analyzing pricing and strategizing based on the updated data. Specifically, I'm examining a case study built on Scene 1, incorporating new SKUs and product variations, with specific attention to the post-subsidy price comparisons. I'm focusing on the conversion of the 6400mAh specification into user value, while also working to defend against the competitor's pricing. I'm honing the 5W2H framework to emphasize strategic operation, supply chain, product refinement and channel control. I've considered that the middle-range model established a strong profit base via cost reduction.
+
+
+
+
+Collapse to hide model thoughts
+
+chevron_right
+edit
+more_vert
+以下是为您设计的第二页 PPT 生成提示词（结构化指令），专注于**莎士比亚（T90）**实战案例。本页旨在通过严谨的经营分析与竞争策略，向钱董展示中配版在“后国补时代”的战略卡位价值。
+
+---
+
+### PPT 第 2 页：莎士比亚（T90）中国区新增中配版变更评估
+
+**【页面风格建议】**
+*   **底色：** 纯白色
+*   **设计：** 结构化分栏。左侧为“量化对比与竞争分析”，右侧为“经营管理级 5W2H 策略”。
+*   **强调：** 价格均显著标注“国补后参考价”。
+
+---
+
+#### 1. 标题区 (Title)
+*   **主标题：** 莎士比亚（T90）中国区中配版变更价值分析
+*   **副标题：** 应对竞品价格下探（3598元）的战略防御与盈利优化
+
+#### 2. 核心分析：财务损益与竞争位势 (Financial & Competitive Analysis)
+*   **核心对比表（建议三列）：**
+    *   **莎士比亚高配版：** 国补后 3,654元起 | 卖点：无限续航（快充逻辑）、自动化全配
+    *   **莎士比亚中配版：** **国补后 3,144元起** | 价值：结构化降本（BOM -102元）、长效能电池逻辑
+    *   **竞品（长滚筒）：** **国补后 3,598元** | 现状：价格下压，威胁我方高配市场
+*   **核心洞察 (Insight)：** 
+    *   **价格压制：** 中配版下探至 3,144元，对比竞品形成约 **450元** 的压制空间，成功拦截 3k-3.5k 价格段流量。
+    *   **盈利模型：** 虽 ASP 下移，但通过剥离快充与双仓系统实现的结构化降本，确保了单机边际贡献率符合集团标准。
+
+#### 3. 内部踩脚管控 (Portfolio Protection)
+*   **防踩脚策略：** 明确“快充逻辑（高配）”与“传统电池逻辑（中配）”的物理区隔，通过配置包差异（自动化程度）引导用户向上转化，确保高配版 34% 以上的销量份额。
+
+#### 4. 经营级 5W2H 行动计划（侧重运营、供应链与经营管理）
+*   **What (任务)：** 启动全链路动态损益监控与供应链降本专项。
+*   **Why (目标)：** 应对竞品长滚筒下探至 3598元带来的毛利侵蚀风险，确保中配版长期生命力。
+*   **Who (负责人)：** 产品经营 BP、财务部、研发中心、供应链管理部。
+*   **Where (范围)：** 全渠道进销存管理、上游 BOM 成本管控。
+*   **When (时间)：** 方案认可后即刻进入月度经营滚动分析周期。
+*   **How (方法)：** 
+    1. **动态定价：** 密切监控竞品 3598元档位的销量异动，动态调整中配版的促销折让额。
+    2. **BOM 优化：** 针对中配版 6400mAh 电池及充电模块，启动第二波供应链竞争性谈判。
+    3. **库存警戒：** 建立高中配库存比例（4:1）预警机制，防止低价 SKU 过度挤压高端份额。
+*   **How much (指标)：** 实现中配版单机毛利额与全系列综合毛利（Portfolio Margin）的双稳增长。
+
+#### 5. 底部结论 (Bottom Line)
+*   **结论：** 认可中配版变更。其本质是**“以结构化成本优势构建的价格防御墙”**，不仅拦截了竞品长滚筒机型的下探，也为高配版留出了品牌溢价空间。
+
+---
+
+### 视觉元素提示（Design Clues）：
+*   **价格对比图：** 使用阶梯图展示 3144（中配）→ 3598（竞品）→ 3654（高配）的关系，直观体现“拦截效应”。
+*   **重点标注：** 在 5W2H 区域使用“盾牌”或“计算器”小图标，强调这是关于“防御”与“算账”的经营行为。
+*   **无营销元素：** 页面不出现任何广告语、海报或用户宣传口号，纯粹以数据图表和经营策略为主。
+
+---
+
+**这页 PPT 提示词是否精准覆盖了您的新需求（T90、国补价、非营销 5W2H、竞品 3598 对标）？**
+thumb_up
+thumb_down
+info
+Google AI models may make mistakes, so double-check outputs.
+Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
+key_off
+widgets
+Tools
+google
+Grounding with Google Search
+close
+mic
+add_circle
+Run
+keyboard_command_key
+keyboard_return
+Run settings
+code
+Get code
+reset_settings
+close
+Gemini 3 Flash Preview
+gemini-3-flash-preview
+Our most intelligent model built for speed, combining frontier intelligence with superior search and grounding.
+System instructions
+Optional tone and style instructions for the model
+Temperature
+Thinking level
+High
+expand_more
+
+Tools
+
+Structured outputs
+Edit
+Code execution
+Function calling
+Edit
+Grounding with Google Search
+Source:
+Google Search
+Grounding with Google Maps
+URL context
+expand_more
+
+Advanced settings
+
+Response ready.

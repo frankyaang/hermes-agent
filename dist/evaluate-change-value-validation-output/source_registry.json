@@ -1,0 +1,160 @@
+{
+  "input_dir": "/Users/frank/.hermes/hermes-agent-dev/dist/evaluate-change-value-validation-input",
+  "source_count": 4,
+  "sources": [
+    {
+      "path": "/Users/frank/Downloads/T系列用户分析.docx",
+      "name": "T系列用户分析.docx",
+      "suffix": ".docx",
+      "role": "user_research",
+      "bytes": 16817,
+      "sha256": "fca61f34780a3aff7dd5f0884fab1c17caaf316eb96ea41e3221049e2778ec9e",
+      "docx": {
+        "paragraph_count": 145,
+        "table_count": 0
+      }
+    },
+    {
+      "path": "/Users/frank/.hermes/hermes-agent-dev/dist/evaluate-change-value-validation-input/change_brief.json",
+      "name": "change_brief.json",
+      "suffix": ".json",
+      "role": "change_brief",
+      "bytes": 352,
+      "sha256": "4b46790e889961cd1dcf114d4023145916d20dc18dd32cf865448dff756e09aa",
+      "text": {
+        "chars": 256,
+        "preview": "{\n  \"change_name\": \"莎士比亚 T90 中国区新增中配版\",\n  \"change_type\": [\"SKU\", \"配置\", \"价格\"],\n  \"target_region\": \"中国\",\n  \"focus_change_keywords\": [\"中配\"],\n  \"competitor_price\": 3598,\n  \"decision_constraints\": [\n    \"价格使用国补后口径\",\n    \"只归因新增中配相关影响\",\n    \"5W2H 不生成营销侧内容\"\n  ]\n}\n"
+      }
+    },
+    {
+      "path": "/Users/frank/Downloads/莎士比亚 量价渠分布 - 变更前.xlsx",
+      "name": "莎士比亚 量价渠分布 - 变更前.xlsx",
+      "suffix": ".xlsx",
+      "role": "before_financial",
+      "bytes": 13488,
+      "sha256": "32f62a87680f97965fa6b09c9d1b659892ab8476cb9838b3b5878c73da8d271e",
+      "workbook": {
+        "sheets": [
+          {
+            "title": "工作表1",
+            "rows": 39,
+            "columns": 39,
+            "header": [
+              "产品版本",
+              "产品版本编号",
+              "项目等级",
+              "项目编号",
+              "项目阶段",
+              "产品大类",
+              "产品线",
+              "产品系列",
+              "产品子版本",
+              "SKU/SAP ID",
+              "产品生命周期 (月)",
+              "销售区域",
+              "渠道",
+              "建议市场零售价 (CNY)",
+              "销量占比",
+              "渠道销量",
+              "日销价比",
+              "小促价比",
+              "中促价比",
+              "大促价比",
+              "日销量比",
+              "小促量比",
+              "中促量比",
+              "大促量比",
+              "Promotion Ratio",
+              "Tariff",
+              "VAT",
+              "Front condition",
+              "Back condition",
+              "Tier kickback&Return Rate",
+              "IR Coupon",
+              "税点扣点计算比例",
+              "ASP",
+              "Net Sales",
+              "渠道销售收入",
+              "目标成本 (含税) (CNY)",
+              "渠道销售成本",
+              "关税",
+              "渠道毛利额"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "/Users/frank/Downloads/莎士比亚 量价渠分布 - 变更后.xlsx",
+      "name": "莎士比亚 量价渠分布 - 变更后.xlsx",
+      "suffix": ".xlsx",
+      "role": "after_financial",
+      "bytes": 11351,
+      "sha256": "7f45eff9cdf759c64c54409ea0c56c212149c8ef23427534294871156033f4f4",
+      "workbook": {
+        "sheets": [
+          {
+            "title": "工作表1",
+            "rows": 20,
+            "columns": 54,
+            "header": [
+              "产品版本",
+              "产品版本编号",
+              "项目等级",
+              "项目编号",
+              "项目阶段",
+              "产品大类",
+              "产品线",
+              "产品系列",
+              "产品子版本",
+              "SKU/SAP ID",
+              "产品生命周期 (月)",
+              "销售区域",
+              "渠道",
+              "建议市场零售价 (CNY)",
+              "销量占比",
+              "渠道销量",
+              "日销价比",
+              "小促价比",
+              "中促价比",
+              "大促价比",
+              "日销量比",
+              "小促量比",
+              "中促量比",
+              "大促量比",
+              "Promotion Ratio",
+              "Tariff",
+              "VAT",
+              "Front condition",
+              "Back condition",
+              "Tier kickback&Return Rate",
+              "IR Coupon",
+              "税点扣点计算比例",
+              "ASP",
+              "Net Sales",
+              "渠道销售收入",
+              "目标成本 (含税) (CNY)",
+              "渠道销售成本",
+              "关税",
+              "渠道毛利额",
+              "销售费率-selling",
+              "其中：售后费用",
+              "其中：商场平台费",
+              "其中：物流费用",
+              "其中：仓储费用",
+              "其中:营销赠品",
+              "其中：销售日常费用",
+              "销售费率-marketing",
+              "其中：品牌推广费",
+              "其中：业务广告费",
+              "销售费率-HR&SG",
+              "其中：HR",
+              "其中： G&A",
+              "GBU HQ"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

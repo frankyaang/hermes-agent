@@ -483,3 +483,111 @@ class TestSessionSearch:
         assert result["count"] == 0
         assert result["results"] == []
         assert result["sessions_searched"] == 0
+
+    def test_admin_all_users_enters_all_sessions_access_mode(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from agent.knowledge_models import KnowledgeUserContext
+        from tools.session_search_tool import session_search
+
+        class FakeRegistry:
+            def load(self):
+                return None
+
+            def get_user(self, user_id):
+                if user_id != "feishu:ou_admin":
+                    return None
+                return KnowledgeUserContext(
+                    user_id=user_id,
+                    product_line_ids=[],
+                    default_product_line_id="",
+                    finance_product_line_ids=[],
+                    role="admin",
+                    is_admin=True,
+                    conversation_access="all_users",
+                )
+
+        monkeypatch.setattr(
+            "agent.knowledge_user_registry.KnowledgeUserRegistry",
+            FakeRegistry,
+        )
+        mock_db = MagicMock()
+        mock_db.search_messages.return_value = []
+
+        result = json.loads(session_search(
+            query="test",
+            db=mock_db,
+            platform="feishu",
+            user_id="ou_admin",
+        ))
+
+        assert result["success"] is True
+        assert result["access_mode"] == "all_sessions"
+
+    def test_regular_user_with_all_users_stays_legacy(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from agent.knowledge_models import KnowledgeUserContext
+        from tools.session_search_tool import session_search
+
+        class FakeRegistry:
+            def load(self):
+                return None
+
+            def get_user(self, user_id):
+                if user_id != "feishu:ou_user":
+                    return None
+                return KnowledgeUserContext(
+                    user_id=user_id,
+                    product_line_ids=[],
+                    default_product_line_id="",
+                    finance_product_line_ids=[],
+                    role="business_user",
+                    is_admin=False,
+                    conversation_access="all_users",
+                )
+
+        monkeypatch.setattr(
+            "agent.knowledge_user_registry.KnowledgeUserRegistry",
+            FakeRegistry,
+        )
+        mock_db = MagicMock()
+        mock_db.search_messages.return_value = []
+
+        result = json.loads(session_search(
+            query="test",
+            db=mock_db,
+            platform="feishu",
+            user_id="ou_user",
+        ))
+
+        assert result["success"] is True
+        assert result["access_mode"] == "legacy"
+        mock_db.search_messages.assert_called_once()
+
+    def test_access_mode_resolves_before_loading_full_transcript(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from tools.session_search_tool import session_search
+
+        order = []
+
+        def fake_resolve(*, platform=None, user_id=None):
+            order.append("acl")
+            return "legacy", ""
+
+        monkeypatch.setattr(
+            "tools.session_search_tool._resolve_session_search_access",
+            fake_resolve,
+        )
+        mock_db = MagicMock()
+        mock_db.search_messages.return_value = [
+            {"session_id": "s1", "content": "match", "source": "cli",
+             "session_started": 1709500000, "model": "test"},
+        ]
+        mock_db.get_session.return_value = {"parent_session_id": None}
+        mock_db.get_messages_as_conversation.side_effect = (
+            lambda _sid: order.append("load") or []
+        )
+
+        result = json.loads(session_search(query="test", db=mock_db))
+
+        assert result["success"] is True
+        assert order == ["acl", "load"]

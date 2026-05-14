@@ -10,6 +10,7 @@ class KnowledgeUserContext:
     finance_product_line_ids: list[str]
     role: str
     is_admin: bool
+    conversation_access: str = "default"
 
 
 @dataclass
