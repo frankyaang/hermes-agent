@@ -1,0 +1,186 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "flow_id": "insight_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "expert_id": "user_analyst",
+  "expert_role": "primary",
+  "skill_id": "voc_insight",
+  "status": "completed",
+  "generated_at": "2026-05-11T16:34:24+08:00",
+  "input_type": "产品定义型VOC/场景需求信号",
+  "input_materials_count": 1,
+  "result_summary": "已按 user_analyst 身份调用 voc_insight，完成洗衣/叠衣场景用户洞察。核心结论是：该场景应定义为从触发、设备兼容、脏衣收集、分拣预检、投放启动、洗烘监控、干衣取出、平面折叠到叠放/收纳的家务闭环；当前输入覆盖触发、设备问卷、投放启动、折叠，但缺少脏衣误拾取、分拣/异物、洗烘后取出转运、收纳完成态等信任门槛。",
+  "structured_outputs": {
+    "core_insight": "用户价值不是机器人会按洗衣机按钮，而是散落脏衣能被找到、该洗的衣服能被正确处理、设备能被安全启动、洗完后衣服能整理成可收纳状态，并且异常时用户不会被迫重新接管全流程。",
+    "recommended_mvp_definition": "在一个已验证兼容的家庭环境中，机器人可在用户指定区域收集标准脏衣，投放至前置式洗烘一体机，启动预设洗烘程序，并在衣物干燥后对标准衣物在固定平面完成折叠与叠放。",
+    "task_chain": [
+      "触发任务",
+      "设备与环境确认",
+      "区域收集",
+      "分拣与预检",
+      "投放洗衣机",
+      "启动洗烘程序",
+      "过程监控与异常反馈",
+      "洗烘完成处理",
+      "衣物折叠",
+      "叠放/收纳/交付"
+    ],
+    "top_insights": [
+      {
+        "rank": 1,
+        "insight": "用户购买的是洗衣家务从脑子里消失，不是机器人会操作洗衣机。",
+        "pm_input": "KPI 加入人工介入次数、注意力释放、任务闭环完成，而不只统计单步成功率。"
+      },
+      {
+        "rank": 2,
+        "insight": "触发体验必须轻，但任务控制必须清楚。",
+        "pm_input": "语音、App、定时触发共用任务状态机；每一步能暂停、取消、接管。"
+      },
+      {
+        "rank": 3,
+        "insight": "设备兼容是第一道信任门槛。",
+        "pm_input": "问卷只能做预筛；必须增加实机标定与兼容清单，不支持时明确原因。"
+      },
+      {
+        "rank": 4,
+        "insight": "衣物收集最大的风险是拿错东西。",
+        "pm_input": "定义可拾取/不可拾取边界，禁区、干净衣、非衣物、口袋异物是 P0 风险。"
+      },
+      {
+        "rank": 5,
+        "insight": "洗衣程序选择比启动按钮更影响用户信任。",
+        "pm_input": "首版用标准程序和用户确认降低洗坏衣服风险，复杂分拣后置。"
+      },
+      {
+        "rank": 6,
+        "insight": "洗烘一体机是合理 MVP 边界。",
+        "pm_input": "独立洗衣机+烘干机转运复杂度高，应放到 P1/P2 阶段。"
+      },
+      {
+        "rank": 7,
+        "insight": "叠衣是满意度显性点，但不能用任意衣服 ≥90% 表述。",
+        "pm_input": "折叠指标必须按衣物类别、材质、尺寸和质量标准拆分。"
+      },
+      {
+        "rank": 8,
+        "insight": "异常处理决定用户是否敢让它自动运行。",
+        "pm_input": "门未锁、夹衣、潮湿、设备报错、异物、儿童/宠物靠近必须可解释、可降级。"
+      },
+      {
+        "rank": 9,
+        "insight": "家庭成员习惯不是简单定时器。",
+        "pm_input": "结合衣物量、安静时段、设备空闲、家庭成员权限和收纳偏好。"
+      },
+      {
+        "rank": 10,
+        "insight": "收纳/交付是用户心里的完成态。",
+        "pm_input": "MVP 可先放到指定篮/床面/收纳台；直接入柜需后置。"
+      }
+    ],
+    "p0_scope": [
+      "指定区域/固定脏衣篮收集",
+      "兼容前置式洗烘一体机",
+      "标准日常混洗衣物，特殊衣物待确认",
+      "语音/App/定时触发统一状态机",
+      "关键异常可解释、可暂停、可接管",
+      "洗烘完成后取出干衣并转运到固定折叠平面",
+      "标准衣物折叠与叠放"
+    ],
+    "p1_scope": [
+      "家庭成员习惯学习",
+      "口袋异物/硬物风险检测增强",
+      "常见衣物类型分拣",
+      "独立洗衣机与烘干机短距离转运",
+      "折叠后按家庭成员/类别分堆"
+    ],
+    "p2_scope": [
+      "任意房间开放式收集",
+      "复杂衣物折叠与精细面料护理",
+      "直接入柜收纳",
+      "多品牌多形态洗衣机/烘干机深度兼容",
+      "主动洗护建议"
+    ],
+    "recommended_metrics": {
+      "trigger": ["语音唤醒率 ≥98%", "意图识别 ≥95%", "端到端任务创建 ≤2s"],
+      "state_feedback": ["关键状态反馈 ≤3s", "异常反馈 ≤30s"],
+      "device_compatibility": ["兼容判断准确率 ≥98%", "实机标定通过后开放自动执行"],
+      "collection": ["指定区域脏衣召回率 ≥90%", "误拾取率 ≤2%", "禁区进入 0"],
+      "precheck": ["高风险异物提示召回率 ≥90%（限定大件/硬物）", "特殊衣物待确认"],
+      "machine_operation": ["开门成功 ≥95%", "投放成功 ≥90%", "关门锁定确认 ≥98%", "程序选择正确 ≥95%"],
+      "post_wash": ["完成状态识别 ≥98%", "滚筒残留 ≤2%", "潮湿衣物误折叠 ≤2%"],
+      "folding": ["标准衣物折叠成功 ≥90%", "堆叠稳定失败 ≤2%", "用户可接受评分 ≥4/5"],
+      "user_value": ["单次任务非计划人工介入 ≤1 次", "用户主动复用率", "家务时间/走动/弯腰次数下降"]
+    },
+    "missing_inputs": [
+      "真实用户评论/问卷样本",
+      "目标家庭洗衣机/烘干机类型分布",
+      "家庭衣物类别占比",
+      "用户对混洗/分拣/口袋异物的担忧排序",
+      "洗衣空间与折叠/收纳位置约束",
+      "竞品与替代方案反馈"
+    ],
+    "risks": [
+      "分拣缺失导致洗坏/混洗不卫生",
+      "误拾取非衣物或贵重物导致信任破坏",
+      "设备操作跨品牌差异导致兼容性失控",
+      "独立洗烘转运复杂度高于洗烘一体机",
+      "叠衣指标未限定衣物类型导致用户预期失真",
+      "只折叠不收纳导致用户认为任务未完成"
+    ]
+  },
+  "skills_loaded": ["voc_insight", "robot-product-voc-survey-insight"],
+  "primary_expert_skill_calls": [
+    {
+      "expert_id": "user_analyst",
+      "skill_id": "voc_insight",
+      "mode": "local_skill_context_plus_production_llm_reasoning",
+      "status": "completed"
+    }
+  ],
+  "secondary_expert_skill_calls": [],
+  "real_skill_execution": true,
+  "skill_execution_modes": ["local_skill_context_plus_production_llm_reasoning"],
+  "online_llm_api_calls": 1,
+  "human_review_required": "否",
+  "human_review_decision": "not_required",
+  "human_review_blocking": false,
+  "memory_access_policy": {
+    "expert_level_read": ["user_analyst", "ops_expert"],
+    "expert_level_write": ["user_analyst"],
+    "skill_level_read": ["voc_insight", "superpowers", "briefing", "ops_dashboard"],
+    "skill_level_write": ["voc_insight"],
+    "system_level_write": false
+  },
+  "experience_updates": [
+    {
+      "layer": "expert",
+      "owner": "user_analyst",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+      "reason": "记录本次非传统VOC/洗衣叠衣场景产品定义洞察的专家决策摘要"
+    },
+    {
+      "layer": "skill",
+      "owner": "voc_insight",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md",
+      "reason": "记录本次voc_insight执行历史、异常边界与输出路径"
+    }
+  ],
+  "exceptions": ["non_blocking_direct_voc_dataset_missing", "non_blocking_top15_not_applicable_to_single_product_definition_input"],
+  "audit_checks": {
+    "local_voc_insight_skill_read": true,
+    "user_analyst_boundary_read": true,
+    "external_voc_method_skill_loaded": true,
+    "output_matches_input_material": true,
+    "no_fabricated_sample_size_or_percentage": true,
+    "nontraditional_voc_boundary_declared": true,
+    "pm_field_complete": true,
+    "human_review_required": false,
+    "node_status": "completed"
+  },
+  "files": {
+    "markdown_report": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.md",
+    "structured_json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.json"
+  }
+}

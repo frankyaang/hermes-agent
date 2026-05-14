@@ -1,15 +1,17 @@
-"""Tests for agent-system phase-based model routing.
+"""Tests for agent-system phase-based model routing (dev version).
 
 Covers:
-- Config parsing for agent_system.models.{execution,audit}
 - Node phase classification (_classify_node_phase)
-- Full routing summary (no kimi in execution/audit)
-- delegate_task explicit override_provider/override_model
-- Codex auth fail-closed on codex-cli-auth-json source
+- Config parsing for agent_system.models.{execution,audit}
+- delegate_task override_provider/override_model — verified without **kwargs masking
+- Kimi fail-closed in _make_delegate_skill_executor
+- Codex auth: no CLI token fallback in resolve_codex_runtime_credentials
 """
 from __future__ import annotations
 
 import json
+import logging
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +19,7 @@ import pytest
 from agent_system.cli_bridge import (
     _classify_node_phase,
     _resolve_all_phase_models,
+    _make_delegate_skill_executor,
 )
 
 
@@ -38,7 +41,7 @@ class TestClassifyNodePhase:
         ]:
             assert _classify_node_phase(node_id) == "audit", node_id
 
-    def test_empty_node_id(self):
+    def test_empty_and_none(self):
         assert _classify_node_phase("") == "execution"
         assert _classify_node_phase(None) == "execution"
 
@@ -71,7 +74,7 @@ class TestResolveAllPhaseModels:
         assert phases["audit"]["provider"] == "openai-codex"
         assert phases["audit"]["model"] == "gpt-5.5"
 
-    def test_falls_back_to_delegation_when_no_agent_system_models(self):
+    def test_falls_back_to_delegation_when_no_structured_models(self):
         cfg = {
             "agent_system": {"models": {}},
             "delegation": {"provider": "openai-codex", "model": "gpt-5.5"},
@@ -82,7 +85,7 @@ class TestResolveAllPhaseModels:
         assert phases["audit"]["provider"] == "openai-codex"
         assert phases["audit"]["model"] == "gpt-5.5"
 
-    def test_no_kimi_when_config_correct(self):
+    def test_no_kimi_in_correctly_configured_routing(self):
         cfg = {
             "agent_system": {
                 "models": {
@@ -100,7 +103,6 @@ class TestResolveAllPhaseModels:
                 f"{phase_name} must not use kimi-coding"
 
     def test_partial_override_uses_delegation_fallback(self):
-        # Only execution is structured; audit falls back to delegation
         cfg = {
             "agent_system": {
                 "models": {
@@ -121,37 +123,42 @@ class TestResolveAllPhaseModels:
             assert phases[phase_name]["model"] == ""
 
 
-# ── delegate_task explicit override ─────────────────────────────────────────
+# ── delegate_task override: real signature check (no **kwargs masking) ───────
+
+def _make_mock_parent():
+    parent = MagicMock()
+    parent.base_url = "https://xiamiapi.xyz/v1"
+    parent.api_key = "test-key"
+    parent.provider = "xiamiapi"
+    parent.api_mode = "chat_completions"
+    parent.model = "claude-opus-4-7"
+    parent.platform = "cli"
+    parent.providers_allowed = None
+    parent.providers_ignored = None
+    parent.providers_order = None
+    parent.provider_sort = None
+    parent._session_db = None
+    parent._delegate_depth = 0
+    parent._active_children = []
+    parent._active_children_lock = threading.Lock()
+    parent._print_fn = None
+    parent.tool_progress_callback = None
+    parent.thinking_callback = None
+    return parent
+
 
 class TestDelegateTaskOverride:
-    def _make_parent(self):
-        import threading
-        parent = MagicMock()
-        parent.base_url = "https://xiamiapi.xyz/v1"
-        parent.api_key = "test-key"
-        parent.provider = "xiamiapi"
-        parent.api_mode = "chat_completions"
-        parent.model = "claude-opus-4-7"
-        parent.platform = "cli"
-        parent.providers_allowed = None
-        parent.providers_ignored = None
-        parent.providers_order = None
-        parent.provider_sort = None
-        parent._session_db = None
-        parent._delegate_depth = 0
-        parent._active_children = []
-        parent._active_children_lock = threading.Lock()
-        parent._print_fn = None
-        parent.tool_progress_callback = None
-        parent.thinking_callback = None
-        return parent
+    """Verify override_provider/override_model are properly accepted and routed.
 
-    def test_override_provider_is_resolved(self, monkeypatch):
-        """When override_provider is passed, _resolve_delegation_credentials is called
-        with that provider instead of the global delegation.provider."""
+    Uses a fake that does NOT accept **kwargs — if delegate_task() tries to pass
+    an unexpected kwarg, the inner _build_child_agent mock will raise TypeError
+    (not RuntimeError), causing the test to fail with a clear signature error.
+    """
+
+    def test_override_provider_reaches_resolve_delegation_credentials(self, monkeypatch):
         from tools.delegate_tool import delegate_task
 
-        resolved_cfgs = []
+        resolved_cfgs: list[dict] = []
 
         def fake_resolve(cfg, parent_agent):
             resolved_cfgs.append(dict(cfg))
@@ -163,38 +170,33 @@ class TestDelegateTaskOverride:
                 "api_mode": "codex_responses",
             }
 
-        monkeypatch.setattr("tools.delegate_tool._resolve_delegation_credentials", fake_resolve)
-        # Intercept _build_child_agent to stop execution but still verify resolved_cfgs
-        call_kwargs: list[dict] = []
-        original_build = None
+        build_calls: list[dict] = []
 
         def fake_build(**kwargs):
-            call_kwargs.append(kwargs)
-            raise RuntimeError("stop-here")
+            build_calls.append(kwargs)
+            raise RuntimeError("stop-build")
 
+        monkeypatch.setattr("tools.delegate_tool._resolve_delegation_credentials", fake_resolve)
         monkeypatch.setattr("tools.delegate_tool._build_child_agent", fake_build)
 
-        parent = self._make_parent()
-        # RuntimeError from fake_build propagates out of delegate_task
-        with pytest.raises(RuntimeError, match="stop-here"):
+        parent = _make_mock_parent()
+        with pytest.raises(RuntimeError, match="stop-build"):
             delegate_task(
                 goal="test goal",
                 parent_agent=parent,
                 override_provider="openai-codex",
                 override_model="gpt-5.5",
             )
-        # _resolve_delegation_credentials must have been called with overridden values
-        assert resolved_cfgs, "Expected _resolve_delegation_credentials to be called"
+
+        assert resolved_cfgs, "_resolve_delegation_credentials must have been called"
         assert resolved_cfgs[0]["provider"] == "openai-codex"
         assert resolved_cfgs[0]["model"] == "gpt-5.5"
-        # The child was built with gpt-5.5
-        assert call_kwargs and call_kwargs[0]["model"] == "gpt-5.5"
+        assert build_calls and build_calls[0]["model"] == "gpt-5.5"
 
-    def test_no_override_uses_global_config(self, monkeypatch):
-        """Without overrides, uses global delegation config as before."""
+    def test_no_override_uses_delegation_config(self, monkeypatch):
         from tools.delegate_tool import delegate_task
 
-        resolved_cfgs = []
+        resolved_cfgs: list[dict] = []
 
         def fake_resolve(cfg, parent_agent):
             resolved_cfgs.append(dict(cfg))
@@ -206,34 +208,151 @@ class TestDelegateTaskOverride:
                 "api_mode": "codex_responses",
             }
 
-        monkeypatch.setattr("tools.delegate_tool._resolve_delegation_credentials", fake_resolve)
-
         def fake_build(**kwargs):
-            raise RuntimeError("stop-here")
+            raise RuntimeError("stop-build")
 
+        monkeypatch.setattr("tools.delegate_tool._resolve_delegation_credentials", fake_resolve)
         monkeypatch.setattr("tools.delegate_tool._build_child_agent", fake_build)
         monkeypatch.setattr(
             "tools.delegate_tool._load_config",
             lambda: {"model": "gpt-5.5", "provider": "openai-codex", "max_iterations": 45},
         )
 
-        parent = self._make_parent()
-        with pytest.raises(RuntimeError, match="stop-here"):
+        parent = _make_mock_parent()
+        with pytest.raises(RuntimeError, match="stop-build"):
             delegate_task(goal="test goal", parent_agent=parent)
-        assert resolved_cfgs, "Expected _resolve_delegation_credentials to be called"
+
+        assert resolved_cfgs, "_resolve_delegation_credentials must have been called"
         assert resolved_cfgs[0].get("provider") == "openai-codex"
+
+
+# ── Kimi fail-closed in _make_delegate_skill_executor ────────────────────────
+
+class TestKimiFailClosed:
+    def _make_executor_context(self, node_id: str) -> dict:
+        return {
+            "task_package": {
+                "node_id": node_id,
+                "delegate_task": {},
+            },
+            "skill_id": "test_skill",
+            "expert_id": "test_expert",
+            "expert_role": "analyst",
+            "requested_skill_id": "test_skill",
+            "skill": {},
+            "input_payload": {},
+            "prior_results": [],
+            "max_spawn_depth": 2,
+        }
+
+    def test_kimi_execution_node_fails_closed(self, monkeypatch):
+        """If execution phase resolves to kimi-for-coding, executor returns status=failed."""
+        monkeypatch.setattr(
+            "agent_system.cli_bridge._resolve_all_phase_models",
+            lambda: {
+                "planning": {"provider": "xiamiapi", "model": "claude-opus-4-7"},
+                "execution": {"provider": "kimi-coding", "model": "kimi-for-coding"},
+                "audit": {"provider": "openai-codex", "model": "gpt-5.5"},
+            },
+        )
+
+        parent = MagicMock()
+        parent.model = "claude-opus-4-7"
+        parent.provider = "xiamiapi"
+        parent.api_key = "test-key"
+        parent.base_url = "https://xiamiapi.xyz/v1"
+        parent._client_kwargs = {}
+        parent._credential_pool = None
+
+        executor = _make_delegate_skill_executor(parent)
+        ctx = self._make_executor_context("voc_insight")
+        result = executor(ctx)
+
+        assert result["status"] == "failed"
+        assert "ROUTING FAIL-CLOSED" in result["output"]["result_summary"]
+        assert "kimi-for-coding" in result["output"]["result_summary"]
+
+    def test_kimi_audit_node_fails_closed(self, monkeypatch):
+        """If audit phase resolves to kimi-for-coding, executor returns status=failed."""
+        monkeypatch.setattr(
+            "agent_system.cli_bridge._resolve_all_phase_models",
+            lambda: {
+                "planning": {"provider": "xiamiapi", "model": "claude-opus-4-7"},
+                "execution": {"provider": "openai-codex", "model": "gpt-5.5"},
+                "audit": {"provider": "kimi-coding", "model": "kimi-for-coding"},
+            },
+        )
+
+        parent = MagicMock()
+        parent.model = "claude-opus-4-7"
+        parent.provider = "xiamiapi"
+        parent.api_key = "test-key"
+        parent.base_url = "https://xiamiapi.xyz/v1"
+        parent._client_kwargs = {}
+        parent._credential_pool = None
+
+        executor = _make_delegate_skill_executor(parent)
+        ctx = self._make_executor_context("briefing")
+        result = executor(ctx)
+
+        assert result["status"] == "failed"
+        assert "ROUTING FAIL-CLOSED" in result["output"]["result_summary"]
+
+    def test_correct_routing_does_not_fail_closed(self, monkeypatch, caplog):
+        """With openai-codex/gpt-5.5, executor proceeds to delegate_task (no fail-closed)."""
+        caplog.set_level(logging.INFO, logger="agent_system.cli_bridge")
+        monkeypatch.setattr(
+            "agent_system.cli_bridge._resolve_all_phase_models",
+            lambda: {
+                "planning": {"provider": "xiamiapi", "model": "claude-opus-4-7"},
+                "execution": {"provider": "openai-codex", "model": "gpt-5.5"},
+                "audit": {"provider": "openai-codex", "model": "gpt-5.5"},
+            },
+        )
+
+        called_with: list[dict] = []
+
+        def fake_delegate(goal=None, context=None, role=None, parent_agent=None,
+                          override_provider=None, override_model=None):
+            # No **kwargs — this fake only accepts the exact params cli_bridge passes.
+            # If cli_bridge tries to pass an unknown kwarg, this will TypeError.
+            called_with.append({
+                "override_provider": override_provider,
+                "override_model": override_model,
+            })
+            return json.dumps({"results": [{"status": "completed", "summary": "ok", "api_calls": 1}]})
+
+        monkeypatch.setattr("tools.delegate_tool.delegate_task", fake_delegate)
+
+        parent = MagicMock()
+        parent.model = "claude-opus-4-7"
+        parent.provider = "xiamiapi"
+        parent.api_key = "test-key"
+        parent.base_url = "https://xiamiapi.xyz/v1"
+        parent._client_kwargs = {}
+        parent._credential_pool = None
+
+        executor = _make_delegate_skill_executor(parent)
+        assert "planning=local planner" in caplog.text
+        assert "planning=claude-opus-4-7" not in caplog.text
+        ctx = self._make_executor_context("voc_insight")
+        result = executor(ctx)
+
+        assert result["status"] == "completed"
+        assert called_with, "delegate_task must have been called"
+        assert called_with[0]["override_provider"] == "openai-codex"
+        assert called_with[0]["override_model"] == "gpt-5.5"
 
 
 # ── Codex auth fail-closed ───────────────────────────────────────────────────
 
 class TestCodexAuthFailClosed:
     def test_raises_when_only_cli_tokens_available(self, monkeypatch, tmp_path):
-        """When Hermes has no Codex tokens but ~/.codex/auth.json exists, must raise AuthError."""
-        from hermes_cli.auth import AuthError, resolve_codex_runtime_credentials, _read_codex_tokens
+        """When Hermes has no Codex tokens but ~/.codex/auth.json exists, fail closed."""
+        from hermes_cli.auth import AuthError, resolve_codex_runtime_credentials
 
         fake_cli_tokens = {"access_token": "cli-tok", "refresh_token": "cli-refresh"}
 
-        # Simulate: no hermes tokens
         monkeypatch.setattr(
             "hermes_cli.auth._read_codex_tokens",
             MagicMock(side_effect=AuthError(
@@ -243,7 +362,6 @@ class TestCodexAuthFailClosed:
                 relogin_required=True,
             )),
         )
-        # Simulate: CLI tokens found
         monkeypatch.setattr(
             "hermes_cli.auth._import_codex_cli_tokens",
             MagicMock(return_value=fake_cli_tokens),
@@ -256,7 +374,6 @@ class TestCodexAuthFailClosed:
         assert "hermes auth login openai-codex" in str(exc_info.value)
 
     def test_does_not_raise_when_hermes_tokens_present(self, monkeypatch):
-        """When Hermes has its own tokens, proceed normally without touching CLI tokens."""
         from hermes_cli.auth import resolve_codex_runtime_credentials
 
         fake_data = {

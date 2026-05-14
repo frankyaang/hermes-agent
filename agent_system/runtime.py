@@ -4,16 +4,18 @@ import json
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from agent_system.human_approval import normalize_approval_response
+from agent_system.planner import DynamicPipelineSpec
 
 
 SkillExecutor = Callable[[dict[str, Any]], dict[str, Any]]
 HumanReviewCallback = Callable[[dict[str, Any]], str | dict[str, Any] | None]
+PlanningReactCallback = Callable[[dict[str, Any]], dict[str, Any] | None]
 
 _HEARTBEAT_INTERVAL = 30.0    # 心跳间隔（秒）
 _HEARTBEAT_MIN_ELAPSED = 60.0  # 超过此时长才开始发心跳（秒）
@@ -92,9 +94,11 @@ class HermesAgentSystemRuntime:
         scheduler_name: str = "main_scheduler",
         skill_executor: SkillExecutor | None = None,
         human_review_callback: HumanReviewCallback | None = None,
+        planning_react_callback: PlanningReactCallback | None = None,
         now_fn: Callable[[], datetime] | None = None,
         max_spawn_depth: int = DEFAULT_MAX_SPAWN_DEPTH,
         progress_callback: Callable[[str, str], None] | None = None,
+        enforce_skill_readiness: bool = False,
         _heartbeat_interval: float = _HEARTBEAT_INTERVAL,
         _heartbeat_min_elapsed: float = _HEARTBEAT_MIN_ELAPSED,
     ) -> None:
@@ -104,9 +108,11 @@ class HermesAgentSystemRuntime:
         self.skill_executor_is_default = skill_executor is None
         self.skill_executor = skill_executor or self._default_skill_executor
         self.human_review_callback = human_review_callback
+        self.planning_react_callback = planning_react_callback
         self.now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self.max_spawn_depth = max(1, int(max_spawn_depth))
         self.progress_callback = progress_callback
+        self.enforce_skill_readiness = enforce_skill_readiness
         self._heartbeat_interval = _heartbeat_interval
         self._heartbeat_min_elapsed = _heartbeat_min_elapsed
         self.scheduler_root = self.project_root / "scheduler"
@@ -309,6 +315,16 @@ class HermesAgentSystemRuntime:
             started_at=started_at,
             results=ordered_results,
         )
+        react_plan = self._run_planning_react(
+            stage="post_audit_react",
+            pipeline_id=pipeline_id,
+            status=self._overall_status(ordered_results),
+            results=ordered_results,
+            review_summary=review_summary,
+            planning_meta={},
+        )
+        if react_plan:
+            review_summary["react_plan"] = react_plan
         experience_updates = self._append_private_memory(run_id, ordered_results, review_summary)
         review_summary["experience_isolation"] = self._experience_isolation_policy()
         review_summary["experience_updates"] = experience_updates
@@ -328,6 +344,388 @@ class HermesAgentSystemRuntime:
             "results": ordered_results,
             "audit_log": str(self.audit_root / "audit.jsonl"),
             "review_summary": review_summary,
+            "react_plan": react_plan,
+            "planning_llm_calls": 1 if react_plan and react_plan.get("llm_used") else 0,
+        }
+
+    def run_dynamic_pipeline(
+        self,
+        *,
+        pipeline_spec: DynamicPipelineSpec,
+        input_payload: dict[str, Any] | None = None,
+        human_inputs: dict[str, str] | None = None,
+        parallel: bool = True,
+    ) -> dict[str, Any]:
+        """Execute a planner-generated pipeline and preserve planning metadata."""
+        input_payload = input_payload or {}
+        human_inputs = human_inputs or {}
+        started_at = self.now_fn()
+        pipeline_id = pipeline_spec.pipeline_id
+        run_id = self._make_run_id(started_at, pipeline_id)
+        fallback_expert_id = (
+            (pipeline_spec.expert_selection or {}).get("primary_expert_id") or ""
+        )
+        nodes = self._nodes_from_dynamic_pipeline(pipeline_spec, fallback_expert_id=fallback_expert_id)
+        groups = self._topological_groups(nodes)
+        results: dict[str, dict[str, Any]] = {}
+        planning_meta = {
+            "task_context_summary": pipeline_spec.task_context_summary,
+            "expert_selection": pipeline_spec.expert_selection,
+            "task_spec": pipeline_spec.task_spec,
+            "dynamic_pipeline_spec": asdict(pipeline_spec),
+            "planning_source": pipeline_spec.planning_source,
+            "skipped_voc_insight_reason": pipeline_spec.skipped_voc_insight_reason,
+            "template_candidate": pipeline_spec.template_candidate,
+        }
+
+        for group_index, group in enumerate(groups, start=1):
+            blocked_results: list[dict[str, Any]] = []
+            executable_nodes: list[RouteNode] = []
+            for node_key in group:
+                route_node = nodes[node_key]
+                blocked = self._blocked_by_dependencies(route_node, nodes, results)
+                if blocked:
+                    blocked_results.append(
+                        self._dependency_blocked_result(
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            blocked_by=blocked,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            parallel_group=group_index,
+                        )
+                    )
+                else:
+                    executable_nodes.append(route_node)
+
+            for result in blocked_results:
+                results[result["node_key"]] = result
+                self._append_audit_event(result, planning_meta=planning_meta)
+
+            if parallel and len(executable_nodes) > 1:
+                with ThreadPoolExecutor(max_workers=len(executable_nodes)) as pool:
+                    futures = {
+                        pool.submit(
+                            self._execute_node,
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            prior_results=results,
+                            parallel_group=group_index,
+                        ): route_node.key
+                        for route_node in executable_nodes
+                    }
+                    for route_node in executable_nodes:
+                        display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                        if self.progress_callback:
+                            self.progress_callback("__execution_log__", f"🔄 {display_name}: 开始执行")
+
+                    _node_starts = {f: time.monotonic() for f in futures}
+                    _last_hb: dict = {}
+                    _pending = set(futures)
+                    while _pending:
+                        done, _pending = wait(
+                            _pending, timeout=self._heartbeat_interval,
+                            return_when=FIRST_COMPLETED,
+                        )
+                        for future in done:
+                            result = future.result()
+                            results[result["node_key"]] = result
+                            self._append_audit_event(result, planning_meta=planning_meta)
+                            node_key = futures[future]
+                            route_node = nodes[node_key]
+                            display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                            status = result.get("status", "unknown")
+                            status_emoji = "✅" if status == "completed" else "❌" if status == "failed" else "⚠️"
+                            if self.progress_callback:
+                                self.progress_callback("__execution_log__", f"{status_emoji} {display_name}: {status}")
+                        if self.progress_callback and _pending:
+                            _now = time.monotonic()
+                            for future in _pending:
+                                _elapsed = _now - _node_starts[future]
+                                if (
+                                    _elapsed >= self._heartbeat_min_elapsed
+                                    and (_now - _last_hb.get(future, 0)) >= self._heartbeat_interval
+                                ):
+                                    _dn = nodes[futures[future]].route.get(
+                                        "display_name", nodes[futures[future]].route.get("node")
+                                    )
+                                    _mins = int(_elapsed / 60)
+                                    self.progress_callback(
+                                        "__execution_log__", f"⏳ {_dn}: 仍在执行，已运行 {_mins} 分钟"
+                                    )
+                                    _last_hb[future] = _now
+            else:
+                for route_node in executable_nodes:
+                    display_name = route_node.route.get("display_name", route_node.route.get("node"))
+                    if self.progress_callback:
+                        try:
+                            self.progress_callback("__task_plan__", self._format_node_task_plan(route_node))
+                        except Exception:
+                            pass
+                        self.progress_callback("__execution_log__", f"🔄 {display_name}: 开始执行")
+
+                    _stop_hb = threading.Event()
+                    _node_start = time.monotonic()
+
+                    def _hb_worker(
+                        _dn=display_name,
+                        _start=_node_start,
+                        _stop=_stop_hb,
+                        _cb=self.progress_callback,
+                        _interval=self._heartbeat_interval,
+                        _min_elapsed=self._heartbeat_min_elapsed,
+                    ):
+                        while not _stop.wait(timeout=_interval):
+                            _elapsed = time.monotonic() - _start
+                            if _elapsed >= _min_elapsed:
+                                _mins = int(_elapsed / 60)
+                                _cb("__execution_log__", f"⏳ {_dn}: 仍在执行，已运行 {_mins} 分钟")
+
+                    _hb_thread = threading.Thread(target=_hb_worker, daemon=True) if self.progress_callback else None
+                    if _hb_thread:
+                        _hb_thread.start()
+                    try:
+                        result = self._execute_node(
+                            run_id=run_id,
+                            pipeline_id=pipeline_id,
+                            route_node=route_node,
+                            input_payload=input_payload,
+                            human_inputs=human_inputs,
+                            prior_results=results,
+                            parallel_group=group_index,
+                        )
+                    finally:
+                        _stop_hb.set()
+                        if _hb_thread:
+                            _hb_thread.join(timeout=1.0)
+
+                    results[result["node_key"]] = result
+                    self._append_audit_event(result, planning_meta=planning_meta)
+
+                    status = result.get("status", "unknown")
+                    status_emoji = "✅" if status == "completed" else "❌" if status == "failed" else "⚠️"
+                    if self.progress_callback:
+                        self.progress_callback("__execution_log__", f"{status_emoji} {display_name}: {status}")
+
+        ordered_results = [results[key] for group in groups for key in group if key in results]
+        review_summary = self._write_review_summary(
+            run_id=run_id,
+            pipeline_id=pipeline_id,
+            started_at=started_at,
+            results=ordered_results,
+        )
+        review_summary["planning_source"] = pipeline_spec.planning_source
+        review_summary["template_candidate"] = pipeline_spec.template_candidate
+        review_summary["skipped_voc_insight_reason"] = pipeline_spec.skipped_voc_insight_reason
+        review_summary["planning_llm"] = pipeline_spec.planning_llm
+        react_plan = self._run_planning_react(
+            stage="post_audit_react",
+            pipeline_id=pipeline_id,
+            status=self._overall_status(ordered_results),
+            results=ordered_results,
+            review_summary=review_summary,
+            planning_meta=planning_meta,
+        )
+        if react_plan:
+            review_summary["react_plan"] = react_plan
+        experience_updates = self._append_private_memory(run_id, ordered_results, review_summary)
+        review_summary["experience_isolation"] = self._experience_isolation_policy()
+        review_summary["experience_updates"] = experience_updates
+        self._persist_review_summary(run_id, review_summary)
+
+        planning_llm_calls = 0
+        if pipeline_spec.planning_llm.get("llm_used"):
+            planning_llm_calls += 1
+        if react_plan and react_plan.get("llm_used"):
+            planning_llm_calls += 1
+
+        return {
+            "run_id": run_id,
+            "pipeline_id": pipeline_id,
+            "status": self._overall_status(ordered_results),
+            "max_spawn_depth": self.max_spawn_depth,
+            "execution_groups": groups,
+            "results": ordered_results,
+            "audit_log": str(self.audit_root / "audit.jsonl"),
+            "review_summary": review_summary,
+            "react_plan": react_plan,
+            "planning_llm_calls": planning_llm_calls,
+            **planning_meta,
+        }
+
+    def _run_planning_react(
+        self,
+        *,
+        stage: str,
+        pipeline_id: str,
+        status: str,
+        results: list[dict[str, Any]],
+        review_summary: dict[str, Any],
+        planning_meta: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Run the optional post-audit planning/reaction step.
+
+        The callback owns model routing. Runtime passes only summarized audit
+        state and node results, never full conversation history.
+        """
+        if self.planning_react_callback is None:
+            return None
+        payload = {
+            "stage": stage,
+            "pipeline_id": pipeline_id,
+            "status": status,
+            "results": results,
+            "review_summary": review_summary,
+            "planning_meta": planning_meta,
+        }
+        try:
+            return self.planning_react_callback(payload) or None
+        except Exception as exc:
+            return {
+                "llm_used": False,
+                "stage": stage,
+                "error": str(exc),
+                "react_decision": "none",
+            }
+
+    def _nodes_from_dynamic_pipeline(
+        self,
+        pipeline_spec: DynamicPipelineSpec,
+        *,
+        fallback_expert_id: str = "",
+    ) -> dict[str, RouteNode]:
+        expert_source = (pipeline_spec.expert_selection or {}).get("primary_expert_source", "")
+        nodes: dict[str, RouteNode] = {}
+        for index, spec_node in enumerate(pipeline_spec.nodes):
+            effective_expert = spec_node.primary_expert
+            expert_binding_required = False
+            if (
+                effective_expert is None
+                and fallback_expert_id
+                and spec_node.node_id == pipeline_spec.final_output_node
+                and expert_source == "registered"
+            ):
+                effective_expert = fallback_expert_id
+                expert_binding_required = True
+            route = {
+                "pipeline_id": pipeline_spec.pipeline_id,
+                "pipeline_name": pipeline_spec.pipeline_name,
+                "node": spec_node.node_id,
+                "display_name": spec_node.display_name,
+                "depends_on": list(spec_node.depends_on),
+                "constraints": dict(spec_node.constraints),
+                "supervision": {
+                    "scheduler_monitor": True,
+                    "expert_required": effective_expert is not None,
+                    "primary_expert": effective_expert,
+                    "secondary_experts": list(spec_node.secondary_experts),
+                    "expert_binding_required": expert_binding_required,
+                },
+                "user_gate": spec_node.user_gate,
+                "optional": spec_node.optional,
+                "final_output": spec_node.final_output,
+            }
+            nodes[spec_node.node_id] = RouteNode(
+                key=spec_node.node_id,
+                route=route,
+                dependencies=tuple(spec_node.depends_on),
+                index=index,
+            )
+        missing_deps = sorted(
+            {
+                dep
+                for rn in nodes.values()
+                for dep in rn.dependencies
+                if dep not in nodes
+            }
+        )
+        if missing_deps:
+            raise ValueError(
+                "DynamicPipelineSpec references missing dependencies: " + ", ".join(missing_deps)
+            )
+        return nodes
+
+    def _check_skill_executable(self, skill_id: str) -> str:
+        """Return non-empty reason if skill has no executable pipeline; '' if OK."""
+        pipeline_file = (
+            self.skills_root / skill_id / "pipeline" / f"{skill_id}_pipeline.json"
+        )
+        try:
+            if not pipeline_file.exists():
+                return f"{skill_id} has no executable pipeline or direct implementation"
+            data = json.loads(pipeline_file.read_text(encoding="utf-8"))
+            steps = data.get("steps") if isinstance(data, dict) else None
+            if not steps:
+                return f"{skill_id} has no executable pipeline or direct implementation"
+            return ""
+        except Exception as exc:
+            return f"{skill_id} pipeline load error: {exc}"
+
+    def _non_executable_node_result(
+        self,
+        *,
+        run_id: str,
+        pipeline_id: str,
+        route_node: "RouteNode",
+        reason: str,
+        input_payload: dict[str, Any],
+        human_inputs: dict[str, str],
+        parallel_group: int,
+    ) -> dict[str, Any]:
+        route = route_node.route
+        package = self._build_task_package(
+            pipeline_id=pipeline_id,
+            route_node=route_node,
+            input_payload=input_payload,
+            human_inputs=human_inputs,
+            parallel_group=parallel_group,
+        )
+        return {
+            "run_id": run_id,
+            "pipeline_id": pipeline_id,
+            "node_key": route_node.key,
+            "node_id": route.get("node"),
+            "display_name": route.get("display_name", route_node.key),
+            "status": "blocked",
+            "optional": bool(route.get("optional")),
+            "user_gate": bool(route.get("user_gate")),
+            "final_output": bool(route.get("final_output")),
+            "depends_on": list(route_node.dependencies),
+            "parallel_group": parallel_group,
+            "task_package": package,
+            "primary_expert": package["primary_expert_id"],
+            "secondary_experts": package["secondary_expert_ids"],
+            "primary_expert_skill_calls": [],
+            "secondary_expert_skill_calls": [],
+            "skills_loaded": [],
+            "skill_weights": package["default_skill_weights"],
+            "dynamic_overrides": [],
+            "human_review_required": package["human_review_required"],
+            "human_input_summary": package["human_input_summary"],
+            "human_review_ui_available": self.human_review_callback is not None,
+            "human_review_decision": "missing",
+            "human_review_blocking": False,
+            "human_review_channel": package["human_review_channel"],
+            "skill_execution_modes": [],
+            "real_skill_execution": False,
+            "memory_access_policy": package["memory_access_policy"],
+            "experience_write_scope": package["experience_write_scope"],
+            "output": {"result_summary": f"node blocked: {reason}"},
+            "output_quality": 0.0,
+            "audit_checks": [],
+            "exceptions": [
+                {
+                    "event": "skill_not_executable",
+                    "blocking": True,
+                    "reason": reason,
+                    "source": route.get("node"),
+                }
+            ],
+            "missing_inputs": [],
         }
 
     def _execute_node(
@@ -349,6 +747,18 @@ class HermesAgentSystemRuntime:
             human_inputs=human_inputs,
             parallel_group=parallel_group,
         )
+        if self.enforce_skill_readiness and not bool(route.get("optional")):
+            not_ready_reason = self._check_skill_executable(route.get("node", ""))
+            if not_ready_reason:
+                return self._non_executable_node_result(
+                    run_id=run_id,
+                    pipeline_id=pipeline_id,
+                    route_node=route_node,
+                    reason=not_ready_reason,
+                    input_payload=input_payload,
+                    human_inputs=human_inputs,
+                    parallel_group=parallel_group,
+                )
         started_at = self.now_fn().isoformat()
         exceptions = self._preflight_exceptions(route, input_payload)
         missing_inputs = [
@@ -580,7 +990,44 @@ class HermesAgentSystemRuntime:
         input_payload: dict[str, Any],
         prior_results: dict[str, dict[str, Any]],
     ) -> dict[str, Any]:
-        expert = self._load_expert(expert_id)
+        try:
+            expert = self._load_expert(expert_id)
+        except FileNotFoundError:
+            supervision = route.get("supervision") or {}
+            if supervision.get("expert_binding_required"):
+                _skill_id = route.get("node") or expert_id
+                return {
+                    "expert_role": expert_role,
+                    "expert_id": expert_id,
+                    "skill_id": _skill_id,
+                    "requested_skill_id": _skill_id,
+                    "base_weight": package.get("default_skill_weights", {}).get(_skill_id, 0),
+                    "status": "failed",
+                    "output": {
+                        "result_summary": f"expert_binding_required: 专家 {expert_id!r} 不存在"
+                    },
+                    "execution_mode": "expert_binding_failed",
+                    "exceptions": [
+                        {
+                            "event": "skill_execution_failed",
+                            "blocking": True,
+                            "reason": f"expert_binding_required: expert {expert_id!r} not found",
+                            "source": expert_id,
+                        }
+                    ],
+                    "output_quality": 0.0,
+                    "audit_checks": {},
+                    "dynamic_overrides": [],
+                    "missing_inputs": [],
+                    "started_at": self.now_fn().isoformat(),
+                    "completed_at": self.now_fn().isoformat(),
+                }
+            return self._execute_skill_without_expert(
+                package=package,
+                route=route,
+                input_payload=input_payload,
+                prior_results=prior_results,
+            )
         requested_skill = route.get("node")
         skill_id = requested_skill if requested_skill in expert.get("skills", []) else expert["skills"][0]
         dynamic_override = skill_id != requested_skill
@@ -841,7 +1288,10 @@ class HermesAgentSystemRuntime:
         for expert_id in [primary_expert, *secondary_experts]:
             if not expert_id:
                 continue
-            expert = self._load_expert(expert_id)
+            try:
+                expert = self._load_expert(expert_id)
+            except FileNotFoundError:
+                continue
             for index, skill_id in enumerate(expert.get("skills", [])):
                 base_weight = max(50, 90 - index * 10)
                 weights[skill_id] = max(weights.get(skill_id, 0), base_weight)
@@ -1304,7 +1754,11 @@ class HermesAgentSystemRuntime:
             return {}
         return self._read_json(path)
 
-    def _append_audit_event(self, result: dict[str, Any]) -> None:
+    def _append_audit_event(
+        self,
+        result: dict[str, Any],
+        planning_meta: dict[str, Any] | None = None,
+    ) -> None:
         self.audit_root.mkdir(parents=True, exist_ok=True)
         event = {
             "timestamp": self.now_fn().isoformat(),
@@ -1330,6 +1784,13 @@ class HermesAgentSystemRuntime:
             "dynamic_overrides": result.get("dynamic_overrides", []),
             "missing_inputs": result.get("missing_inputs", []),
         }
+        if planning_meta:
+            event["task_context_summary"] = planning_meta.get("task_context_summary", "")
+            event["expert_selection"] = planning_meta.get("expert_selection", {})
+            event["task_spec"] = planning_meta.get("task_spec", {})
+            event["planning_source"] = planning_meta.get("planning_source", "")
+            event["skipped_voc_insight_reason"] = planning_meta.get("skipped_voc_insight_reason", "")
+            event["template_candidate"] = planning_meta.get("template_candidate", False)
         with (self.audit_root / "audit.jsonl").open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False) + "\n")
 

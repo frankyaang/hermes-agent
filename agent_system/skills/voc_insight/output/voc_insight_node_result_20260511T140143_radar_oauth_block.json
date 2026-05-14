@@ -1,0 +1,72 @@
+{
+  "task_id": "dashboard_flow:voc_insight",
+  "flow_id": "dashboard_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "execution_identity": {
+    "primary_expert_id": "user_analyst",
+    "primary_skill_id": "voc_insight",
+    "secondary_expert_ids": ["ops_expert"]
+  },
+  "status": "completed_with_permission_gap",
+  "completion_time": "2026-05-11T14:01:43+08:00",
+  "input_type": "张欢重要沟通雷达数据包 / VOC、评论、竞品和质量反馈类监控输入",
+  "time_window": {
+    "start": "2026-05-11 09:45:26 CST",
+    "end": "2026-05-11 14:00:31 CST"
+  },
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "required_access": "张欢本人 user_access_token",
+    "observed_status": {
+      "has_token": false,
+      "status": "missing",
+      "store_path": "/Users/frank/.hermes/secure/feishu_user_tokens.json"
+    },
+    "app_or_bot_fallback_used": false,
+    "reason": "按全局私域策略，未找到张欢本人 user_access_token 时停止历史读取，不使用 app/bot fallback。"
+  },
+  "readable_sources_count": 0,
+  "message_counts": {
+    "messages": 0,
+    "new_messages": 0,
+    "high_priority_candidates": 0
+  },
+  "user_insight_conclusion": "当前无法形成张欢重要沟通/VOC洞察：未找到张欢本人 user_access_token，历史读取已按私域策略停止；下一步需由张欢完成飞书 OAuth 授权后再恢复雷达与用户洞察分析。",
+  "next_action": {
+    "type": "oauth_authorization_required",
+    "subject": "张欢",
+    "auth_url": "https://open.feishu.cn/open-apis/authen/v1/index?app_id=cli_a9f04f3ad279dbcc&redirect_uri=https%3A%2F%2Fopen.feishu.cn&state=603n0UDpZYteOJX4aravF44YdKsm52Jp",
+    "instruction": "请张欢打开授权链接，完成授权后只回传最终重定向 URL 或 code=...，不要发送 token/secret。"
+  },
+  "source_doc": {
+    "title": "地宝产品线 Weekly Update",
+    "url": "https://ecovacs.feishu.cn/docx/UZaDdETtmohPNfxHFtFcxFn1n3c"
+  },
+  "skills_and_context_used": [
+    "voc_insight (Agent System local skill)",
+    "robot-product-voc-survey-insight",
+    "feishu-chat-history-audit (injected context)",
+    "feishu-work-monitoring-cron (injected context)",
+    "expert-layer-ui (injected context)"
+  ],
+  "audit_checks": {
+    "local_voc_insight_skill_loaded": true,
+    "pipeline_checked": true,
+    "private_memory_checked": true,
+    "config_checked": true,
+    "oauth_status_checked": true,
+    "no_private_history_read_without_uat": true,
+    "no_tokens_or_secrets_exposed": true,
+    "unreadable_sources_not_expanded_in_user_output": true
+  },
+  "files_created_or_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T140143_radar_oauth_block.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T140143_radar_oauth_block.json"
+  ],
+  "issues_encountered": [
+    "missing_user_access_token: 张欢本人 user_access_token 不存在，Feishu 私域历史读取被正确阻断。"
+  ],
+  "final_user_line": "本轮无法读取张欢重要沟通/VOC来源：未找到张欢本人 user_access_token，请先完成张欢飞书 OAuth 授权后再继续监控与用户洞察分析。"
+}

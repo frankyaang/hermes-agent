@@ -2,8 +2,11 @@
 DRAFT stage file generator — Task #8 second slice (MVP).
 
 Reads the (intake, architect_proposal) pair from the builder state and
-materialises files under `agent_system/{skills,experts}/_drafts/` plus a
-`routes.draft.json` patch under `agent_system/scheduler/main_scheduler/`.
+materialises files under a per-session directory:
+  agent_system/temp/builder_sessions/<state_identity>/
+
+Each concurrent 深度养马 session gets its own isolated draft tree; files
+are only moved to the shared production directories at COMMIT time.
 
 Templates are deliberately minimal — they mirror the shape of existing
 references (`skills/briefing/`, `experts/ops_expert/`). LLM-driven content
@@ -23,12 +26,9 @@ def _agent_system_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
-def _drafts_dir(kind: str) -> Path:
-    return _agent_system_root() / kind / "_drafts"
-
-
-def _routes_draft_path() -> Path:
-    return _agent_system_root() / "scheduler" / "main_scheduler" / "routes.draft.json"
+def _session_draft_root(state_identity: str) -> Path:
+    """agent_system/temp/builder_sessions/<state_identity>/"""
+    return _agent_system_root() / "temp" / "builder_sessions" / (state_identity or "default")
 
 
 def _write_json(path: Path, data: Any) -> None:
@@ -182,8 +182,13 @@ def _build_routes_patch(
 
 
 def write_drafts(state: dict[str, Any]) -> dict[str, Any]:
-    """Generate all draft artifacts. Returns a summary the state machine can persist + display.
+    """Generate all draft artifacts into a per-session isolated directory.
 
+    All files land under:
+      agent_system/temp/builder_sessions/<state_identity>/
+
+    Returns a summary including `session_draft_root` so that handle_commit
+    and validators can locate the files without guessing shared paths.
     Caller (handle_draft) is responsible for updating state['drafts'] with the result.
     """
     intake = state.get("intake", {}) or {}
@@ -204,22 +209,27 @@ def write_drafts(state: dict[str, Any]) -> dict[str, Any]:
     skill_name = skills[0].get("name") or "unknown_skill"
     pipeline_id = routes[0].get("pipeline_id") or f"{skill_name}_pipeline"
 
+    state_identity = state.get("state_identity") or "default"
+    session_root = _session_draft_root(state_identity)
+
     # 1. Skill draft (always written)
-    skill_dir = _drafts_dir("skills") / skill_name
+    skill_dir = session_root / "skills" / "_drafts" / skill_name
     skill_paths = _build_skill_files(skill_dir, skill_name, pipeline_id, intake)
 
     # 2. Expert draft (only when newly created)
     expert_paths: list[Path] = []
     if expert_action == "create":
-        expert_dir = _drafts_dir("experts") / expert_name
+        expert_dir = session_root / "experts" / "_drafts" / expert_name
         expert_paths = _build_expert_files(expert_dir, expert_name, skill_name, intake)
 
-    # 3. Routes draft patch
+    # 3. Routes draft patch (session-level, never touches shared routes.draft.json)
+    routes_draft_path = session_root / "scheduler" / "main_scheduler" / "routes.draft.json"
     routes_path = _build_routes_patch(
-        _routes_draft_path(), pipeline_id, skill_name, expert_name, expert_action, intake
+        routes_draft_path, pipeline_id, skill_name, expert_name, expert_action, intake
     )
 
     return {
+        "session_draft_root": str(session_root),
         "skill_paths": [str(p) for p in skill_paths],
         "expert_paths": [str(p) for p in expert_paths],
         "routes_draft_path": str(routes_path),

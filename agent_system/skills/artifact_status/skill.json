@@ -1,0 +1,9 @@
+{
+  "name": "artifact_status",
+  "display_name": "产物状态查询",
+  "description": "查询任务/文件/节点状态，返回清晰的状态报告",
+  "type": "status_report",
+  "pipeline": "artifact_status_pipeline",
+  "private_memory": true,
+  "root": "skills/artifact_status"
+}

@@ -11,9 +11,9 @@
 
 ## 1. 角色定义
 
-本专家**仅在深度养马模式下激活**。激活后接管所有用户对话，**绕过 routes.json 的常规分发**，直到用户说"退出深度养马模式"。
+本专家**仅在当前会话 / 当前 gateway session 的深度养马模式下激活**。激活后只接管该会话的后续用户消息，**绕过 routes.json 的常规分发**，直到该会话用户说"退出深度养马模式"；其他会话不受影响，继续走常规分发。
 
-它的产出物是 Hermes 自己的资产：新的 expert / skill / route 文件。
+它的产出物是 Hermes 自己的资产：新的 expert / skill / route 文件。draft 产物同样按会话隔离，写入 `agent_system/temp/builder_sessions/<state_identity>/`，commit 后才移入共享资产目录。
 
 它不直接调用其他 skill — 它的"工具"是文件生成、JSON 校验、init_scheduler 试加载、飞书云文档读取等基础设施能力。
 
@@ -41,7 +41,7 @@
 
 ### Stage 1：ENTRY
 
-由 runtime 完成，不在本专家职责内。runtime 检测入口短语 → 创建状态文件 `agent_system/temp/skill_creation_<user_id>_<channel_id>.json` → 进入 Stage 2。
+由 runtime 完成，不在本专家职责内。runtime 检测入口短语 → 基于当前 gateway session key（或当前会话身份）创建状态文件 `agent_system/temp/skill_creation_<session_identity>.json` → 进入 Stage 2。
 
 退出短语优先级最高：任何 stage 听到退出短语都立即跳到清理逻辑。
 
@@ -133,22 +133,22 @@ builder_expert 扫描 `agent_system/experts/` 下所有现有 expert：
 
 ### Stage 4：DRAFT
 
-按 Stage 3 确认方案生成文件到 `_drafts/`：
+按 Stage 3 确认方案生成文件到会话独立目录 `agent_system/temp/builder_sessions/<session_identity>/`：
 
 ```
-agent_system/skills/_drafts/<skill_name>/
+agent_system/temp/builder_sessions/<session_identity>/skills/_drafts/<skill_name>/
   ├── skill.json
   ├── SKILL.md
   ├── pipeline/<pipeline>.json
   └── skill_mem/         （空目录 + .gitkeep）
 
-agent_system/experts/_drafts/<expert_name>/        （仅新建时）
+agent_system/temp/builder_sessions/<session_identity>/experts/_drafts/<expert_name>/  （仅新建时）
   ├── expert.json
   ├── EXPERT.md
   └── expert_mem/        （空目录 + .gitkeep）
 
-agent_system/scheduler/main_scheduler/routes.draft.json
-  （合并候选 patch，记录 add / extend 两类操作）
+agent_system/temp/builder_sessions/<session_identity>/scheduler/main_scheduler/routes.draft.json
+  （合并候选 patch，记录 add / extend 两类操作；不触碰共享 routes.draft.json）
 ```
 
 字段模板**直接复用现有 skill / expert 的 JSON 结构**（参考 `briefing/` 和 `ops_expert/`）。
@@ -187,10 +187,11 @@ builder_expert 主动询问数据来源，按优先级：
 
 ### Stage 8：COMMIT
 
-1. `mv` draft → 正式位置
-2. patch routes.json：先备份到 `routes.json.bak.<ts>` → 写入 → 给 user 看 diff
-3. `git add` 所有新增文件 — **不自动 commit**
-4. 提示用户："已 staged，请自行 review 并 commit"
+1. 从 `state['drafts']['session_draft_root']` 读取 draft 路径（不从共享 `_drafts/` 推断）
+2. `mv` draft → 正式位置
+3. patch routes.json：先备份到 `routes.json.bak.<ts>` → 写入 → 给 user 看 diff
+4. `git add` 所有新增文件 — **不自动 commit**
+5. 提示用户："已 staged，请自行 review 并 commit"
 
 ### Stage 9：NEXT_OR_EXIT
 
@@ -235,12 +236,22 @@ builder_expert 主动询问数据来源，按优先级：
 
 ## 7. 状态文件 schema
 
-文件位置：`agent_system/temp/skill_creation_<user_id>_<channel_id>.json`
+文件位置：`agent_system/temp/skill_creation_<session_identity>.json`
 
 ```json
 {
   "stage": "ARCHITECT",
   "mode_started_at": "ISO timestamp",
+  "state_identity": "gateway_session_key 或会话身份生成的稳定键",
+  "state_identity_source": "gateway_session_key | platform_chat_thread_user | session_id | platform | default",
+  "state_scope": {
+    "gateway_session_key": "feishu:...",
+    "platform": "feishu",
+    "user_id": "ou_xxx",
+    "channel_id": "oc_xxx",
+    "thread_id": null,
+    "session_id": "20260511_..."
+  },
   "user_id": "ou_xxx",
   "channel_id": "oc_xxx",
   "intake": {
@@ -266,9 +277,10 @@ builder_expert 主动询问数据来源，按优先级：
     "user_confirmed": false
   },
   "drafts": {
-    "expert_paths": [],
+    "session_draft_root": "agent_system/temp/builder_sessions/<session_identity>/",
     "skill_paths": [],
-    "routes_draft_path": "agent_system/scheduler/main_scheduler/routes.draft.json"
+    "expert_paths": [],
+    "routes_draft_path": "agent_system/temp/builder_sessions/<session_identity>/scheduler/main_scheduler/routes.draft.json"
   },
   "validation": {"json_schema": null, "name_collision": null, "deps_complete": null},
   "dry_run": {"load_test": null, "mock_run": null},

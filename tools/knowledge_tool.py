@@ -14,9 +14,32 @@ logger = logging.getLogger(__name__)
 _MANAGER_CACHE: dict[str, object] = {}
 
 
+def _candidate_user_ids(raw_user_id: str, platform: str) -> list[str]:
+    """Return registry user_id candidates for the current session identity."""
+    raw = (raw_user_id or "").strip()
+    platform_key = (platform or "").strip().lower()
+    candidates: list[str] = []
+    if raw:
+        if platform_key and ":" not in raw:
+            candidates.append(f"{platform_key}:{raw}")
+        candidates.append(raw)
+    else:
+        profile = os.getenv("HERMES_PROFILE", "default")
+        candidates.append(f"cli:{getpass.getuser()}:{profile}")
+
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
 def _get_manager(session_id: str):
     """Return the KnowledgeManager for this session, or None on any error (fail closed)."""
-    key = session_id or "cli_default"
+    user_id = get_session_env("HERMES_SESSION_USER_ID", "")
+    platform = get_session_env("HERMES_SESSION_PLATFORM", "")
+    candidates = _candidate_user_ids(user_id, platform)
+    key = f"{session_id or 'cli_default'}:{'|'.join(candidates)}"
     if key in _MANAGER_CACHE:
         return _MANAGER_CACHE[key]
 
@@ -26,21 +49,22 @@ def _get_manager(session_id: str):
     from agent.knowledge_audit import KnowledgeAuditLogger
     from plugins.knowledge.gbrain.provider import GBrainCLIKnowledgeProvider
 
-    user_id = get_session_env("HERMES_SESSION_USER_ID", "")
-    if not user_id:
-        profile = os.getenv("HERMES_PROFILE", "default")
-        user_id = f"cli:{getpass.getuser()}:{profile}"
-
     reg = KnowledgeUserRegistry()
     reg.load()
-    ctx = reg.get_user(user_id)
+    ctx = None
+    matched_user_id = ""
+    for candidate in candidates:
+        ctx = reg.get_user(candidate)
+        if ctx is not None:
+            matched_user_id = candidate
+            break
     if ctx is None:
-        logger.warning("knowledge: user_id=%r not in registry — access denied", user_id)
+        logger.warning("knowledge: user_id candidates=%r not in registry — access denied", candidates)
         return None
 
     errors = reg.validate_config(ctx)
     if errors:
-        logger.error("knowledge: config errors for %r: %s", user_id, errors)
+        logger.error("knowledge: config errors for %r: %s", matched_user_id, errors)
         return None
 
     mgr = KnowledgeManager(

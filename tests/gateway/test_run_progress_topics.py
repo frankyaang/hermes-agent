@@ -439,6 +439,53 @@ class ExpertLayerInterimAgent:
         }
 
 
+class BareProgressUiInterimAgent:
+    PROGRESS_UI = (
+        "🧭 任务规划\n"
+        "主专家：Weekly Meeting 总结模块写入专家\n"
+        "子专家：PBI 进展校准专家\n"
+        "🛠 执行记录\n"
+        "- 正在新增第二个模块：“一、总｜本周管理结论”。"
+    )
+
+    def __init__(self, **kwargs):
+        self.tool_progress_callback = kwargs.get("tool_progress_callback")
+        self.interim_assistant_callback = kwargs.get("interim_assistant_callback")
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        if self.interim_assistant_callback:
+            self.interim_assistant_callback(self.PROGRESS_UI, already_streamed=False)
+        if self.tool_progress_callback:
+            self.tool_progress_callback("tool.started", "terminal", "pwd", {"command": "pwd"})
+        time.sleep(0.1)
+        return {
+            "final_response": "done",
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
+class BareProgressUiFinalAgent:
+    FINAL_RESPONSE = (
+        "🧭 任务规划\n"
+        "主专家：Weekly Meeting 总结模块写入专家\n"
+        "🛠 执行记录\n"
+        "- 正在复读验证。\n\n"
+        "最终结论。"
+    )
+
+    def __init__(self, **kwargs):
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        return {
+            "final_response": self.FINAL_RESPONSE,
+            "messages": [],
+            "api_calls": 1,
+        }
+
+
 class ExpertLayerFinalAgent:
     EXPERT_UI = "# 专家层调度\n- 主专家：用户洞察\n- 辅专家：风险复核"
 
@@ -709,6 +756,33 @@ async def test_run_agent_moves_interim_expert_layer_ui_to_progress(monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_run_agent_moves_bare_interim_progress_ui_to_single_progress_module(
+    monkeypatch, tmp_path
+):
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        BareProgressUiInterimAgent,
+        session_id="sess-bare-progress-interim",
+        config_data={"display": {"tool_progress": "all", "interim_assistant_messages": True}},
+    )
+
+    progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
+    latest_progress = progress_texts[-1]
+
+    assert result["final_response"] == "done"
+    assert "### 🧭 任务规划" in latest_progress
+    assert "主专家：Weekly Meeting 总结模块写入专家" in latest_progress
+    assert "### 🛠 执行记录" in latest_progress
+    assert "- 正在新增第二个模块" in latest_progress
+    assert '💻 终端: "pwd"' in latest_progress
+    assert not any(
+        call["content"].startswith("🧭 任务规划")
+        for call in adapter.sent
+    )
+
+
+@pytest.mark.asyncio
 async def test_run_agent_moves_final_expert_layer_ui_to_progress(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
@@ -722,6 +796,22 @@ async def test_run_agent_moves_final_expert_layer_ui_to_progress(monkeypatch, tm
     assert result["final_response"] == "最终结论。"
     assert any("### 🧭 任务规划" in text for text in progress_texts)
     assert "专家层调度" not in result["final_response"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_moves_bare_final_progress_ui_to_progress(monkeypatch, tmp_path):
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        BareProgressUiFinalAgent,
+        session_id="sess-bare-progress-final",
+        config_data={"display": {"tool_progress": "all"}},
+    )
+
+    progress_texts = [call["content"] for call in adapter.sent + adapter.edits]
+    assert result["final_response"] == "最终结论。"
+    assert any("### 🧭 任务规划" in text for text in progress_texts)
+    assert any("### 🛠 执行记录" in text for text in progress_texts)
 
 
 @pytest.mark.asyncio

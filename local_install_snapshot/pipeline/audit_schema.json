@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["status", "summary", "issues", "recommendation"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "PASS only when every task completed and all success_criteria are met"
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph summary of what was accomplished and any findings"
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Specific issues found; empty array when status is PASS"
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "On PASS: confirm completion. On FAIL: exact fixes the planner must apply on retry"
+    }
+  }
+}

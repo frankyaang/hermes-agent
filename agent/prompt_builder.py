@@ -167,6 +167,27 @@ MEMORY_GUIDANCE = (
     "workflows belong in skills, not memory."
 )
 
+KNOWLEDGE_GUIDANCE = (
+    "# Business knowledge capture\n"
+    "When the knowledge tools are available, treat the business knowledge base as "
+    "the durable store for product-line facts, not as a manual command surface. "
+    "After business analysis, product-line discussion, customer feedback synthesis, "
+    "meeting conclusion work, or operating-review work, decide whether the turn "
+    "produced stable, reusable business facts that should be preserved. Do not "
+    "wait for the user to explicitly say 'write this to knowledge' when the facts "
+    "are ready.\n"
+    "Use knowledge_write only for structured facts that are attributable, reusable, "
+    "and scoped to a product_line_id. Never dump raw chat logs or whole reports into "
+    "knowledge. Each write must have a real source_uri, an appropriate "
+    "knowledge_type, finance_flag, sensitivity_level, and confidence. If the source, "
+    "product line, or confidence is missing or ambiguous, do not invent it; report a "
+    "short pending-capture list instead. If knowledge_write returns an error or is "
+    "blocked by ACL, say that it failed closed and do not claim the fact was saved.\n"
+    "Use knowledge_query when prior product-line facts would materially improve the "
+    "answer, but never expose unauthorized knowledge. Financial facts must use "
+    "finance_flag=true and must respect the ACL decision."
+)
+
 SESSION_SEARCH_GUIDANCE = (
     "When the user references something from a past conversation or you suspect "
     "relevant cross-session context exists, use session_search to recall it before "

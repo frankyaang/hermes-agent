@@ -4,12 +4,14 @@ import json
 import logging
 import os
 import re
+from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
 from agent_system.builder_dispatcher import maybe_handle_builder_mode
 from agent_system.human_approval import AgentSystemApprovalUI
+from agent_system.planner import DynamicPipelineSpec, ExpertSelection, PlannerEngine, TaskContext, TaskSpec
 from agent_system.runtime import HermesAgentSystemRuntime
 
 logger = logging.getLogger(__name__)
@@ -22,109 +24,176 @@ _AGENT_SYSTEM_MARKERS = (
     "hermes-agent-system",
 )
 
-# 简单对话关键词 - 这些只做直接回复，不走 agent-system
-_SIMPLE_CONVERSATION_MARKERS = (
-    "你好", "您好", "hi", "hello", "嗨",
-    "谢谢", "感谢", "谢啦",
-    "再见", "拜拜", "下次见",
-    "好的", "收到", "明白", "知道了",
-    "可以", "行", "没问题",
-    "嗯", "哦", "哈", "哇",
-    "?", "？",
-    "早安", "晚安", "午安",
-    "辛苦了", "加油",
-    # 单字/极短回复
-    "好", "嗯", "啊", "呃",
+_FEISHU_REPLY_RE = re.compile(r'^\[Replying to:\s*"(.+?)"\]\s*\n?', re.DOTALL)
+
+_INTERNAL_SKILL_CALL_RE = re.compile(
+    r'\[Hermes Agent System\]\s+以\s+\S+\s+身份调用\s+Skill\s+'
+    r'`?(?P<skill_id>[A-Za-z0-9_-]+)`?，完成节点\s+`?(?P<node_id>[A-Za-z0-9_-]+)`?。',
+    re.DOTALL,
 )
 
-# 隐式触发词 - 包含这些关键词时自动触发 agent_system
-_IMPLICIT_TRIGGERS = (
-    # 分析类
-    "分析", "洞察", "调研", "研究",
-    "用户洞察", "竞品分析", "质量反馈",
-    # 看板类
-    "看板", "仪表盘", "运营报告", "Dashboard",
-    "数据看板", "报告生成",
-    # 网页/HTML类
-    "网页", "HTML", "可视化", "图表",
-)
+_PLANNING_LLM_ALLOWED_TASK_TYPES = frozenset({
+    "status_lookup",
+    "artifact_delivery",
+    "doc_format",
+    "report_revision",
+    "dashboard_from_artifact",
+    "voc_analysis",
+    "generic",
+})
 
-# 隐式触发管道映射
-_IMPLICIT_PIPELINE_MAP = {
-    "看板": "dashboard_flow",
-    "仪表盘": "dashboard_flow",
-    "运营报告": "dashboard_flow",
-    "Dashboard": "dashboard_flow",
-    "数据看板": "dashboard_flow",
-    "报告生成": "dashboard_flow",
-    "网页": "html_flow",
-    "HTML": "html_flow",
-    "可视化": "html_flow",
-    "图表": "html_flow",
-    "分析": "insight_flow",
-    "洞察": "insight_flow",
-    "调研": "insight_flow",
-    "研究": "insight_flow",
-    "用户洞察": "insight_flow",
-    "竞品分析": "insight_flow",
-    "质量反馈": "insight_flow",
-}
+def _parse_internal_skill_call(message: str) -> dict[str, str] | None:
+    """Detect internal agent-system skill execution messages.
 
-
-def _is_simple_conversation(message: str) -> bool:
+    Returns {"skill_id": ..., "node_id": ...} when matched, else None.
+    These messages must NOT re-enter planning or delegation — doing so causes
+    artifact_resolver to recurse until hitting max_spawn_depth.
     """
-    判断是否为简单对话（可直接回复，不走 agent-system）。
+    m = _INTERNAL_SKILL_CALL_RE.search(message)
+    if not m:
+        return None
+    return {"skill_id": m.group("skill_id"), "node_id": m.group("node_id")}
 
-    简单对话定义：
-    - 仅包含问候语、感谢语、告别语
-    - 极短回复（少于 5 个字符）
-    - 无具体任务请求
+
+def _check_skill_pipeline_executable(project_root: Path, skill_id: str) -> str:
+    """Return an error reason string if the skill has no runnable pipeline; empty string if OK."""
+    pipeline_file = (
+        project_root / "skills" / skill_id / "pipeline" / f"{skill_id}_pipeline.json"
+    )
+    try:
+        if not pipeline_file.exists():
+            return f"{skill_id} has no executable pipeline or direct implementation"
+        data = json.loads(pipeline_file.read_text(encoding="utf-8"))
+        steps = data.get("steps") if isinstance(data, dict) else None
+        if not steps:
+            return f"{skill_id} has no executable pipeline or direct implementation"
+        return ""
+    except Exception as exc:
+        return f"{skill_id} pipeline load error: {exc}"
+
+
+def check_pipeline_readiness(routes_payload: dict, pipeline_id: str) -> tuple[bool, str]:
+    """Return (True, '') if pipeline is production-ready, (False, reason) otherwise.
+
+    Opt-out model: missing production_ready field defaults to True (ready).
+    Any route entry with production_ready=false marks the whole pipeline as non-ready.
     """
-    stripped = message.strip()
+    routes = [
+        r for r in routes_payload.get("pipelines", []) if r.get("pipeline_id") == pipeline_id
+    ]
+    if not routes:
+        return False, f"pipeline {pipeline_id!r} not found in routes"
+    if any(r.get("production_ready") is False for r in routes):
+        return False, f"pipeline {pipeline_id!r} is not production-ready (stub/draft)"
+    return True, ""
 
-    # 纯标点符号
-    if not stripped or all(c in ' \t\n\r.,。?!？!！' for c in stripped):
-        return True
 
-    lowered = stripped.lower()
+def _handle_internal_skill_call(
+    internal_call: dict[str, str],
+    project_root: Path,
+    parent_agent: Any,
+    task_id: str | None,
+    *,
+    message: str = "",
+    reply_context: str = "",
+) -> dict[str, Any]:
+    """Return a leaf result for internal skill messages without re-planning or delegating.
 
-    # 简单对话标记检查
-    for marker in _SIMPLE_CONVERSATION_MARKERS:
-        marker_lower = marker.lower()
-        if lowered == marker_lower:
-            return True
-        # 问候语后面跟了内容 → 不是简单对话
-        if lowered.startswith(marker_lower):
-            remaining = stripped[len(marker):].strip()
-            if remaining:
-                # 问候语后面有内容，不是简单对话
-                return False
+    Bypasses all planning, routing, and delegation to prevent recursive depth errors.
+    For artifact_resolver: attempts in-process resolution and returns needs_input if
+    no artifact reference is found. For other skills: returns unsupported with reason.
+    """
+    skill_id = internal_call["skill_id"]
+    node_id = internal_call["node_id"]
 
-    # 极短回复（少于 5 个字符且无明确意图）
-    if len(stripped) < 5 and not any(c.isalpha() or c.isdigit() for c in stripped):
-        return True
+    if skill_id == "artifact_resolver":
+        from agent_system.skills.artifact_resolver.resolver import resolve_artifact
+        resolved = resolve_artifact(
+            message=message,
+            reply_context=reply_context,
+            project_root=project_root,
+        )
+        status = resolved.get("status", "needs_input")
+        if status == "completed":
+            return {
+                "final_response": f"[产物定位完成] {resolved['path']} — {resolved['summary']}",
+                "agent_system_result": {
+                    "status": "completed",
+                    "skill_id": skill_id,
+                    "node_id": node_id,
+                    "path": resolved["path"],
+                    "summary": resolved["summary"],
+                    "source": resolved["source"],
+                    "agent_system_internal_skill_call": True,
+                },
+                "completed": True,
+                "agent_system_status": "completed",
+                "interrupted": False,
+                "api_calls": 0,
+                "model": getattr(parent_agent, "model", None),
+                "provider": getattr(parent_agent, "provider", None),
+                "task_id": task_id,
+            }
+        # needs_input — no usable artifact reference available
+        reason = resolved.get("reason", "")
+        return {
+            "final_response": f"[产物定位] needs_input: {reason}",
+            "agent_system_result": {
+                "status": "needs_input",
+                "skill_id": skill_id,
+                "node_id": node_id,
+                "reason": reason,
+                "agent_system_internal_skill_call": True,
+            },
+            "completed": True,
+            "agent_system_status": "needs_input",
+            "interrupted": False,
+            "api_calls": 0,
+            "model": getattr(parent_agent, "model", None),
+            "provider": getattr(parent_agent, "provider", None),
+            "task_id": task_id,
+        }
 
-    return False
+    # Other skills: check pipeline and return unsupported
+    reason = _check_skill_pipeline_executable(project_root, skill_id)
+    if not reason:
+        reason = f"{skill_id} internal call completed; no re-planning needed"
+    return {
+        "final_response": f"[内部节点已完成] skill={skill_id} node={node_id}: {reason}",
+        "agent_system_result": {
+            "status": "unsupported",
+            "skill_id": skill_id,
+            "node_id": node_id,
+            "reason": reason,
+            "agent_system_internal_skill_call": True,
+        },
+        "completed": True,
+        "agent_system_status": "unsupported",
+        "interrupted": False,
+        "api_calls": 0,
+        "model": getattr(parent_agent, "model", None),
+        "provider": getattr(parent_agent, "provider", None),
+        "task_id": task_id,
+    }
 
+
+def _parse_feishu_reply_context(message: str) -> tuple[str, str]:
+    """Split Feishu reply prefix out of the current user message."""
+    m = _FEISHU_REPLY_RE.match(message)
+    if not m:
+        return message, ""
+    return message[m.end():].lstrip(), m.group(1)
 
 def _requests_agent_system(message: str) -> bool:
-    """决定是否触发 agent-system。
-
-    默认路径走 agent-system（包括规划、记忆学习、偏好进化）。
-    只有简单对话可以直接回复。
-    """
-    # 简单对话 → 直接回复，不走 agent-system
-    if _is_simple_conversation(message):
-        return False
-
-    # 显式标记检查（优先级最高）
+    """决定是否触发 agent-system，由动态 planner 的任务关键词兜底判断。"""
     lowered = message.lower()
     if any(marker in lowered for marker in _AGENT_SYSTEM_MARKERS):
         return True
 
-    # 默认：所有有意义的任务都走 agent-system
-    # 这包括规划、分析、查询、执行等各种交互
-    return True
+    from agent_system.planner import matches_any_task_keyword
+
+    cleaned, _ = _parse_feishu_reply_context(message)
+    return matches_any_task_keyword(cleaned)
 
 
 def maybe_run_agent_system_from_message(
@@ -134,15 +203,30 @@ def maybe_run_agent_system_from_message(
     task_id: str | None = None,
     root_dir: str | Path | None = None,
     progress_callback: Callable[[str, str], None] | None = None,
+    reply_context: str = "",
 ) -> dict[str, Any] | None:
     """Run an agent_system pipeline when a CLI turn explicitly requests it.
 
-    This is intentionally narrow: ordinary chat only enters the runtime when
-    the user message contains an agent_system marker and resolves to a concrete
-    pipeline from routes.json.
+    Explicit pipeline_id= in message keeps the old static route path.
+    Otherwise PlannerEngine selects the primary expert and builds a dynamic
+    pipeline from the current user intent.
     """
 
     if not isinstance(user_message, str):
+        return None
+
+    # Guard: internal skill execution messages must never re-enter planning.
+    # The message "[Hermes Agent System] 以 system 身份调用 Skill X，完成节点 Y。"
+    # contains "hermes agent system" which would otherwise trigger _requests_agent_system,
+    # causing artifact_resolver to recurse until hitting max_spawn_depth=3.
+    internal_call = _parse_internal_skill_call(user_message)
+    if internal_call:
+        _root = _find_agent_system_root(root_dir)
+        if _root is not None:
+            return _handle_internal_skill_call(
+                internal_call, _root, parent_agent, task_id,
+                message=user_message, reply_context=reply_context,
+            )
         return None
 
     # 深度养马模式优先级最高：在常规 routes 分发之前先看是否处于 / 进入此模式。
@@ -159,6 +243,9 @@ def maybe_run_agent_system_from_message(
         if builder_result is not None:
             return builder_result
 
+    if not reply_context:
+        user_message, reply_context = _parse_feishu_reply_context(user_message)
+
     if not _requests_agent_system(user_message):
         return None
 
@@ -166,36 +253,168 @@ def maybe_run_agent_system_from_message(
         return None
 
     routes_payload = _read_routes(project_root)
-    pipeline_id = _resolve_pipeline_id(user_message, routes_payload)
-    if not pipeline_id:
-        return None
-
     max_spawn_depth = _configured_max_spawn_depth()
     runtime = HermesAgentSystemRuntime(
         root_dir=project_root,
         skill_executor=_make_delegate_skill_executor(parent_agent),
         human_review_callback=_make_human_review_callback(parent_agent),
+        planning_react_callback=_make_planning_react_callback(routes_payload),
         max_spawn_depth=max_spawn_depth,
         progress_callback=progress_callback,
     )
-    result = runtime.run_pipeline(
-        pipeline_id=pipeline_id,
-        input_payload=_input_payload_from_message(user_message),
-        human_inputs={},
-        parallel=True,
-    )
+    explicit_pipeline_id = _resolve_explicit_pipeline_id(user_message, routes_payload)
+    planning_llm_calls = 0
+    if explicit_pipeline_id:
+        ready, not_ready_reason = check_pipeline_readiness(routes_payload, explicit_pipeline_id)
+        if not ready:
+            return _non_executable_route_response(
+                explicit_pipeline_id, not_ready_reason, parent_agent, task_id
+            )
+        result = runtime.run_pipeline(
+            pipeline_id=explicit_pipeline_id,
+            input_payload=_input_payload_from_message(user_message),
+            human_inputs={},
+            parallel=True,
+        )
+    else:
+        planning_llm_used = False
+        planner = PlannerEngine(project_root, routes_payload)
+        ctx = planner.build_task_context(user_message, reply_context=reply_context)
+        selection = planner.select_primary_expert(ctx)
+        spec = planner.plan_task(ctx, selection)
+        pipeline_spec = planner.generate_pipeline(ctx, selection, spec)
+        selection, spec, pipeline_spec, planning_llm_used = _maybe_enhance_initial_plan_with_llm(
+            ctx=ctx,
+            selection=selection,
+            spec=spec,
+            pipeline_spec=pipeline_spec,
+            routes_payload=routes_payload,
+            planner=planner,
+        )
+        errors = planner.validate_dynamic_pipeline(pipeline_spec, spec)
+        if errors:
+            return _planning_failure_response(errors, parent_agent, task_id)
+        pipeline_ready, not_ready_reason = check_pipeline_readiness(
+            routes_payload, pipeline_spec.pipeline_id
+        )
+        if not pipeline_ready:
+            explicit = any(
+                marker in user_message.lower() for marker in _AGENT_SYSTEM_MARKERS
+            )
+            if explicit:
+                return _non_executable_route_response(
+                    pipeline_spec.pipeline_id, not_ready_reason, parent_agent, task_id
+                )
+            return None
+        result = runtime.run_dynamic_pipeline(
+            pipeline_spec=pipeline_spec,
+            input_payload=_input_payload_from_message(user_message),
+            human_inputs={},
+            parallel=True,
+        )
+        if planning_llm_used and not result.get("planning_llm_calls"):
+            planning_llm_calls += 1
+    planning_llm_calls += _safe_int(result.get("planning_llm_calls"))
     final_response = _format_final_response(result)
+    _auto_sedate_knowledge(result, final_response, parent_agent, task_id)
     return {
         "final_response": final_response,
         "agent_system_result": result,
         "completed": True,
         "agent_system_status": result.get("status"),
         "interrupted": False,
-        "api_calls": 0,
+        "api_calls": planning_llm_calls,
         "model": getattr(parent_agent, "model", None),
         "provider": getattr(parent_agent, "provider", None),
         "task_id": task_id,
     }
+
+
+def _knowledge_toolset_available() -> bool:
+    try:
+        from hermes_cli.config import load_config
+        cfg = load_config()
+        return "knowledge" in (cfg.get("toolsets") or [])
+    except Exception:
+        return False
+
+
+def _get_user_default_product_line_id() -> str:
+    try:
+        import getpass
+        profile = os.getenv("HERMES_PROFILE", "default")
+        user_id = f"cli:{getpass.getuser()}:{profile}"
+        from agent.knowledge_user_registry import KnowledgeUserRegistry
+        reg = KnowledgeUserRegistry()
+        reg.load()
+        ctx = reg.get_user(user_id)
+        return ctx.default_product_line_id if ctx else ""
+    except Exception:
+        return ""
+
+
+def _auto_sedate_knowledge(
+    result: dict[str, Any],
+    final_response: str,
+    parent_agent: Any,
+    task_id: str | None,
+) -> None:
+    """Post-pipeline hook: autonomously identify and write reusable business facts.
+
+    Non-blocking — exceptions are caught and logged.  Only runs when:
+    - pipeline completed successfully
+    - knowledge toolset is configured
+    - user has a resolvable default_product_line_id
+    - run_id is present (needed for source_uri)
+    """
+    if result.get("status") != "completed":
+        return
+
+    if not _knowledge_toolset_available():
+        logger.debug("[knowledge-sedimentation] knowledge toolset not configured — skipping")
+        return
+
+    product_line_id = _get_user_default_product_line_id()
+    if not product_line_id:
+        logger.debug("[knowledge-sedimentation] no default_product_line_id resolved — skipping")
+        return
+
+    run_id = result.get("run_id", "")
+    source_uri = f"hermes://agent-system/{run_id}" if run_id else ""
+    if not source_uri:
+        logger.debug("[knowledge-sedimentation] no run_id for source_uri — skipping")
+        return
+
+    goal = (
+        "你是业务知识提炼专家。请从以下业务分析报告中提取可复用的业务事实。\n\n"
+        "规则：\n"
+        "1. 只提取有数据支撑、可复用的业务事实（非观点/建议）\n"
+        "2. 无值得沉淀的事实时，不写入，直接返回 {\"sedimented\": 0}\n"
+        "3. 对每个符合条件的事实调用 knowledge_write，参数：\n"
+        f"   product_line_id={product_line_id!r}  source_uri={source_uri!r}\n"
+        "   confidence='high'（数据直接支撑）或 'medium'（推断结论）\n"
+        "   knowledge_type='business_fact'  finance_flag=false（涉及财务时为 true）\n"
+        "   sensitivity_level='internal'  doc_slug=''\n"
+        "4. 若 knowledge_write 返回 permission_denied，立即停止，不重试"
+    )
+    context_data = {
+        "pipeline_result_summary": final_response[:3000],
+        "run_id": run_id,
+        "product_line_id": product_line_id,
+        "source_uri": source_uri,
+        "sedimentation_mode": True,
+    }
+    try:
+        from tools.delegate_tool import delegate_task
+        raw = delegate_task(
+            goal=goal,
+            context=json.dumps(context_data, ensure_ascii=False, default=str),
+            role="leaf",
+            parent_agent=parent_agent,
+        )
+        logger.info("[knowledge-sedimentation] run_id=%s result=%s", run_id, str(raw)[:200])
+    except Exception as exc:
+        logger.warning("[knowledge-sedimentation] non-blocking error: %s", exc)
 
 
 def _find_agent_system_root(root_dir: str | Path | None) -> Path | None:
@@ -218,7 +437,8 @@ def _read_routes(project_root: Path) -> dict[str, Any]:
     return json.loads(routes_path.read_text(encoding="utf-8"))
 
 
-def _resolve_pipeline_id(message: str, routes_payload: dict[str, Any]) -> str | None:
+def _resolve_explicit_pipeline_id(message: str, routes_payload: dict[str, Any]) -> str | None:
+    """Resolve only explicit pipeline references, not fuzzy task keywords."""
     explicit = re.search(
         r"(?:pipeline_id|pipeline|flow_id|flow)\s*[:=]\s*([A-Za-z0-9_.-]+)",
         message,
@@ -229,30 +449,53 @@ def _resolve_pipeline_id(message: str, routes_payload: dict[str, Any]) -> str | 
         for route in pipelines
         if route.get("pipeline_id")
     }
-    pipeline_names = {
-        str(route.get("pipeline_name")): str(route.get("pipeline_id"))
-        for route in pipelines
-        if route.get("pipeline_id") and route.get("pipeline_name")
-    }
     if explicit and explicit.group(1) in pipeline_ids:
         return explicit.group(1)
     for pipeline_id in sorted(pipeline_ids, key=len, reverse=True):
         if pipeline_id in message:
             return pipeline_id
-    for pipeline_name, pipeline_id in pipeline_names.items():
-        if pipeline_name and pipeline_name in message:
-            return pipeline_id
-
-    # 隐式触发：基于关键词自动映射到管道
-    # 按长度排序，优先匹配更长的词
-    for trigger in sorted(_IMPLICIT_PIPELINE_MAP.keys(), key=len, reverse=True):
-        if trigger in message:
-            mapped_pipeline = _IMPLICIT_PIPELINE_MAP[trigger]
-            # 验证映射的管道是否在 routes 中存在
-            if mapped_pipeline in pipeline_ids:
-                return mapped_pipeline
 
     return None
+
+
+def _planning_failure_response(
+    errors: list[str],
+    parent_agent: Any,
+    task_id: str | None,
+) -> dict[str, Any]:
+    detail = "; ".join(errors)
+    return {
+        "final_response": f"[agent-system] 规划校验失败，任务未执行。\n{detail}",
+        "agent_system_result": {"status": "planning_failed", "errors": errors},
+        "completed": False,
+        "agent_system_status": "planning_failed",
+        "interrupted": False,
+        "api_calls": 0,
+        "model": getattr(parent_agent, "model", None),
+        "provider": getattr(parent_agent, "provider", None),
+        "task_id": task_id,
+    }
+
+
+def _non_executable_route_response(
+    pipeline_id: str,
+    reason: str,
+    parent_agent: Any,
+    task_id: str | None,
+) -> dict[str, Any]:
+    return {
+        "final_response": (
+            f"[agent-system] 流程 {pipeline_id!r} 尚未就绪（stub/draft），任务未执行。\n{reason}"
+        ),
+        "agent_system_result": {"status": "blocked", "pipeline_id": pipeline_id, "reason": reason},
+        "completed": False,
+        "agent_system_status": "blocked",
+        "interrupted": False,
+        "api_calls": 0,
+        "model": getattr(parent_agent, "model", None),
+        "provider": getattr(parent_agent, "provider", None),
+        "task_id": task_id,
+    }
 
 
 def _configured_max_spawn_depth() -> int:
@@ -270,6 +513,296 @@ def _input_payload_from_message(message: str) -> dict[str, Any]:
         "business_tags": ["cli_auto_trigger", "agent_system"],
         "output_format": "report",
     }
+
+
+def _planning_llm_config() -> dict[str, Any]:
+    try:
+        from hermes_cli.config import load_config
+
+        cfg = load_config()
+    except Exception:
+        return {"enabled": False}
+
+    agent_system_cfg = cfg.get("agent_system", {}) if isinstance(cfg, dict) else {}
+    planning_llm = agent_system_cfg.get("planning_llm", {}) if isinstance(agent_system_cfg, dict) else {}
+    models = agent_system_cfg.get("models", {}) if isinstance(agent_system_cfg, dict) else {}
+    planning_model = models.get("planning", {}) if isinstance(models, dict) else {}
+
+    if not isinstance(planning_llm, dict):
+        planning_llm = {}
+    if not isinstance(planning_model, dict):
+        planning_model = {}
+
+    enabled = bool(planning_llm.get("enabled"))
+    provider = str(planning_llm.get("provider") or planning_model.get("provider") or "").strip()
+    model = str(planning_llm.get("model") or planning_model.get("model") or "").strip()
+    return {
+        "enabled": enabled and bool(provider and model),
+        "provider": provider,
+        "model": model,
+        "max_prompt_tokens": _safe_int(planning_llm.get("max_prompt_tokens")) or 12000,
+        "max_output_tokens": _safe_int(planning_llm.get("max_output_tokens")) or 1200,
+        "timeout": float(planning_llm.get("timeout") or 120),
+    }
+
+
+def _truncate_text(value: Any, max_chars: int) -> str:
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "\n...[truncated]"
+
+
+def _route_candidates(routes_payload: dict[str, Any], *, limit: int = 24) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for route in routes_payload.get("pipelines", []):
+        pipeline_id = str(route.get("pipeline_id") or "")
+        if not pipeline_id:
+            continue
+        entry = grouped.setdefault(
+            pipeline_id,
+            {
+                "pipeline_id": pipeline_id,
+                "pipeline_name": route.get("pipeline_name") or pipeline_id,
+                "nodes": [],
+            },
+        )
+        entry["nodes"].append(
+            {
+                "node": route.get("node"),
+                "display_name": route.get("display_name"),
+                "depends_on": route.get("depends_on") or [],
+                "final_output": bool(route.get("final_output")),
+            }
+        )
+    non_ready = {
+        str(r.get("pipeline_id") or "")
+        for r in routes_payload.get("pipelines", [])
+        if r.get("production_ready") is False
+    }
+    grouped = {pid: entry for pid, entry in grouped.items() if pid not in non_ready}
+    return list(grouped.values())[:limit]
+
+
+def _extract_json_object(text: str) -> dict[str, Any]:
+    if not isinstance(text, str):
+        return {}
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    try:
+        parsed = json.loads(stripped)
+        return parsed if isinstance(parsed, dict) else {}
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", stripped, re.DOTALL)
+        if not match:
+            return {}
+        try:
+            parsed = json.loads(match.group(0))
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+
+
+def _call_planning_llm(stage: str, payload: dict[str, Any]) -> dict[str, Any]:
+    config = _planning_llm_config()
+    if not config.get("enabled"):
+        return {"llm_used": False, "stage": stage, "reason": "planning_llm_disabled"}
+
+    prompt_budget_chars = max(2000, int(config["max_prompt_tokens"]) * 4)
+    compact_payload = _truncate_text(payload, prompt_budget_chars)
+    system_prompt = (
+        "你是 Hermes agent-system 的规划控制器。只做规划判断，不执行任务、不写最终业务报告、"
+        "不调用工具。你必须输出严格 JSON。"
+    )
+    user_prompt = (
+        f"阶段: {stage}\n"
+        "请基于下方受限上下文输出规划决定。不要假设有完整历史；不要要求执行模型改用 Opus。\n"
+        "JSON schema:\n"
+        "{\n"
+        '  "accept_local_plan": true,\n'
+        '  "pipeline_id": "string|null",\n'
+        '  "task_type": "status_lookup|artifact_delivery|doc_format|report_revision|dashboard_from_artifact|voc_analysis|generic|null",\n'
+        '  "task_goal": "string",\n'
+        '  "expected_output": "string",\n'
+        '  "requires_voc_insight": false,\n'
+        '  "react_decision": "continue|retry|repair|ask_human|block|none",\n'
+        '  "next_actions": ["string"],\n'
+        '  "risk_flags": ["string"],\n'
+        '  "reason": "string"\n'
+        "}\n\n"
+        f"受限上下文:\n{compact_payload}"
+    )
+    try:
+        from agent.auxiliary_client import call_llm
+
+        response = call_llm(
+            provider=config["provider"],
+            model=config["model"],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=int(config["max_output_tokens"]),
+            timeout=float(config["timeout"]),
+        )
+        content = response.choices[0].message.content
+        decision = _extract_json_object(content)
+        decision.update(
+            {
+                "llm_used": True,
+                "stage": stage,
+                "provider": config["provider"],
+                "model": config["model"],
+            }
+        )
+        logger.info(
+            "[agent-system] planning_llm stage=%s model=%s provider=%s",
+            stage,
+            config["model"],
+            config["provider"],
+        )
+        return decision
+    except Exception as exc:
+        logger.warning("[agent-system] planning_llm stage=%s failed: %s", stage, exc)
+        return {
+            "llm_used": False,
+            "stage": stage,
+            "provider": config.get("provider"),
+            "model": config.get("model"),
+            "error": str(exc),
+        }
+
+
+def _pipeline_spec_for_pipeline_id(
+    planner: PlannerEngine,
+    routes_payload: dict[str, Any],
+    pipeline_id: str,
+    ctx: TaskContext,
+    selection: ExpertSelection,
+    spec: TaskSpec,
+    llm_decision: dict[str, Any],
+) -> DynamicPipelineSpec | None:
+    routes = [r for r in routes_payload.get("pipelines", []) if r.get("pipeline_id") == pipeline_id]
+    if not routes:
+        return None
+    nodes = [planner._route_to_spec_node(route) for route in routes]  # intentional bounded reuse
+    if not nodes:
+        return None
+    return DynamicPipelineSpec(
+        pipeline_id=pipeline_id,
+        pipeline_name=planner._template_name(pipeline_id),
+        generated_by_primary_expert=selection.primary_expert_id,
+        planning_source="planning_llm_template_override",
+        nodes=nodes,
+        final_output_node=nodes[-1].node_id,
+        template_candidate=False,
+        skipped_voc_insight_reason=spec.rejection_reason_for_voc_insight if not spec.requires_voc_insight else "",
+        task_context_summary=ctx.current_user_message[:120],
+        expert_selection=asdict(selection),
+        task_spec=asdict(spec),
+        planning_llm=llm_decision,
+    )
+
+
+def _maybe_enhance_initial_plan_with_llm(
+    *,
+    ctx: TaskContext,
+    selection: ExpertSelection,
+    spec: TaskSpec,
+    pipeline_spec: DynamicPipelineSpec,
+    routes_payload: dict[str, Any],
+    planner: PlannerEngine,
+) -> tuple[ExpertSelection, TaskSpec, DynamicPipelineSpec, bool]:
+    payload = {
+        "user_intent": _truncate_text(ctx.current_user_message, 4000),
+        "reply_context_summary": _truncate_text(ctx.reply_context, 1500),
+        "available_experts": ctx.available_experts,
+        "available_skills": ctx.available_skills,
+        "route_candidates": _route_candidates(routes_payload),
+        "local_plan": {
+            "expert_selection": asdict(selection),
+            "task_spec": asdict(spec),
+            "pipeline_spec": asdict(pipeline_spec),
+        },
+    }
+    decision = _call_planning_llm("initial_plan", payload)
+    if not decision.get("llm_used"):
+        return selection, spec, pipeline_spec, False
+
+    updates: dict[str, Any] = {}
+    task_type = str(decision.get("task_type") or "").strip()
+    if task_type in _PLANNING_LLM_ALLOWED_TASK_TYPES:
+        updates["task_type"] = task_type
+    for key in ("task_goal", "expected_output"):
+        value = decision.get(key)
+        if isinstance(value, str) and value.strip():
+            updates[key] = value.strip()[:500]
+    if isinstance(decision.get("requires_voc_insight"), bool):
+        updates["requires_voc_insight"] = bool(decision["requires_voc_insight"])
+    if updates:
+        spec = replace(spec, **updates)
+
+    pipeline_id = str(decision.get("pipeline_id") or "").strip()
+    llm_pipeline = (
+        _pipeline_spec_for_pipeline_id(planner, routes_payload, pipeline_id, ctx, selection, spec, decision)
+        if pipeline_id and pipeline_id != pipeline_spec.pipeline_id
+        else None
+    )
+    if llm_pipeline is not None:
+        pipeline_spec = llm_pipeline
+    else:
+        pipeline_spec = replace(
+            pipeline_spec,
+            planning_source=f"{pipeline_spec.planning_source}+planning_llm",
+            expert_selection=asdict(selection),
+            task_spec=asdict(spec),
+            planning_llm=decision,
+        )
+    return selection, spec, pipeline_spec, True
+
+
+def _summarize_node_results_for_planning(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summary: list[dict[str, Any]] = []
+    for result in results[:20]:
+        output = result.get("output") if isinstance(result, dict) else {}
+        summary.append(
+            {
+                "node_id": result.get("node_id"),
+                "status": result.get("status"),
+                "final_output": bool(result.get("final_output")),
+                "exceptions": result.get("exceptions", [])[:5],
+                "audit_checks": result.get("audit_checks", {}),
+                "result_summary": _truncate_text((output or {}).get("result_summary", ""), 900)
+                if isinstance(output, dict)
+                else "",
+            }
+        )
+    return summary
+
+
+def _make_planning_react_callback(routes_payload: dict[str, Any]):
+    def _callback(payload: dict[str, Any]) -> dict[str, Any]:
+        stage = str(payload.get("stage") or "post_audit_react")
+        limited_payload = {
+            "pipeline_id": payload.get("pipeline_id"),
+            "status": payload.get("status"),
+            "review_summary": payload.get("review_summary", {}),
+            "planning_meta": payload.get("planning_meta", {}),
+            "node_results_summary": _summarize_node_results_for_planning(payload.get("results", [])),
+            "route_candidates": _route_candidates(routes_payload),
+        }
+        decision = _call_planning_llm(stage, limited_payload)
+        if not decision.get("llm_used"):
+            return decision
+        allowed = {"continue", "retry", "repair", "ask_human", "block", "none"}
+        react_decision = str(decision.get("react_decision") or "none").strip()
+        if react_decision not in allowed:
+            decision["react_decision"] = "none"
+        return decision
+
+    return _callback
 
 
 def _make_human_review_callback(parent_agent: Any):
@@ -335,13 +868,18 @@ def _resolve_all_phase_models() -> dict[str, dict[str, str]]:
 def _make_delegate_skill_executor(parent_agent: Any):
     phases = _resolve_all_phase_models()
     parent_model = getattr(parent_agent, "model", "unknown")
-    parent_provider = getattr(parent_agent, "provider", "unknown")
     exec_info = phases["execution"]
     audit_info = phases["audit"]
     exec_provider = exec_info["provider"]
     exec_model = exec_info["model"]
     audit_provider = audit_info["provider"]
     audit_model = audit_info["model"]
+    planning_llm = _planning_llm_config()
+    planning_label = (
+        f"{planning_llm['model']} via {planning_llm['provider']} (initial/react)"
+        if planning_llm.get("enabled")
+        else "local planner"
+    )
 
     # Fail-closed: warn loudly if execution/audit would fall back to Kimi
     for phase_name, p, m in [("execution", exec_provider, exec_model), ("audit", audit_provider, audit_model)]:
@@ -355,8 +893,8 @@ def _make_delegate_skill_executor(parent_agent: Any):
 
     if exec_provider and exec_model:
         logger.info(
-            "[agent-system] model routing: planning=%s via %s, execution=%s via %s, audit=%s via %s",
-            parent_model, parent_provider, exec_model, exec_provider, audit_model, audit_provider,
+            "[agent-system] model routing: planning=%s, execution=%s via %s, audit=%s via %s",
+            planning_label, exec_model, exec_provider, audit_model, audit_provider,
         )
     else:
         logger.warning(
@@ -563,6 +1101,11 @@ def _parse_run_started_ts(run_id: str) -> float | None:
 
 def _format_final_response(result: dict[str, Any]) -> str:
     """Format the final response - content first, minimal system info only when needed."""
+    react_plan = result.get("react_plan") or {}
+    if str(react_plan.get("react_decision") or "").strip() == "block":
+        reason = str(react_plan.get("reason") or "审计/react 阻断").strip()
+        return f"[agent-system] 执行被审计阻断。\n\n原因：{reason}"
+
     lines = []
     status = result.get("status")
 

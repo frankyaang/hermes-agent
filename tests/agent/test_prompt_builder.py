@@ -25,6 +25,7 @@ from agent.prompt_builder import (
     TOOL_USE_ENFORCEMENT_MODELS,
     OPENAI_MODEL_EXECUTION_GUIDANCE,
     MEMORY_GUIDANCE,
+    KNOWLEDGE_GUIDANCE,
     SESSION_SEARCH_GUIDANCE,
     PLATFORM_HINTS,
     WSL_ENVIRONMENT_HINT,
@@ -48,6 +49,13 @@ class TestGuidanceConstants:
     def test_session_search_guidance_is_simple_cross_session_recall(self):
         assert "relevant cross-session context exists" in SESSION_SEARCH_GUIDANCE
         assert "recent turns of the current session" not in SESSION_SEARCH_GUIDANCE
+
+    def test_knowledge_guidance_requires_model_judgment_and_provenance(self):
+        assert "Business knowledge capture" in KNOWLEDGE_GUIDANCE
+        assert "Do not wait for the user to explicitly say" in KNOWLEDGE_GUIDANCE
+        assert "source_uri" in KNOWLEDGE_GUIDANCE
+        assert "Never dump raw chat logs" in KNOWLEDGE_GUIDANCE
+        assert "failed closed" in KNOWLEDGE_GUIDANCE
 
 
 # =========================================================================
@@ -1086,6 +1094,5 @@ class TestOpenAIModelExecutionGuidance:
 # =========================================================================
 # Budget warning history stripping
 # =========================================================================
-
 
 

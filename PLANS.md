@@ -1,3 +1,298 @@
+# Builder Intent Layer And Context Prefill
+
+## Goal
+
+在 `agent_system/experts/builder_expert/builder.py` 中为深度养马 9 阶段流程增加规则意图识别、非推进问答、回退/修订和基于对话历史的预填。成功标准是普通 `answer_current_question` / `continue` 路径保持现有 9 阶段推进；信息类意图不写字段、不推进 stage；预填内容可被后续回答或修订覆盖；`scripts/run_tests.sh tests/agent_system/` 通过。
+
+## Scope
+
+- `builder.py`：新增纯规则 `recognize_intent`，返回固定 8 个标签；在每轮 `handle()` 保存状态前完成意图分流。
+- `builder.py`：新增 ask_definition / ask_advice / confirm_understanding / show_current / revise_previous / go_back 处理器。
+- `builder.py`：新增规则上下文提取与首轮 copy 渲染，预填字段写入 state 但不破坏 session/draft 隔离。
+- `builder_dispatcher.py`：仅在进入模式时调用 builder 的初始化/首轮渲染能力，保持状态文件路径策略不变。
+- `tests/agent_system/`：补充 6 个指定场景，避免真实 LLM/API。
+
+## Non-goals
+
+- 不引入 LLM、网络或外部 API 调用。
+- 不删除已有 state/draft/audit/output 文件。
+- 不重构 ARCHITECT/DRAFT/VALIDATE/DRY_RUN/TRIAL_RUN/COMMIT 主流程。
+- 不回撤当前工作区已有的无关改动。
+
+## Context
+
+- dispatcher 负责进入/退出模式与 session 级 state 文件路径；`builder.handle()` 当前每轮 `load_state -> handler -> save_state`。
+- `write_drafts()` 已按 `state_identity` 写入 `agent_system/temp/builder_sessions/<state_identity>/`，`handle_commit()` 已读取 `session_draft_root`。
+- run_agent 目前调用 agent-system bridge 时没有显式传入 `conversation_history`；预填需要从 `parent_agent.conversation_history`、`parent_agent.messages`、`parent_agent._session_db` 等可用对象中做 best-effort 规则读取。
+
+## Milestones
+
+- [x] M1：新增并导出 8 类意图识别函数，覆盖关键词/模式匹配。
+- [x] M2：在 `handle()` 中统一识别并路由，非推进意图用状态快照保证不变更。
+- [x] M3：实现信息类 handler 的静态模板响应。
+- [x] M4：实现 revise_previous / go_back 的字段定位、原值展示、待覆盖态和回退态。
+- [x] M5：进入模式时生成 prefill 和首轮 copy，普通无上下文入口保持可用。
+- [x] M6：新增测试并跑 `scripts/run_tests.sh tests/agent_system/`。
+
+## Parallel Workstreams
+
+- 代码实现集中在 builder 入口和 dispatcher 初始化，需串行避免状态协议错配。
+- 测试可与实现分离，但会依赖新增 public helper 和首轮返回文案。
+
+## Risks / Unknowns
+
+- 会话历史来源在真实运行时并非固定属性，需要容错读取并在不可用时回退空 INTAKE。
+- revise/go_back 如果直接改 `_current_question` 容易误写字段；需要用 `_pending_revision_field` 明确下一轮覆盖目标。
+- 现有工作树已有大量改动，必须避免格式化或重写无关文件。
+
+## Validation
+
+- `scripts/run_tests.sh tests/agent_system/`
+- 手工检查 `git diff -- agent_system/experts/builder_expert/builder.py agent_system/builder_dispatcher.py tests/agent_system/...`
+- 确认没有新增删除 draft/output/audit 文件的逻辑。
+
+## Progress
+
+- [x] 完成只读审查：确认 9 阶段 handler、state 保存点、draft/session 隔离和 dispatcher 入口。
+- [x] 2026-05-14 本轮复核完成 Task 1 侦察，并新增 `BUILDER_RECON.md` 记录真实路径、字段、历史入口和隔离约定。
+- [x] 2026-05-14 Task 2 基线已跑：`scripts/run_tests.sh tests/agent_system/` → `75 passed`，无需环境修复。
+- [x] 实现意图识别和路由。
+- [x] 2026-05-14 Task 3-7 静态复核通过：当前实现已满足 8 类规则意图、非推进分支、修订/回退、上下文预填和首轮文案要求，无需额外核心改动。
+- [x] 实现预填和首轮 copy。
+- [x] 2026-05-14 Task 8 聚焦测试复核：`scripts/run_tests.sh tests/agent_system/test_builder_intents.py -q` → `8 passed`。
+- [x] 2026-05-14 为满足最终数量验收，额外补充 6 个 builder intent / prefill 边界测试；聚焦回归更新为 `14 passed`。
+- [x] 补测试并验证：新增测试 `8 passed`，全量 `tests/agent_system/` 为 `75 passed`。
+- [x] 2026-05-14 Task 9 最终验证：`scripts/run_tests.sh tests/agent_system/` → `81 passed`，0 失败。
+- [x] 2026-05-14 本轮补强：`recognize_intent` 改为字符串兼容的 `IntentResult`，为 `revise_previous` / `go_back` 携带目标字段或阶段；首轮文案改为以任务指定中文 copy 开头。
+- [x] 2026-05-14 本轮最终验证：`scripts/run_tests.sh tests/agent_system/test_builder_intents.py -q` → `14 passed in 0.25s`；`scripts/run_tests.sh tests/agent_system/` → `81 passed in 1.65s`。
+
+## Decision Log
+
+- 意图层放在 `builder.handle()`，因为这是所有 in-mode 用户轮次的统一状态保存边界。
+- 进入模式的首轮预填需要 dispatcher 配合调用 builder 初始化函数，但不改变 state 文件命名和退出清理策略。
+- 非推进意图采用 `copy.deepcopy(state)` 快照恢复，避免底层 handler 意外污染状态。
+- 预填只把 5 个现有必填问题映射进 `state.intake`，其余目标字段保留在 `state.prefill`，避免改变下游 draft_writer 契约。
+- dispatcher 只在进入模式时调用 `render_initial_reply()`，不改变 state 文件路径、退出清理或 draft/session 隔离策略。
+- `recognize_intent` 保持 `str` 兼容，避免破坏既有 `intent in BUILDER_INTENTS` 与 `handle()` 分支，同时通过 `.target` / `.target_type` 暴露可验证目标。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '1,220p' agent_system/experts/builder_expert/builder.py
+sed -n '180,340p' agent_system/builder_dispatcher.py
+scripts/run_tests.sh tests/agent_system/
+```
+
+---
+
+# Gateway Progress UI Single-Channel Repair
+
+## Goal
+
+修复飞书进度模块双轨显示：assistant 中间消息 / 最终回复中的 `🧭 任务规划`、`🛠 执行记录` 不再作为普通消息发送或污染新增历史，统一进入 Gateway 可编辑进度模块。
+
+## Scope
+
+- 新增共享进度 UI 解析 helper，供 Gateway 展示链路和 AIAgent 历史清理复用。
+- `gateway/run.py`：interim assistant 与 final response 先抽取进度 UI；进度进入 progress queue，剩余正文继续走 commentary/final。
+- `run_agent.py`：assistant 可见 `content` 写入消息历史前剥离 leading progress UI，保留 tool calls、reasoning、Codex opaque state。
+- 聚焦测试覆盖裸 `🧭 任务规划` + `🛠 执行记录`、旧 `# 专家层调度`、final response stripping 和 history sanitize。
+
+## Non-goals
+
+- 不批量清洗旧 `state.db` 或历史 JSONL。
+- 不改变普通 commentary、工具进度事件和 `tool_progress=off` 的显示策略。
+
+## Validation
+
+- `scripts/run_tests.sh tests/gateway/test_run_progress_topics.py tests/run_agent/test_run_agent_codex_responses.py`
+- `scripts/run_tests.sh tests/gateway/test_stream_consumer.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 新增 `agent/progress_ui.py` 共享解析器。
+- [x] Gateway interim/final 进度 UI 改走 progress queue。
+- [x] AIAgent 新增历史清理，避免新增可见历史污染。
+- [x] 聚焦回归通过：`92 passed`；stream consumer 回归通过：`75 passed`。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+scripts/run_tests.sh tests/gateway/test_run_progress_topics.py tests/run_agent/test_run_agent_codex_responses.py
+scripts/run_tests.sh tests/gateway/test_stream_consumer.py
+```
+
+---
+
+# Hermes Model Traffic Optimization
+
+## Goal
+
+将当前 Hermes official 环境从“Opus 作为隐性默认运行模型”调整为“GPT 5.5 默认执行，Opus 仅保留为显式规划备用”。成功标准是：普通 Feishu turn、auxiliary 任务、agent-system execution/audit、cron job 默认不再消耗 Opus；agent-system 命中时不会在进入 bridge 前触发主模型压缩；路由日志不再把 planning 误写成父模型。
+
+## Scope
+
+- `/Users/frank/.hermes/config.yaml`：默认模型和 auxiliary 任务切到 `openai-codex / gpt-5.5`，增加默认关闭的 `agent_system.planning_llm` 配置。
+- `/Users/frank/.hermes/cron/jobs.json`：两个 Hermes cron job 模型切到 `openai-codex / gpt-5.5`，保留原 enabled/state。
+- `run_agent.py`：agent-system pre-LLM short-circuit 提前到系统提示构建和 preflight compression 之前。
+- `agent_system/cli_bridge.py`：路由日志改为 `planning=local planner`，避免误导。
+- `hermes_cli/config.py`：补充 `agent_system.planning_llm` 默认配置，默认关闭。
+- 聚焦测试覆盖 agent-system 命中时不会触发 preflight compression。
+
+## Non-goals
+
+- 不改变 agent-system execution/audit 的 GPT 5.5 目标模型。
+- 不启用真实 Opus planning LLM；本轮只落默认关闭的配置入口。
+- 不回撤当前工作区已有的无关改动。
+
+## Validation
+
+- `rg "claude-opus-4-7|auto|gpt-5.5" ~/.hermes/config.yaml ~/.hermes/cron/jobs.json`
+- `scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_model_routing.py`
+- `git diff --check`
+- 重启 Gateway 后确认进程仍在运行。
+
+## Progress
+
+- [x] 只读确认当前 Opus 消耗来源：顶层默认模型、auxiliary auto、cron、agent-system bridge 位置。
+- [x] 更新本地配置和 cron job。
+- [x] 调整代码路由和日志。
+- [x] 补充并运行测试：第一轮聚焦回归 `29 passed`，修正 planning/react 后聚焦回归 `45 passed`，`git diff --check` 通过。
+- [x] 重启 Gateway 并确认状态：新 PID 97146，Feishu connected，active_agents=0。
+
+## Decision Log
+
+- 默认运行模型切到 `openai-codex / gpt-5.5`，优先降 Opus 消耗。
+- `title_generation` 继续走 Kimi，不切 GPT 5.5。
+- `planning_llm` 在当前 Hermes 环境启用，但只服务 agent-system 规划阶段；仓库默认配置仍保持关闭，避免新安装环境隐性消耗 Opus。
+- 修正：用户明确要求规划阶段保留 Opus，且规划包括 initial plan 与 audit 之后的 react/re-plan。所谓“受限”应限制 Opus 的职责边界、上下文输入和触发阶段，而不是把规划关掉或只允许首次调用。
+- 当前实现：`initial_plan` 与 `post_audit_react` 走 `agent_system.planning_llm`；execution/audit 子节点继续按 phase routing 使用 GPT 5.5。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+git status --short
+sed -n '1,160p' /Users/frank/.hermes/config.yaml
+jq -r '.jobs[] | [.id,.name,.enabled,.state,.model,.provider] | @tsv' /Users/frank/.hermes/cron/jobs.json
+scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_model_routing.py
+```
+
+---
+
+# Real Feishu Knowledge Capture Landing
+
+## Goal
+
+将已在 dev 验证的“模型自主判断写入业务知识”能力同步到 official，并在真实 Feishu 身份上下文下完成首条 `yang_ma` 产品线知识沉淀。成功标准是：Feishu 张嫄 open_id 可通过 ACL，`knowledge_write` 在 `hermes-feishu` 默认可见，阿基米德 Charter 核心事实可 upsert 到 gbrain，并产生授权审计记录。
+
+## Scope
+
+- `toolsets.py`：默认 `hermes-cli` / `hermes-feishu` 启用 `knowledge_query` 和 `knowledge_write`。
+- `hermes_cli/tools_config.py`：工具配置页展示 `knowledge`，并修复显式空 toolset 不应被插件默认补回的边界。
+- `agent/prompt_builder.py` + `run_agent.py`：仅当 `knowledge_write` 可用时注入自动业务事实沉淀协议。
+- `tools/knowledge_tool.py`：Gateway Feishu `ou_xxx` 规范化为 `feishu:ou_xxx`，保留 raw fallback。
+- `tests/...`：覆盖默认可见性、提示词注入和 Feishu 身份解析。
+- `/Users/frank/.hermes/knowledge/users.yaml`：新增张嫄 `yang_ma` 普通知识权限（不提交）。
+
+## Non-goals
+
+- 不把整段飞书聊天或完整 Charter 原文入库。
+- 不开放张嫄财务知识权限。
+- 不绕过 `source_uri`、ACL 或审计。
+- 不回撤 official 中已有的无关脏改。
+
+## Validation
+
+- `scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py tests/tools/test_knowledge_tool.py tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q`
+- Feishu session 模拟：`platform=feishu`、`user_id=ou_92e78aea6cb26fd9f159aa5b367e4e84`、`chat_id=oc_fbcdc70ecae72e4b87bbb82c1fd6e364` 调用 `knowledge_write`。
+- 查询 `yang_ma` + `阿基米德 核心升级点` 命中 `pl-yang_ma-general-archimedes-charter-core-upgrades-20260511`。
+- 审计日志包含 `action=write`、`granted=true`、`product_line_id=yang_ma`、Charter `source_uri`。
+- `hermes gateway restart` 后 Gateway `running`，Feishu `connected`。
+
+## Progress
+
+- [x] official 同步运行时必需改动。
+- [x] official 回归测试通过：`211 passed, 1 skipped`。
+- [x] 张嫄 ACL 已写入真实 users registry。
+- [x] 首条阿基米德 Charter 知识写入成功，查询命中预期 slug。
+- [x] 审计记录确认授权写入。
+- [x] Gateway 已重启，实际进程为 `/Users/frank/.hermes/hermes-agent-official/venv/bin/python -m hermes_cli.main gateway run --replace`，Feishu connected。
+
+## Decision Log
+
+- 张嫄只授权 `yang_ma` 普通知识，`finance_product_line_ids` 保持空。
+- 首条知识 `confidence=draft`，因为 Charter 属于草稿/立项阶段材料。
+- 使用确定性 `doc_slug=archimedes-charter-core-upgrades-20260511`，重复执行按 gbrain `put` upsert。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py tests/tools/test_knowledge_tool.py tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q
+python - <<'PY'
+from pathlib import Path
+print(Path('/Users/frank/.hermes/knowledge/users.yaml').read_text())
+PY
+cat /Users/frank/.hermes/gateway_state.json
+```
+
+---
+
+# Agent-System Dynamic Planner Sync
+
+## Goal
+
+将 dev 环境中已验证的动态 Planner 修复同步到 official：普通任务仍可进入 agent_system，但由主专家动态生成 TaskSpec / Pipeline，避免非 VOC 任务误进 `voc_insight`，并拆分飞书 reply 引用上下文，避免引用内容污染当前意图。
+
+## Scope
+
+- official 中新增 `agent_system/planner.py` 和 artifact/doc/report 相关技能。
+- 合并 `cli_bridge.py` 的 PlannerEngine 入口，保留 builder 模式、progress callback、模型路由和输出选择器。
+- 合并 `runtime.py` 的 `run_dynamic_pipeline`、planning audit 元数据和 ephemeral expert 支持，保留心跳与任务规划进度事件。
+- 只追加 routes 新流程，不改旧流程的线上配置。
+- 合并聚焦测试，保留 official 的 Codex auth fail-closed 与 progress 测试。
+
+## Validation
+
+- `python -m py_compile agent_system/planner.py agent_system/cli_bridge.py agent_system/runtime.py`
+- `scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py`
+- `git diff --check`
+- 手工探针验证：转云文档/状态查询/交付结果/飞书 reply 转文档不进 `voc_insight`；真实 VOC 分析才进 `voc_insight`；普通问候不进 agent_system。
+
+## Progress
+
+- [x] 只读确认 dev 已有 Planner，official 缺 planner/new skills 且仍使用 `_IMPLICIT_PIPELINE_MAP`
+- [x] 新增 planner 与五个非 VOC 产物/文档技能目录
+- [x] 合并 cli_bridge 动态 Planner 入口和飞书 reply 拆分
+- [x] 合并 runtime 动态 pipeline、planning_meta 审计、ephemeral expert 支持
+- [x] routes 只追加 artifact/doc/report/dashboard_from_artifact flows
+- [x] 运行验证并记录结果：py_compile 通过，聚焦测试 `42 passed`，`git diff --check` 通过，手工探针符合预期
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+git status --short
+rg -n "PlannerEngine|run_dynamic_pipeline|artifact_status_flow" agent_system/cli_bridge.py agent_system/runtime.py agent_system/scheduler/main_scheduler/routes.json
+scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py
+```
+
+---
+
 # Agent-System Model Routing Fix
 
 ## Goal

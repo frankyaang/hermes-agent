@@ -1,0 +1,148 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "flow_id": "insight_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "expert_id": "ops_expert",
+  "expert_role": "secondary",
+  "skill_id": "ops_dashboard",
+  "requested_skill_id": "voc_insight",
+  "status": "completed",
+  "final_output": false,
+  "generated_at": "2026-05-11 16:34:17 +0800",
+  "source_materials_count": 1,
+  "input_type": "VOC、评论、竞品和质量反馈 / 产品需求草案",
+  "evidence_boundary": {
+    "input_nature": "洗衣、收集脏衣、洗烘一体机操作、衣物叠放与任务触发指标草案；非原始VOC评论池、非用户访谈、非竞品实测、非质量数据库。",
+    "confidence": "medium",
+    "quantitative_claims": "仅沿用输入中给出的指标目标，不新增样本统计结论。",
+    "main_limitation": "缺少真实家庭试点、机型覆盖、衣物品类、失败原因和用户返工数据。"
+  },
+  "core_conclusion": "洗衣叠衣机器人用户真正购买的不是单点动作，而是从散落脏衣、正确收集、安全洗烘、可用折叠/叠放到指定区域收纳的少接管闭环。MVP应限定洗烘一体机、固定洗衣区、明确衣物品类和可解释任务状态机，优先验证有效无人值守洗叠闭环率。",
+  "north_star_metric": {
+    "name": "有效无人值守洗叠闭环率",
+    "definition": "用户通过语音、App或智能体发起任务后，机器人在限定环境内完成指定脏衣收集、洗烘一体机投放与正确启动、洗烘完成后的取出折叠/叠放；期间用户无需持续看管，无衣物损伤、无误洗、无设备异常，最终结果可直接收纳。"
+  },
+  "top_insights": [
+    {
+      "rank": 1,
+      "insight": "用户买的是洗叠闭环，不是单点动作展示。",
+      "product_implication": "成功标准必须跨越触发、收集、投放、洗烘、取出、折叠和叠放。",
+      "priority": "P0"
+    },
+    {
+      "rank": 2,
+      "insight": "兼容性是购买前第一闸门。",
+      "product_implication": "调研问卷要升级为售前/首装兼容性判断工具，明确支持机型、门型、控制方式和空间要求。",
+      "priority": "P0"
+    },
+    {
+      "rank": 3,
+      "insight": "脏衣收集是用户价值最高、也是家庭复杂度最高的环节。",
+      "product_implication": "首版先支持固定区域和标准脏衣篮，再逐步扩展散落衣物收集。",
+      "priority": "P0"
+    },
+    {
+      "rank": 4,
+      "insight": "衣物损伤风险比动作失败更伤信任。",
+      "product_implication": "必须加入禁洗衣物识别、口袋异物提醒、误洗率、损伤率和异常拦截率。",
+      "priority": "P0"
+    },
+    {
+      "rank": 5,
+      "insight": "洗衣机操作不是通用动作，而是设备适配工程。",
+      "product_implication": "优先限定洗烘一体机和已验证机型，不做全机型承诺。",
+      "priority": "P0"
+    },
+    {
+      "rank": 6,
+      "insight": "语音触发指标必要，但不代表任务体验成功。",
+      "product_implication": "在唤醒、意图、延迟之外增加状态反馈可理解率和异常可恢复率。",
+      "priority": "P0"
+    },
+    {
+      "rank": 7,
+      "insight": "折叠≥90%需要质量口径，否则容易变成动作指标。",
+      "product_implication": "折叠成功应包括展开、识别、折叠、堆叠稳定和可直接收纳。",
+      "priority": "P0"
+    },
+    {
+      "rank": 8,
+      "insight": "家庭成员习惯定时触发只有在低打扰时才成立。",
+      "product_implication": "智能体建议需要结合脏衣量、可洗窗口、家庭作息和用户取消率。",
+      "priority": "P1"
+    },
+    {
+      "rank": 9,
+      "insight": "收纳是从有用Demo走向日常家务替代的关键。",
+      "product_implication": "App指定区域应扩展为家庭成员、衣物品类、禁区和收纳点规则。",
+      "priority": "P1"
+    },
+    {
+      "rank": 10,
+      "insight": "一次严重事故会抵消多次成功。",
+      "product_implication": "漏水、卡门、夹衣、错洗贵重衣物、错收非衣物要设为红线事件。",
+      "priority": "P0"
+    }
+  ],
+  "dashboard_metrics": [
+    {"layer": "战略层", "metric": "有效无人值守洗叠闭环率", "suggested_gate": "MVP家庭试点≥80%起步，逐步到≥90%", "action": "判断是否扩大试点/进入量产评审"},
+    {"layer": "战略层", "metric": "用户主动时间", "suggested_gate": "单次任务≤3–5分钟配置/确认", "action": "减少确认步骤，优化状态反馈"},
+    {"layer": "触发层", "metric": "语音唤醒率", "suggested_gate": "≥98%（沿用输入口径）", "action": "优化唤醒词和远场麦克风"},
+    {"layer": "触发层", "metric": "意图识别准确率", "suggested_gate": "≥95%（沿用输入口径）", "action": "增加洗衣场景语料和二次确认"},
+    {"layer": "触发层", "metric": "端到端触发延迟", "suggested_gate": "≤2s（沿用输入口径）", "action": "优化任务入口链路"},
+    {"layer": "兼容层", "metric": "问卷完成率 / 支持判定准确率", "suggested_gate": "误判为红线", "action": "维护机型支持库，减少售前流失"},
+    {"layer": "收集层", "metric": "指定区域衣物识别召回", "suggested_gate": "限定品类≥95%", "action": "补训练样本，优化区域规则"},
+    {"layer": "收集层", "metric": "误收率 / 非衣物误抓", "suggested_gate": "接近0", "action": "加强禁区、非衣物识别、确认机制"},
+    {"layer": "洗衣层", "metric": "投放-关门-启动综合成功率", "suggested_gate": "≥90%（沿用输入目标）", "action": "拆解开门、投放、关门、程序选择失败原因"},
+    {"layer": "洗衣层", "metric": "正确程序启动率", "suggested_gate": "≥95%", "action": "固定程序模板，减少自由选择"},
+    {"layer": "折叠层", "metric": "衣物折叠成功率", "suggested_gate": "≥90%（沿用输入目标）", "action": "按衣物品类拆解"},
+    {"layer": "折叠层", "metric": "可收纳评分 / 返工率", "suggested_gate": "返工率持续下降", "action": "优化折叠模板、展开动作和堆叠稳定"},
+    {"layer": "安全层", "metric": "衣物损伤率 / 误洗率", "suggested_gate": "0作为目标", "action": "禁洗识别、材质规则、用户确认"},
+    {"layer": "安全层", "metric": "高危设备事件", "suggested_gate": "0", "action": "卡门、漏水、过载、门锁异常进入红线审计"},
+    {"layer": "运营层", "metric": "D7/D30复用", "suggested_gate": "持续提升", "action": "判断是否从新鲜感转为日常刚需"}
+  ],
+  "priority_actions": {
+    "P0": [
+      "定义首版支持环境：洗烘一体机、前开门、可操作面板、固定洗衣区空间。",
+      "把问卷升级为兼容性判断工具，输出支持/不支持、原因和首装校准要求。",
+      "锁定首版衣物范围和禁洗规则，建立口袋异物、精细衣物、高价值衣物拦截。",
+      "建立端到端任务状态机，每一步有状态、失败原因、恢复动作和用户可见反馈。",
+      "拆解投放-关门-启动≥90%为开门、投放、关门、启动、程序选择子指标。",
+      "建立折叠质量评分体系和红线事件审计。"
+    ],
+    "P1": [
+      "扩展指定区域收集能力，从脏衣篮闭环走向少数固定区域。",
+      "做家庭成员/衣物品类分类规则，降低用户二次整理。",
+      "优化智能体定时建议，跟踪采纳率、取消率和低打扰反馈。",
+      "建立客服/售后失败原因库。",
+      "引入洗涤剂/耗材状态提示。"
+    ],
+    "P2": [
+      "支持独立洗衣机+烘干机跨设备搬运。",
+      "支持更多门型、按键/旋钮/触控面板。",
+      "做衣柜/抽屉深度收纳。",
+      "做跨家庭成员习惯学习。",
+      "与洗衣机品牌或智能家居平台打通。"
+    ]
+  },
+  "mvp_boundary": {
+    "must_have": ["多入口任务触发与状态反馈", "环境/设备问卷与首次校准", "标准脏衣篮+少数固定区域收集", "洗烘一体机开门/投放/关门/正确程序启动", "异常反馈", "烘干后取出折叠/叠放", "安全红线审计"],
+    "later": ["跨洗衣机与独立烘干机转移", "任意房间散落衣物全屋收集", "精细衣物/高价值衣物自动判断", "自动加洗涤剂", "衣柜/抽屉深度收纳", "家庭成员级个性化分类"],
+    "not_first_release": ["支持所有洗衣机/烘干机", "自动处理所有衣物品类", "完全无需用户前置规则", "从任意杂乱环境准确判断脏衣"]
+  },
+  "output_files": {
+    "markdown": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.md",
+    "json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.json"
+  },
+  "audit_checks": {
+    "used_skill": "ops_dashboard",
+    "read_local_skill_definition": true,
+    "read_private_memory": true,
+    "source_materials_processed": true,
+    "markdown_created": true,
+    "json_created": true,
+    "human_review_required": false
+  }
+}

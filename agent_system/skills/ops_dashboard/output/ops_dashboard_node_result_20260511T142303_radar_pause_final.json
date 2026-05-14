@@ -1,0 +1,107 @@
+{
+  "task_id": "dashboard_flow:ops_dashboard",
+  "flow_id": "dashboard_flow",
+  "node_id": "ops_dashboard",
+  "node_key": "ops_dashboard",
+  "display_name": "运营看板",
+  "expert_id": "ops_expert",
+  "expert_role": "primary",
+  "skill_id": "ops_dashboard",
+  "generated_at": "2026-05-11T14:23:03+08:00",
+  "status": "completed_final_dashboard_with_pause_verified",
+  "final_output": true,
+  "input_summary": {
+    "source_materials_count": 1,
+    "user_utterance": "暂停重要沟通雷达的提醒",
+    "upstream_node": "voc_insight",
+    "upstream_status": "completed",
+    "intent_classification": "pause_recurring_reminder"
+  },
+  "executive_conclusion": "保持张欢-重要沟通雷达暂停；权限缺口场景下不继续推送零数据/授权提醒，不读取新的私域历史，不使用 app/bot fallback。授权恢复后需由用户确认是否恢复提醒。",
+  "user_visible_summary": "已确认重要沟通雷达提醒处于暂停状态；周度工作复盘没有被同步暂停。",
+  "cron_status": {
+    "target_job": {
+      "job_id": "6bb4cce497f8",
+      "name": "张欢-重要沟通雷达",
+      "schedule": "0 10,14,17,21 * * 1-5",
+      "enabled": false,
+      "state": "paused",
+      "paused_at": "2026-05-11T14:16:39.821372+08:00",
+      "last_run_at": "2026-05-11T14:12:46.358472+08:00",
+      "last_status": "ok",
+      "script": "zhanghuan_work_radar.py"
+    },
+    "neighbor_job_unchanged": {
+      "job_id": "81b57c7a99c4",
+      "name": "张欢-周度工作复盘",
+      "schedule": "30 18 * * 5",
+      "enabled": true,
+      "state": "scheduled",
+      "script": "zhanghuan_weekly_context.py"
+    }
+  },
+  "permission_status": {
+    "data_subject": "张欢",
+    "user_access_token": {
+      "has_token": false,
+      "status": "missing"
+    },
+    "private_history_read": false,
+    "app_or_bot_fallback_used": false,
+    "business_data_interpretation": "unreadable_due_to_permission_gap_not_empty"
+  },
+  "dashboard_metrics": [
+    {"metric": "目标任务状态", "value": "paused", "meaning": "雷达提醒已暂停"},
+    {"metric": "enabled", "value": false, "meaning": "不会继续按原高频节奏触发"},
+    {"metric": "张欢 UAT", "value": "missing", "meaning": "仍不可读取张欢 person-scoped 私域历史"},
+    {"metric": "可读私域来源", "value": 0, "meaning": "权限缺口，不代表真实无消息"},
+    {"metric": "私域历史读取", "value": 0, "meaning": "合规，未越权读取"},
+    {"metric": "app/bot fallback", "value": "not_used", "meaning": "符合授权边界"},
+    {"metric": "相邻周报任务", "value": "scheduled/enabled=true", "meaning": "未扩大暂停范围"},
+    {"metric": "token/secret/code 暴露", "value": 0, "meaning": "未输出敏感凭据"}
+  ],
+  "dashboard_information_architecture": {
+    "top_status_cards": ["雷达状态", "提醒策略", "权限状态", "恢复条件"],
+    "data_readiness_section": ["has_token", "status", "readable_sources", "message_count", "fallback_used", "secret_exposure_check"],
+    "reminder_control_section": ["job_id", "name", "enabled", "state", "paused_at", "affected_jobs", "unaffected_jobs"],
+    "recovery_path_section": ["OAuth 授权恢复", "可读来源健康检查", "用户确认 cadence", "resume 并复核"],
+    "audit_section": ["未读取私域历史", "未用 fallback", "未扩大范围", "未泄露敏感凭据", "产物路径"]
+  },
+  "action_priorities": {
+    "P0": [
+      "保持张欢-重要沟通雷达暂停",
+      "停止该雷达零数据/授权缺口高频提醒",
+      "不使用 app/bot fallback 替代张欢本人 UAT"
+    ],
+    "P1": [
+      "将权限缺口转为低频状态型待办",
+      "授权恢复后先询问用户再恢复提醒"
+    ],
+    "P2": [
+      "提醒产品中加入暂停/恢复/降频入口",
+      "固化雷达与周报的独立生命周期控制"
+    ]
+  },
+  "files": {
+    "markdown": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/ops_dashboard_node_result_20260511T142303_radar_pause_final.md",
+    "json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/ops_dashboard_node_result_20260511T142303_radar_pause_final.json",
+    "upstream_voc_insight": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T141656_pause_radar_reminder.md",
+    "prior_ops_dashboard_pause": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_pause_20260511T1416.md"
+  },
+  "audit_checks": {
+    "ops_dashboard_skill_read": true,
+    "upstream_voc_insight_reviewed": true,
+    "cronjob_latest_state_verified": true,
+    "target_radar_paused": true,
+    "neighbor_weekly_job_unchanged": true,
+    "zhanghuan_uat_status_checked": true,
+    "private_history_not_read": true,
+    "app_bot_fallback_not_used": true,
+    "secret_code_token_not_exposed": true,
+    "output_files_written": true
+  },
+  "issues": [
+    "张欢本人 Feishu user_access_token 仍缺失，雷达业务数据不可读。",
+    "本节点不能判断真实是否存在重要沟通事项，只能确认权限缺口与提醒暂停状态。"
+  ]
+}

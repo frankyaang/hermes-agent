@@ -1,0 +1,128 @@
+{
+  "run_id": "Run_doc_publish_flow_20260514T111023",
+  "pipeline_id": "doc_publish_flow",
+  "review_period": "2026-05-14 至 2026-05-14",
+  "review_triggers": [
+    "biweekly_review",
+    "key_node_completion"
+  ],
+  "task_count": 2,
+  "success_rate": 100.0,
+  "average_output_quality": 0.0,
+  "exception_count": 0,
+  "dynamic_coverage_frequency": 0,
+  "human_review_count": 0,
+  "human_input_summary": [],
+  "human_review_decisions": [],
+  "default_skill_usage": {
+    "artifact_resolver": 1,
+    "doc_publish": 1
+  },
+  "dynamic_overrides": [],
+  "exceptions": [],
+  "weight_adjustments": {},
+  "skill_weights_updated": true,
+  "rule_update_suggestions": [],
+  "flow_visualization": "主智能体 -> Skill 执行 -> 子专家 -> Skill 执行 -> 人工介入 -> 输出 + 审计 -> 复盘与权重优化",
+  "planning_source": "template_reuse+planning_llm",
+  "template_candidate": false,
+  "skipped_voc_insight_reason": "任务为格式转换/发布，不需要重新运行VOC分析",
+  "planning_llm": {
+    "accept_local_plan": false,
+    "pipeline_id": null,
+    "task_type": "generic",
+    "task_goal": "从云文档中提取并分析节点名称形如 MRD_1、MRD_2、MRD_3 等的行数据",
+    "expected_output": "提取的节点数据列表及初步分析结果",
+    "requires_voc_insight": false,
+    "react_decision": "continue",
+    "next_actions": [
+      "要求用户提供云文档的访问方式（链接、文件、截图等）",
+      "明确分析目标：仅提取节点名称列，还是需要提取整行数据",
+      "确认后续分析需求：统计、对比、还是其他处理"
+    ],
+    "risk_flags": [
+      "local_plan 误判为 doc_format 任务，实际是数据提取分析任务",
+      "缺少数据源信息，无法执行",
+      "用户意图不完整：未说明云文档位置和具体分析要求"
+    ],
+    "reason": "local_plan 将任务错误分类为 doc_format（文档格式转换/发布），但用户实际需求是从云文档中提取特定模式的节点名称并进行分析。这是数据提取+分析任务，不是格式转换。当前缺少关键信息：1) 云文档的访问方式 2) 需要提取的具体字段范围 3) 分析的具体目标。应先向用户澄清需求和获取数据源，再决定是否需要 voc_insight 或其他分析流程。",
+    "llm_used": true,
+    "stage": "initial_plan",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "react_plan": {
+    "accept_local_plan": false,
+    "pipeline_id": null,
+    "task_type": "generic",
+    "task_goal": "从云文档中提取并分析节点名称形如 MRD_1、MRD_2、MRD_3 等的行数据",
+    "expected_output": "提取的节点数据列表及初步分析结果",
+    "requires_voc_insight": false,
+    "react_decision": "block",
+    "next_actions": [
+      "向用户说明：当前流程已完成但未产生有效输出",
+      "要求用户提供云文档的访问方式（链接、文件路径、截图等）",
+      "明确分析目标：仅提取节点名称列，还是需要提取整行数据及其他字段",
+      "确认后续分析需求：统计、对比、趋势分析还是其他处理"
+    ],
+    "risk_flags": [
+      "local_plan 将数据提取分析任务误判为 doc_format（文档格式转换/发布）",
+      "artifact_resolver 和 doc_publish 两个节点均无实际执行逻辑，返回 'has no executable pipeline or direct implementation'",
+      "缺少数据源信息：用户未提供云文档的访问方式",
+      "用户意图不完整：未说明云文档位置、具体分析要求和期望输出格式",
+      "流程状态为 completed 但无有效产出，存在虚假成功"
+    ],
+    "reason": "复盘发现严重规划错误：1) local_plan 将用户的数据提取分析需求错误分类为 doc_format 任务；2) 选择的 doc_publish_flow 流程中两个节点均无实际执行能力，导致流程虚假完成；3) 用户实际需求是从云文档中提取特定模式的节点名称并进行分析，这是数据提取+分析任务，不是格式转换或发布；4) 缺少关键信息：云文档访问方式、提取字段范围、分析目标。应阻断当前流程，向用户澄清需求并获取数据源后重新规划。",
+    "llm_used": true,
+    "stage": "post_audit_react",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "experience_isolation": {
+    "system_level": {
+      "owner": "Hermes 主代理",
+      "write_scope": "系统级经验库",
+      "contains": "全局策略、用户偏好、会话记忆、运行级复盘索引"
+    },
+    "expert_level": {
+      "owner": "对应专家",
+      "write_scope": "本专家 expert_mem",
+      "contains": "专家决策、历史任务、复盘结果、Skill 调用摘要"
+    },
+    "skill_level": {
+      "owner": "对应 Skill",
+      "write_scope": "本 Skill skill_mem",
+      "contains": "Skill 执行历史、成功率、异常统计、复盘反馈"
+    },
+    "rule": "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。"
+  },
+  "experience_updates": [
+    {
+      "layer": "system",
+      "owner": "hermes_main_agent",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md",
+      "write_reason": "运行级全局摘要与复盘触发索引",
+      "write_scope": "system_only"
+    },
+    {
+      "layer": "skill",
+      "owner": "artifact_resolver",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/artifact_resolver/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 0,
+      "exception_count": 0,
+      "average_output_quality": 0.0
+    },
+    {
+      "layer": "skill",
+      "owner": "doc_publish",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/doc_publish/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 0,
+      "exception_count": 0,
+      "average_output_quality": 0.0
+    }
+  ]
+}

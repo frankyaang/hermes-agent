@@ -152,19 +152,30 @@ def validate_name_collision(drafts: dict[str, Any]) -> tuple[bool, list[str]]:
 # ---------- (3) Dependency completeness ----------
 
 
-def _resolve_expert(name: str, root: Path) -> bool:
-    """Expert resolves to either a deployed or a draft directory."""
-    return (root / "experts" / name).exists() or (root / "experts" / "_drafts" / name).exists()
+def _resolve_expert(name: str, root: Path, session_draft_root: Path | None = None) -> bool:
+    """Expert resolves to either a deployed or a session-draft directory."""
+    if (root / "experts" / name).exists():
+        return True
+    if session_draft_root and (session_draft_root / "experts" / "_drafts" / name).exists():
+        return True
+    return False
 
 
-def _resolve_skill(name: str, root: Path) -> bool:
-    return (root / "skills" / name).exists() or (root / "skills" / "_drafts" / name).exists()
+def _resolve_skill(name: str, root: Path, session_draft_root: Path | None = None) -> bool:
+    if (root / "skills" / name).exists():
+        return True
+    if session_draft_root and (session_draft_root / "skills" / "_drafts" / name).exists():
+        return True
+    return False
 
 
 def validate_dependencies(drafts: dict[str, Any]) -> tuple[bool, list[str]]:
     """Routes must reference experts/skills that resolve to a draft or prod path."""
     errors: list[str] = []
     root = _agent_system_root()
+
+    session_draft_root_str = drafts.get("session_draft_root")
+    session_draft_root = Path(session_draft_root_str) if session_draft_root_str else None
 
     routes_path = drafts.get("routes_draft_path")
     if not routes_path or not Path(routes_path).exists():
@@ -178,15 +189,15 @@ def validate_dependencies(drafts: dict[str, Any]) -> tuple[bool, list[str]]:
     for entry in data.get("pipelines", []):
         node = entry.get("node")
         pid = entry.get("pipeline_id", "?")
-        if node and not _resolve_skill(node, root):
+        if node and not _resolve_skill(node, root, session_draft_root):
             errors.append(f"路由 `{pid}` 的 node `{node}` 找不到对应 skill 目录")
         primary = entry.get("supervision", {}).get("primary_expert")
-        if primary and not _resolve_expert(primary, root):
+        if primary and not _resolve_expert(primary, root, session_draft_root):
             errors.append(
                 f"路由 `{pid}` 的 primary_expert `{primary}` 找不到对应 expert 目录"
             )
         for sec in entry.get("supervision", {}).get("secondary_experts", []) or []:
-            if not _resolve_expert(sec, root):
+            if not _resolve_expert(sec, root, session_draft_root):
                 errors.append(
                     f"路由 `{pid}` 的 secondary_expert `{sec}` 找不到对应 expert 目录"
                 )

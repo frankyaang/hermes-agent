@@ -1,0 +1,152 @@
+{
+  "run_id": "Run_dashboard_flow_20260511T061507",
+  "flow_id": "dashboard_flow",
+  "node_id": "briefing",
+  "node_key": "briefing",
+  "task_id": "dashboard_flow:briefing",
+  "display_name": "过程汇报",
+  "skill_id": "briefing",
+  "expert_role": "system",
+  "status": "completed_radar_pause_briefing",
+  "final_output": false,
+  "generated_at_cst": "2026-05-11 14:30:42 CST",
+  "input_summary": {
+    "source_materials_count": 1,
+    "user_utterance": "暂停重要沟通雷达的提醒",
+    "input_type": "产品运营报告与Dashboard结构",
+    "intent_classification": "pause_recurring_reminder"
+  },
+  "executive_summary": "用户明确要求暂停张欢重要沟通雷达提醒。上游已完成用户洞察与运营看板：目标 cron job 6bb4cce497f8 已为 paused/enabled=false，周度工作复盘 81b57c7a99c4 保持 scheduled/enabled=true。张欢本人 Feishu UAT 仍缺失，未读取新的私域历史，未使用 app/bot fallback，不能判断真实是否存在重要沟通事项。",
+  "cron_status_verified": {
+    "target_job": {
+      "job_id": "6bb4cce497f8",
+      "name": "张欢-重要沟通雷达",
+      "schedule": "0 10,14,17,21 * * 1-5",
+      "enabled": false,
+      "state": "paused",
+      "paused_at": "2026-05-11T14:16:39.821372+08:00",
+      "next_run_at": "2026-05-11T17:00:00+08:00",
+      "last_run_at": "2026-05-11T14:12:46.358472+08:00",
+      "last_status": "ok",
+      "script": "zhanghuan_work_radar.py"
+    },
+    "neighbor_job_unchanged": {
+      "job_id": "81b57c7a99c4",
+      "name": "张欢-周度工作复盘",
+      "schedule": "30 18 * * 5",
+      "enabled": true,
+      "state": "scheduled",
+      "next_run_at": "2026-05-15T18:30:00+08:00",
+      "last_status": "error",
+      "script": "zhanghuan_weekly_context.py",
+      "in_scope": false
+    }
+  },
+  "permission_status": {
+    "data_subject": "张欢",
+    "user_access_token": {
+      "has_token": false,
+      "status": "missing"
+    },
+    "private_history_read": false,
+    "app_or_bot_fallback_used": false,
+    "secret_token_code_exposed": false,
+    "business_data_interpretation": "unreadable_due_to_permission_gap_not_empty"
+  },
+  "upstream_nodes": {
+    "voc_insight": {
+      "status": "completed",
+      "primary": {
+        "expert_id": "user_analyst",
+        "skill_id": "voc_insight",
+        "api_calls": 21,
+        "duration_seconds": 372.89,
+        "tokens_input": 1334463,
+        "tokens_output": 13759,
+        "summary": "将用户原话识别为提醒暂停/低价值重复提醒反馈；核验目标任务已暂停。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T141656_pause_radar_reminder.md"
+      },
+      "secondary": {
+        "expert_id": "ops_expert",
+        "skill_id": "ops_dashboard",
+        "dynamic_override": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+        "api_calls": 23,
+        "duration_seconds": 326.07,
+        "tokens_input": 1480116,
+        "tokens_output": 10781,
+        "summary": "执行并验证暂停 job_id=6bb4cce497f8；周度复盘未受影响。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_pause_20260511T1416.md"
+      }
+    },
+    "ops_dashboard": {
+      "status": "completed",
+      "primary": {
+        "expert_id": "ops_expert",
+        "skill_id": "ops_dashboard",
+        "api_calls": 23,
+        "duration_seconds": 412.32,
+        "tokens_input": 1437380,
+        "tokens_output": 10845,
+        "summary": "生成最终产品运营报告与 Dashboard 结构；复核 cron 和 UAT 状态。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/ops_dashboard_node_result_20260511T142303_radar_pause_final.md"
+      },
+      "secondary": {
+        "expert_id": "user_analyst",
+        "skill_id": "voc_insight",
+        "dynamic_override": "user_analyst 不直接加载 ops_dashboard，改用 voc_insight",
+        "api_calls": 21,
+        "duration_seconds": 417.86,
+        "tokens_input": 1906872,
+        "tokens_output": 13377,
+        "summary": "将暂停意图转为看板结构与体验洞察，强调零数据权限缺口应降噪。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/ops_dashboard_user_analyst_voc_insight_radar_pause_20260511T142305.md"
+      }
+    }
+  },
+  "execution_statistics": {
+    "upstream_expert_calls": 4,
+    "upstream_api_calls_total": 88,
+    "duration_sum_seconds": 1529.14,
+    "duration_sum_minutes": 25.49,
+    "wallclock_seconds": 791.67,
+    "wallclock_minutes": 13.19,
+    "tokens_input_total": 6158831,
+    "tokens_output_total": 48762,
+    "dynamic_overrides": 2,
+    "external_side_effects": [
+      "暂停 张欢-重要沟通雷达 cronjob，已验证 state=paused/enabled=false"
+    ]
+  },
+  "quality_assessment": {
+    "intent_recognition": 95,
+    "scheduler_closure": 95,
+    "scope_control": 95,
+    "permission_compliance": 95,
+    "data_sufficiency": "N/A_permission_gap",
+    "output_completeness": 90,
+    "audit_transparency": 90
+  },
+  "user_visible_recommendation": "已确认重要沟通雷达提醒处于暂停状态；张欢-周度工作复盘没有被同步暂停。由于张欢本人 Feishu 授权仍缺失，雷达暂时无法判断真实是否有重要沟通事项；后续仅在张欢完成 OAuth 授权并且你明确确认恢复重要沟通雷达后，再恢复提醒。",
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/dashboard_flow_briefing_20260511T1430_radar_pause_confirmed.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/dashboard_flow_briefing_20260511T1430_radar_pause_confirmed.json"
+  ],
+  "issues_encountered": [
+    "张欢本人 Feishu user_access_token 仍缺失，雷达业务数据不可读。",
+    "不能把未读取/0消息解释为真实无重要事项。",
+    "张欢-周度工作复盘 last_status=error，但用户本次只要求暂停重要沟通雷达，不在本节点处理范围。"
+  ],
+  "audit_checks": {
+    "local_briefing_skill_read": true,
+    "upstream_ops_dashboard_reviewed": true,
+    "cronjob_latest_state_verified": true,
+    "zhanghuan_uat_status_checked": true,
+    "target_radar_paused": true,
+    "neighbor_weekly_job_unchanged": true,
+    "private_history_not_read": true,
+    "app_bot_fallback_not_used": true,
+    "secret_code_token_not_exposed": true,
+    "output_files_written": true,
+    "memory_boundary_respected": true
+  }
+}

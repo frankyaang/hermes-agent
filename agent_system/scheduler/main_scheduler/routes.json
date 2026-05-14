@@ -216,6 +216,228 @@
       },
       "user_gate": false,
       "optional": true
+    },
+    {
+      "pipeline_id": "artifact_status_flow",
+      "pipeline_name": "状态查询流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "artifact_resolver",
+      "display_name": "产物定位",
+      "constraints": {
+        "input_type": "用户消息/任务ID",
+        "output_type": "产物路径与摘要",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false
+    },
+    {
+      "pipeline_id": "artifact_status_flow",
+      "pipeline_name": "状态查询流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "artifact_status",
+      "display_name": "产物状态查询",
+      "depends_on": [
+        "artifact_resolver"
+      ],
+      "constraints": {
+        "input_type": "产物路径与摘要",
+        "output_type": "状态报告",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "final_output": true
+    },
+    {
+      "pipeline_id": "artifact_delivery_flow",
+      "pipeline_name": "产物交付流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "artifact_resolver",
+      "display_name": "产物定位",
+      "constraints": {
+        "input_type": "用户消息",
+        "output_type": "产物路径与摘要",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false
+    },
+    {
+      "pipeline_id": "artifact_delivery_flow",
+      "pipeline_name": "产物交付流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "artifact_delivery",
+      "display_name": "产物交付",
+      "depends_on": [
+        "artifact_resolver"
+      ],
+      "constraints": {
+        "input_type": "产物路径",
+        "output_type": "产物内容或路径",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "final_output": true
+    },
+    {
+      "pipeline_id": "doc_publish_flow",
+      "pipeline_name": "文档发布流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "artifact_resolver",
+      "display_name": "产物定位",
+      "constraints": {
+        "input_type": "用户消息/文件路径",
+        "output_type": "产物路径与内容",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false
+    },
+    {
+      "pipeline_id": "doc_publish_flow",
+      "pipeline_name": "文档发布流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "doc_publish",
+      "display_name": "文档发布",
+      "depends_on": [
+        "artifact_resolver"
+      ],
+      "constraints": {
+        "input_type": "Markdown/报告内容",
+        "output_type": "飞书云文档格式或待发布内容",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "final_output": true
+    },
+    {
+      "pipeline_id": "report_revision_flow",
+      "pipeline_name": "报告修订流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "artifact_resolver",
+      "display_name": "产物定位",
+      "constraints": {
+        "input_type": "用户消息/报告路径",
+        "output_type": "已有报告内容",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "production_ready": false
+    },
+    {
+      "pipeline_id": "report_revision_flow",
+      "pipeline_name": "报告修订流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "report_revision",
+      "display_name": "报告修订",
+      "depends_on": [
+        "artifact_resolver"
+      ],
+      "constraints": {
+        "input_type": "已有报告内容",
+        "output_type": "修订后报告",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "final_output": true,
+      "production_ready": false
+    },
+    {
+      "pipeline_id": "dashboard_from_artifact_flow",
+      "pipeline_name": "已有报告生成看板流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "artifact_resolver",
+      "display_name": "产物定位",
+      "constraints": {
+        "input_type": "用户消息/报告路径",
+        "output_type": "已有报告内容",
+        "max_runtime": 120
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false
+    },
+    {
+      "pipeline_id": "dashboard_from_artifact_flow",
+      "pipeline_name": "已有报告生成看板流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "ops_dashboard",
+      "display_name": "运营看板",
+      "depends_on": [
+        "artifact_resolver"
+      ],
+      "constraints": {
+        "input_type": "已有报告/洞察结论",
+        "output_type": "产品运营报告与Dashboard结构",
+        "max_runtime": 180
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": true,
+        "primary_expert": "ops_expert",
+        "secondary_experts": []
+      },
+      "user_gate": true,
+      "final_output": true
     }
   ]
 }

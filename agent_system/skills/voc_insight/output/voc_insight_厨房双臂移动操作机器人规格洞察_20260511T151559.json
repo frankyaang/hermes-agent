@@ -1,0 +1,40 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "node_id": "voc_insight",
+  "expert_id": "user_analyst",
+  "skill_id": "voc_insight",
+  "status": "completed",
+  "completed_at": "2026-05-11T15:15:59+08:00",
+  "output_type": "用户洞察结论",
+  "source_materials_count": 1,
+  "evidence_boundary": "未获得量化VOC评论池；本次为技术规格/竞品/研究样机公开资料调研，按非传统VOC输出用户洞察。",
+  "report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_厨房双臂移动操作机器人规格洞察_20260511T151559.md",
+  "key_findings": [
+    "首代应定位为受控厨房工作站内的双臂烹饪与清洁助手，而非任意厨房全屋移动厨师。",
+    "双臂与每臂7DoF是厨房闭环任务的合理基础；单臂移动平台更适合外围取放/递送。",
+    "推荐单臂reach 800–900mm、连续载荷2–3kg、双臂协同5–8kg，并明确满伸/热液/长时工况降额。",
+    "食品级可拆洗末端、快换工具族、力控/触觉、顶视+腕部视觉、安全停机与清洁SLA是P0规格。",
+    "动作库应从30个原子动作与20–50道可验证菜谱起步，高温/刀具/任意锅具兼容放到后续阶段。"
+  ],
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_厨房双臂移动操作机器人规格洞察_20260511T151559.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_厨房双臂移动操作机器人规格洞察_20260511T151559.json"
+  ],
+  "references": [
+    "https://franka.de/franka-research-3/",
+    "https://www.roscomponents.com/wp-content/uploads/2024/11/TS-014_KINOVA_Gen3_Ultra_lightweight_robot_7DOF-Specifications_EN_R01.pdf",
+    "https://one.robotics.abb.com/en/robots/p/IRB-14000-YuMi-Dual-Arm",
+    "https://www.motoman.com/en-us/products/robots/industrial/assembly-handling/sda-series/sda10f",
+    "https://hello-robot.com/stretch-3-product",
+    "https://pal-robotics.com/robots/tiago/",
+    "https://mobile-aloha.github.io/",
+    "https://moley.com/"
+  ],
+  "audit_checks": {
+    "skill_execution_completed": true,
+    "max_spawn_depth_respected": true,
+    "report_file_written": true,
+    "evidence_boundary_declared": true,
+    "no_system_memory_write": true
+  }
+}

@@ -100,6 +100,71 @@ def test_same_session_continues_builder_state_machine(tmp_path, monkeypatch):
     assert "continued:我要创建一个周报评审技能" in result["final_response"]
 
 
+def test_feishu_reply_quote_exit_hint_does_not_exit_mode(tmp_path, monkeypatch):
+    active_agent = _agent(
+        _gateway_session_key="feishu:active:user-a",
+        _user_id="user-a",
+        _chat_id="chat-a",
+    )
+    state_path = dispatcher._state_file_path_for_agent(tmp_path, active_agent)
+
+    dispatcher.maybe_handle_builder_mode(
+        "启动深度养马模式", parent_agent=active_agent, project_root=tmp_path
+    )
+
+    def fake_dispatch(state_path, user_message, parent_agent):
+        return dispatcher._final_response(f"continued:{user_message}:{state_path.name}")
+
+    monkeypatch.setattr(dispatcher, "_dispatch_to_state_machine", fake_dispatch)
+
+    feishu_reply = (
+        '[Replying to: "🐎 深度养马模式已启动\n'
+        "本模式用于让 Hermes 沉淀新能力。随时可说【退出深度养马模式】结束。\n"
+        '回复数字（1-6）或直接描述。"]\n\n'
+        "[何春] 我需要做一个完整的定量调研项目"
+    )
+
+    result = dispatcher.maybe_handle_builder_mode(
+        feishu_reply,
+        parent_agent=active_agent,
+        project_root=tmp_path,
+    )
+
+    assert result is not None
+    assert state_path.exists()
+    assert "已退出深度养马模式" not in result["final_response"]
+    assert "continued:[何春] 我需要做一个完整的定量调研项目" in result["final_response"]
+
+
+def test_exit_phrase_inside_long_text_does_not_exit_mode(tmp_path, monkeypatch):
+    active_agent = _agent(
+        _gateway_session_key="feishu:active:user-a",
+        _user_id="user-a",
+        _chat_id="chat-a",
+    )
+    state_path = dispatcher._state_file_path_for_agent(tmp_path, active_agent)
+
+    dispatcher.maybe_handle_builder_mode(
+        "启动深度养马模式", parent_agent=active_agent, project_root=tmp_path
+    )
+
+    def fake_dispatch(state_path, user_message, parent_agent):
+        return dispatcher._final_response(f"continued:{user_message}:{state_path.name}")
+
+    monkeypatch.setattr(dispatcher, "_dispatch_to_state_machine", fake_dispatch)
+
+    result = dispatcher.maybe_handle_builder_mode(
+        "我看到提示里说可以退出深度养马模式，但我现在要继续完善需求",
+        parent_agent=active_agent,
+        project_root=tmp_path,
+    )
+
+    assert result is not None
+    assert state_path.exists()
+    assert "已退出深度养马模式" not in result["final_response"]
+    assert "continued:我看到提示里说可以退出深度养马模式" in result["final_response"]
+
+
 def test_exit_only_removes_current_session_state(tmp_path):
     agent_a = _agent(
         _gateway_session_key="feishu:chat-a:user-a",
@@ -127,6 +192,25 @@ def test_exit_only_removes_current_session_state(tmp_path):
 
     assert not path_a.exists()
     assert path_b.exists()
+
+
+def test_exit_command_allows_leading_speaker_prefix(tmp_path):
+    agent = _agent(
+        _gateway_session_key="feishu:chat-a:user-a",
+        _user_id="user-a",
+        _chat_id="chat-a",
+    )
+    path = dispatcher._state_file_path_for_agent(tmp_path, agent)
+
+    dispatcher.maybe_handle_builder_mode(
+        "启动深度养马模式", parent_agent=agent, project_root=tmp_path
+    )
+
+    dispatcher.maybe_handle_builder_mode(
+        "[何春] 退出深度养马模式", parent_agent=agent, project_root=tmp_path
+    )
+
+    assert not path.exists()
 
 
 def test_private_agent_ids_are_used_before_default(tmp_path):

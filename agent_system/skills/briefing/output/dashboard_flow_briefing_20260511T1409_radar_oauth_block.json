@@ -1,0 +1,85 @@
+{
+  "run_id": "Run_dashboard_flow_20260511T060034",
+  "flow_id": "dashboard_flow",
+  "node_id": "briefing",
+  "node_key": "briefing",
+  "display_name": "过程汇报",
+  "status": "completed_with_permission_gap",
+  "generated_at_cst": "2026-05-11 14:09 CST",
+  "data_window_cst": {
+    "start": "2026-05-11 09:45:26 CST",
+    "end": "2026-05-11 14:00:31 CST"
+  },
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "required_access": "张欢本人 Feishu user_access_token",
+    "status": "missing",
+    "has_token": false,
+    "app_bot_fallback_used": false,
+    "private_history_read": false
+  },
+  "metrics": {
+    "readable_sources": 0,
+    "configured_sources": 14,
+    "messages": 0,
+    "new_messages": 0,
+    "high_priority_candidates": 0
+  },
+  "upstream_nodes": {
+    "voc_insight": {
+      "status": "completed",
+      "summary": "未找到张欢本人 user_access_token，私域历史读取停止，未使用 app/bot fallback。",
+      "skill_calls": [
+        {
+          "expert_id": "user_analyst",
+          "skill_id": "voc_insight",
+          "api_calls": 13,
+          "duration_seconds": 241.78,
+          "tokens_input": 935653,
+          "tokens_output": 9156
+        },
+        {
+          "expert_id": "ops_expert",
+          "skill_id": "ops_dashboard",
+          "dynamic_override": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+          "api_calls": 9,
+          "duration_seconds": 148.25,
+          "tokens_input": 601654,
+          "tokens_output": 5370,
+          "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_20260511T1400.md"
+        }
+      ]
+    },
+    "ops_dashboard": {
+      "status": "completed",
+      "summary": "无法形成实质性运营看板；零数据代表权限缺口，不代表真实无新增。",
+      "skill_calls": [
+        {
+          "expert_id": "ops_expert",
+          "skill_id": "ops_dashboard",
+          "api_calls": 16,
+          "duration_seconds": 239.73,
+          "tokens_input": 1161827,
+          "tokens_output": 7701
+        },
+        {
+          "expert_id": "user_analyst",
+          "skill_id": "voc_insight",
+          "dynamic_override": "user_analyst 不直接加载 ops_dashboard，改用 voc_insight",
+          "api_calls": 13,
+          "duration_seconds": 250.91,
+          "tokens_input": 1074211,
+          "tokens_output": 8745
+        }
+      ]
+    }
+  },
+  "user_visible_recommendation": "当前未找到张欢本人 Feishu user_access_token，私域历史读取已停止；请张欢打开 OAuth 授权链接完成本人授权后，下轮雷达再恢复读取：https://open.feishu.cn/open-apis/authen/v1/index?app_id=cli_a9f04f3ad279dbcc&redirect_uri=https%3A%2F%2Fopen.feishu.cn&state=mPwKHFjj_SBAM75VJraAsgKJPvNDntLm",
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/dashboard_flow_briefing_20260511T1409_radar_oauth_block.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/dashboard_flow_briefing_20260511T1409_radar_oauth_block.json"
+  ],
+  "issues_encountered": [
+    "feishu_user_oauth.py status 不支持 --json 参数；已改用无 --json 的 status 命令完成核验。"
+  ]
+}

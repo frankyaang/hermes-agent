@@ -1,0 +1,61 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "flow_id": "insight_flow",
+  "node_id": "voc_insight",
+  "status": "completed",
+  "result_summary": "已以 user_analyst 身份调用 voc_insight，识别本次输入为用户选择“方法1：直接复制粘贴”交付路径；已校验飞书格式报告并复制到 macOS 剪贴板，用户可直接在飞书文档中粘贴。",
+  "skills_loaded": ["voc_insight", "robot-product-voc-survey-insight", "using-superpowers"],
+  "primary_expert_skill_calls": ["voc_insight"],
+  "secondary_expert_skill_calls": [],
+  "real_skill_execution": true,
+  "skill_execution_modes": ["production_delegate_task", "local_skill_file_execution"],
+  "online_llm_api_calls_observed": 1,
+  "human_review_required": "否",
+  "human_review_decision": "not_required",
+  "human_review_blocking": false,
+  "human_input_summary": "用户回复“方法1”，选择直接复制粘贴导入飞书。",
+  "structured_outputs": {
+    "source_report": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/user_persona_report_feishu_format.md",
+    "source_report_lines": 1033,
+    "source_report_bytes": 36404,
+    "clipboard_verified": true,
+    "clipboard_bytes": 36404,
+    "clipboard_lines": 1033,
+    "personas": [
+      {"name": "品质生活家", "share": "28%", "need": "全面清洁+除菌+省心", "risk": "中"},
+      {"name": "效率至上派", "share": "22%", "need": "快速清洁+低维护+省时间", "risk": "低"},
+      {"name": "宠物家庭守护者", "share": "18%", "need": "宠物安全+毛发清理+避障可靠", "risk": "高"},
+      {"name": "精致地面呵护者", "share": "16%", "need": "无水渍+不伤地面", "risk": "中"},
+      {"name": "老用户升级派", "share": "16%", "need": "代际提升感知+稳定性", "risk": "高"}
+    ],
+    "top_product_breakpoints": [
+      "喷溶功能链路断裂：打动率38.9%，开启率40%",
+      "宠物安全模式不完善：避障满意度55.4%，较X11下降22pct",
+      "地面材质选择缺失：水渍投诉12.1%",
+      "越障稳定性退步：满意度86.6%降至62.0%，下降24.6pct"
+    ],
+    "priority_actions": {
+      "P0": ["喷溶功能引导链路修复", "宠物安全模式完善", "地面材质选择补齐"],
+      "P1": ["越障稳定性OTA", "设置继承功能"],
+      "P2": ["智能场景推荐", "避障灵敏度设置项"]
+    }
+  },
+  "audit_checks": {
+    "source_report_exists": true,
+    "source_report_copy_ready": true,
+    "clipboard_copy_executed": true,
+    "clipboard_roundtrip_verified": true,
+    "pm_field_complete": true,
+    "skill_usage_recorded": true,
+    "primary_skill_call_recorded": true,
+    "real_skill_execution": true,
+    "human_review_recorded": true
+  },
+  "exceptions": [],
+  "missing_inputs": [],
+  "files_created_or_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T123112_method1.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T123112_method1.json"
+  ],
+  "next_action": "用户可直接在目标飞书文档中粘贴剪贴板内容。"
+}

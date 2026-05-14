@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
+import copy
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,6 +59,216 @@ PROGRESS_LABELS = {
     "NEXT_OR_EXIT": "🔁 阶段 8/9：继续 / 退出",
 }
 
+BUILDER_INTENTS: tuple[str, ...] = (
+    "answer_current_question",
+    "ask_definition",
+    "ask_advice",
+    "confirm_understanding",
+    "revise_previous",
+    "go_back",
+    "show_current",
+    "continue",
+)
+
+_NON_ADVANCING_INTENTS = {
+    "ask_definition",
+    "ask_advice",
+    "confirm_understanding",
+    "show_current",
+}
+
+_INTAKE_FIELD_TO_QID = {key: qid for qid, key, _prompt in INTAKE_QUESTIONS}
+_QID_TO_INTAKE_FIELD = {qid: key for qid, key, _prompt in INTAKE_QUESTIONS}
+_QID_TO_PROMPT = {qid: prompt for qid, _key, prompt in INTAKE_QUESTIONS}
+
+_PREFILL_FIELD_TO_INTAKE_FIELD = {
+    "business_goal": "business_goal",
+    "typical_use_scenario": "scenario",
+    "input_materials": "input_type",
+    "output_artifacts": "output_type",
+    "execution_flow": "pipeline_description",
+}
+
+_INTAKE_FIELD_TO_PREFILL_FIELD = {
+    value: key for key, value in _PREFILL_FIELD_TO_INTAKE_FIELD.items()
+}
+
+_FIELD_LABELS = {
+    "_user_intent": "能力类型",
+    "capability_candidate_name": "能力候选名",
+    "business_goal": "业务目标",
+    "scenario": "典型使用场景",
+    "typical_use_scenario": "典型使用场景",
+    "input_type": "输入材料",
+    "input_materials": "输入材料",
+    "output_type": "输出产物",
+    "output_artifacts": "输出产物",
+    "pipeline_description": "执行流程",
+    "execution_flow": "执行流程",
+    "judgment_criteria": "判断标准",
+    "open_questions": "待澄清问题",
+    "optional": "选填约束",
+}
+
+_FIELD_ALIASES = {
+    "_user_intent": ("能力类型", "意图", "类型", "分类"),
+    "capability_candidate_name": ("能力名", "候选名", "名称", "技能名", "马名"),
+    "business_goal": ("业务目标", "目标", "解决的问题", "要解决什么", "问题"),
+    "scenario": ("使用场景", "调用场景", "典型场景", "什么时候", "触发方式", "场景"),
+    "input_type": ("输入", "输入材料", "材料", "数据源", "输入类型", "典型输入"),
+    "output_type": ("输出", "产出", "输出产物", "产物", "结果", "期望产出"),
+    "pipeline_description": ("执行流程", "流程", "步骤", "怎么执行", "处理流程"),
+    "judgment_criteria": ("判断标准", "标准", "验收标准", "评判标准", "判断 criteria"),
+    "open_questions": ("待澄清", "开放问题", "疑问", "还缺", "问题清单"),
+    "optional": ("选填", "约束", "运行时间", "优先级", "人工审核"),
+}
+
+_FIELD_DEFINITIONS = {
+    "_user_intent": "能力类型用于判断这匹马属于数据分析、自动化、决策视角、现有能力扩展、知识固化还是自由描述。",
+    "business_goal": "业务目标是一句话说明这匹马要解决的业务问题，以及完成后应该带来什么改善。",
+    "scenario": "典型使用场景说明它在什么时机被调用，例如定时、用户主动触发，或某个事件完成后自动触发。",
+    "input_type": "输入材料说明它会读取什么信息，例如 VOC、工单、评论、竞品数据、用户上传文件或已有数据源。",
+    "output_type": "输出产物说明它最终交付什么，例如报告、异常清单、看板结构、对话回复或数据库写入。",
+    "pipeline_description": "执行流程描述处理步骤顺序，最好用“先 X，再 Y，最后 Z”的结构表达。",
+    "capability_candidate_name": "能力候选名是便于识别这匹马的临时名称，不要求最终就是文件名。",
+    "judgment_criteria": "判断标准说明怎样算结果可用，例如准确率、覆盖范围、必须包含的结论或人工验收条件。",
+    "open_questions": "待澄清问题记录当前还没确定、后续需要你确认的边界条件。",
+    "optional": "选填约束包括最长运行时间、优先级、可调用人群、是否需要人工审核和定时配置。",
+}
+
+_FIELD_ADVICE = {
+    "_user_intent": "如果你不确定类型，先选“自由描述”。原因是后续 ARCHITECT 阶段会根据输入、产出和流程再做结构判断。",
+    "business_goal": "建议写成“为谁/什么业务，降低或提升什么指标”。原因是后续命名、复用扫描和验收都会围绕这个目标展开。",
+    "scenario": "建议直接写触发时机，例如“每周一早上自动跑”或“用户在群里发关键词时触发”。原因是它会影响路由和调度方式。",
+    "input_type": "建议列出真实输入来源和格式，例如“近 7 天售后工单 CSV”。原因是 draft 需要据此生成 mock 和依赖声明。",
+    "output_type": "建议写出交付形态和读者，例如“给运营看的异常清单”。原因是后续验证会检查输出形态是否匹配。",
+    "pipeline_description": "建议用“先读取输入，再清洗分类，最后生成报告/清单”。原因是步骤顺序是 ARCHITECT 推断 pipeline 的核心依据。",
+    "capability_candidate_name": "建议用业务对象 + 动作命名，例如“售后工单异常雷达”。原因是短名称更利于后续检索和复用。",
+    "judgment_criteria": "建议写 2-3 条可检查标准，例如“必须列出异常原因、负责人、建议动作”。原因是它能减少试运行阶段的主观分歧。",
+    "open_questions": "建议把不确定项逐条列出来。原因是这些问题不会阻塞当前收集，但会提醒后续人工确认。",
+    "optional": "如果没有特殊要求，建议回复“默认”。原因是默认值能让流程先跑通，之后仍可回头修改。",
+}
+
+_STAGE_ALIASES = {
+    "INTAKE": ("intake", "需求", "收集", "问题", "表单"),
+    "ARCHITECT": ("architect", "架构", "复用", "拆分", "方案"),
+    "DRAFT": ("draft", "草稿", "生成"),
+    "VALIDATE": ("validate", "校验", "验证"),
+    "DRY_RUN": ("dry", "dry-run", "mock", "试跑"),
+    "TRIAL_RUN": ("trial", "试运行", "真实数据"),
+    "COMMIT": ("commit", "落盘", "提交"),
+    "NEXT_OR_EXIT": ("继续", "退出", "结束"),
+}
+
+_ENTRY_RESPONSE_MENU = (
+    "**你想做什么？**\n\n"
+    "1️⃣ **数据分析能力** — 创建一个能分析 VOC / 工单 / 评论 / 竞品等数据的新能力\n"
+    "2️⃣ **自动化任务** — 创建一个定时或事件触发的能力（每天 / 每周 / 异常告警）\n"
+    "3️⃣ **新决策视角** — 让 Hermes 学会一个新的判断角度（多用于业务决策类）\n"
+    "4️⃣ **现有能力扩展** — 在已有能力之上加新功能\n"
+    "5️⃣ **知识固化** — 把你反复在做的事沉淀成可调用的能力\n"
+    "6️⃣ **自由描述** — 不知道选哪类，直接用自然语言说需求，我来判断\n\n"
+    "回复数字（1-6）或直接描述。"
+)
+
+
+class IntentResult(str):
+    """String-compatible intent label with deterministic target metadata."""
+
+    label: str
+    target: str | None
+    target_type: str | None
+
+    def __new__(
+        cls,
+        label: str,
+        target: str | None = None,
+        target_type: str | None = None,
+    ) -> "IntentResult":
+        obj = str.__new__(cls, label)
+        obj.label = label
+        obj.target = target
+        obj.target_type = target_type
+        return obj
+
+    def as_dict(self) -> dict[str, str | None]:
+        return {
+            "label": self.label,
+            "target": self.target,
+            "target_type": self.target_type,
+        }
+
+
+def _target_field_from_text(message: str) -> str | None:
+    compact = re.sub(r"\s+", "", (message or "").casefold())
+    for field_key, aliases in _FIELD_ALIASES.items():
+        if any(alias.casefold().replace(" ", "") in compact for alias in aliases):
+            return field_key
+    return None
+
+
+def _target_stage_from_text(message: str) -> str | None:
+    compact = re.sub(r"\s+", "", (message or "").casefold())
+    for stage, aliases in _STAGE_ALIASES.items():
+        if any(alias.casefold().replace(" ", "") in compact for alias in aliases):
+            return stage
+    return None
+
+
+def recognize_intent(
+    raw_user_input: str,
+    current_stage: str | None = None,
+    current_field: str | None = None,
+    previous_field: str | None = None,
+) -> IntentResult:
+    """用纯规则识别 builder 单轮输入意图，并附带可确定的目标字段或阶段。"""
+    text = (raw_user_input or "").strip()
+    compact = re.sub(r"\s+", "", text.casefold())
+    if not compact:
+        return IntentResult("continue")
+
+    def has_any(patterns: tuple[str, ...]) -> bool:
+        return any(pattern.casefold() in compact for pattern in patterns)
+
+    if has_any(("填了什么", "已填", "已经填", "当前状态", "当前内容", "目前状态", "总结一下", "showcurrent", "summary")):
+        return IntentResult("show_current")
+    if has_any(("回到", "返回", "上一步", "上一题", "前一步", "退回", "goback", "back")):
+        target_stage = _target_stage_from_text(text)
+        if target_stage:
+            return IntentResult("go_back", target_stage, "stage")
+        target_field = _target_field_from_text(text) or previous_field or current_field
+        return IntentResult("go_back", target_field, "field" if target_field else None)
+    if has_any(("你理解", "我理解", "确认一下", "复述", "对齐一下", "是不是说", "你是不是",
+                "理解对吗", "不是很确认", "理解和你", "是不是一致", "我这样理解", "我们对齐")):
+        return IntentResult("confirm_understanding", _target_field_from_text(text) or current_field, "field")
+    if has_any(("修改", "改成", "改为", "换成", "重填", "覆盖", "修正", "不是", "不对", "纠正", "revise", "edit")):
+        target_field = _target_field_from_text(text) or previous_field or current_field
+        return IntentResult("revise_previous", target_field, "field" if target_field else None)
+    if has_any(("你建议", "建议怎么", "怎么填", "如何填", "帮我填", "给个建议", "推荐", "示例", "例子", "advice")):
+        return IntentResult("ask_advice", _target_field_from_text(text) or current_field, "field")
+    if has_any(("是什么意思", "什么意思", "什么是", "解释一下", "定义", "这个字段", "这个问题", "怎么理解", "definition")):
+        return IntentResult("ask_definition", _target_field_from_text(text) or current_field, "field")
+    if compact in {
+        "继续",
+        "下一步",
+        "继续下一步",
+        "确认",
+        "可以",
+        "好的",
+        "好",
+        "ok",
+        "okay",
+        "yes",
+        "y",
+        "continue",
+        "next",
+        "默认",
+        "跳过",
+        "skip",
+    }:
+        return IntentResult("continue")
+    return IntentResult("answer_current_question")
+
 
 # ---------- state I/O ----------
 
@@ -73,6 +285,645 @@ def save_state(state: dict[str, Any], state_path: Path) -> None:
 def _push_history(state: dict[str, Any], stage: str) -> None:
     state.setdefault("history", []).append(
         {"stage": stage, "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    )
+
+
+def _field_label(field_key: str | None) -> str:
+    if not field_key:
+        return "当前字段"
+    return _FIELD_LABELS.get(field_key, field_key)
+
+
+def _current_field_key(state: dict[str, Any]) -> str | None:
+    pending = state.get("_pending_revision") or {}
+    if pending.get("field"):
+        return pending["field"]
+    stage = state.get("stage", "INTAKE")
+    if stage != "INTAKE":
+        return stage.lower()
+    intake = state.get("intake", {}) or {}
+    qid = intake.get("_current_question")
+    if qid in _QID_TO_INTAKE_FIELD:
+        return _QID_TO_INTAKE_FIELD[qid]
+    if qid == "INTENT_CHOICE":
+        return "_user_intent"
+    if qid == "OPTIONAL":
+        return "optional"
+    return None
+
+
+def _get_field_value(state: dict[str, Any], field_key: str | None) -> str:
+    if not field_key:
+        return ""
+    intake = state.get("intake", {}) or {}
+    if field_key in _INTAKE_FIELD_TO_QID or field_key == "_user_intent":
+        return str(intake.get(field_key) or "").strip()
+    prefill = state.get("prefill", {}) or {}
+    item = prefill.get(field_key)
+    if isinstance(item, dict):
+        return str(item.get("value") or "").strip()
+    if field_key in _PREFILL_FIELD_TO_INTAKE_FIELD:
+        mapped = _PREFILL_FIELD_TO_INTAKE_FIELD[field_key]
+        return str(intake.get(mapped) or "").strip()
+    return str(state.get(field_key) or "").strip()
+
+
+def _set_field_value(state: dict[str, Any], field_key: str, value: str) -> None:
+    clean = (value or "").strip()
+    intake = state.setdefault("intake", {})
+    if field_key == "_user_intent":
+        parsed = _parse_user_intent(clean) or "free_form"
+        intake["_user_intent"] = parsed
+        return
+
+    target = _PREFILL_FIELD_TO_INTAKE_FIELD.get(field_key, field_key)
+    if target in _INTAKE_FIELD_TO_QID:
+        intake[target] = clean
+        if target == "scenario":
+            intake["_scenario_kind"] = _normalize_scenario(clean)
+        prefill_key = _INTAKE_FIELD_TO_PREFILL_FIELD.get(target, target)
+        if prefill_key in (state.get("prefill") or {}):
+            state["prefill"][prefill_key] = {
+                "value": clean,
+                "source": "user_override",
+                "confidence": "high",
+            }
+        return
+
+    prefill = state.setdefault("prefill", {})
+    prefill[field_key] = {
+        "value": clean,
+        "source": "user_override",
+        "confidence": "high",
+    }
+
+
+def _question_id_for_field(field_key: str | None) -> str | None:
+    if not field_key:
+        return None
+    mapped = _PREFILL_FIELD_TO_INTAKE_FIELD.get(field_key, field_key)
+    return _INTAKE_FIELD_TO_QID.get(mapped)
+
+
+def _prompt_for_field(field_key: str | None) -> str:
+    qid = _question_id_for_field(field_key)
+    if qid:
+        return _QID_TO_PROMPT[qid]
+    if field_key == "_user_intent":
+        return _ENTRY_RESPONSE_MENU
+    return f"请直接发送新的{_field_label(field_key)}。"
+
+
+def _previous_intake_field(state: dict[str, Any]) -> str | None:
+    intake = state.get("intake", {}) or {}
+    current_qid = intake.get("_current_question")
+    ordered = [key for _qid, key, _prompt in INTAKE_QUESTIONS]
+    if current_qid == "OPTIONAL":
+        return ordered[-1]
+    if current_qid in _QID_TO_INTAKE_FIELD:
+        idx = ordered.index(_QID_TO_INTAKE_FIELD[current_qid])
+        if idx > 0:
+            return ordered[idx - 1]
+        return "_user_intent"
+    for key in reversed(ordered):
+        if intake.get(key):
+            return key
+    if intake.get("_user_intent"):
+        return "_user_intent"
+    return None
+
+
+def _last_filled_field(state: dict[str, Any]) -> str | None:
+    intake = state.get("intake", {}) or {}
+    for _qid, key, _prompt in reversed(INTAKE_QUESTIONS):
+        if intake.get(key):
+            return key
+    if intake.get("_user_intent"):
+        return "_user_intent"
+    for key, item in reversed(list((state.get("prefill") or {}).items())):
+        if isinstance(item, dict) and item.get("value"):
+            return key
+    return None
+
+
+def _find_field_in_message(message: str, state: dict[str, Any], *, fallback: str = "current") -> str | None:
+    compact = re.sub(r"\s+", "", (message or "").casefold())
+    for field_key, aliases in _FIELD_ALIASES.items():
+        if any(alias.casefold().replace(" ", "") in compact for alias in aliases):
+            return field_key
+    if fallback == "none":
+        return None
+    if fallback == "previous":
+        return _previous_intake_field(state) or _last_filled_field(state)
+    if fallback == "last":
+        return _last_filled_field(state)
+    return _current_field_key(state)
+
+
+def _find_stage_in_message(message: str) -> str | None:
+    compact = re.sub(r"\s+", "", (message or "").casefold())
+    for stage, aliases in _STAGE_ALIASES.items():
+        if any(alias.casefold().replace(" ", "") in compact for alias in aliases):
+            return stage
+    return None
+
+
+def _extract_inline_revision_value(message: str, field_key: str | None) -> str | None:
+    text = (message or "").strip()
+    if not text:
+        return None
+    patterns = (
+        r"(?:改成|改为|换成|设为|修正为|应该是|应为|变成)\s*(.+)$",
+        r"(?:不是|不对)[^，。；;\n]*(?:，|,|。|；|;)?\s*(?:应该是|应为|是)\s*(.+)$",
+    )
+    for pattern in patterns:
+        m = re.search(pattern, text, flags=re.IGNORECASE)
+        if m:
+            value = m.group(1).strip(" ：:，,。；;")
+            if value:
+                return value
+    if field_key:
+        label = _field_label(field_key)
+        m = re.search(rf"{re.escape(label)}\s*(?:是|为|:|：)\s*(.+)$", text)
+        if m:
+            value = m.group(1).strip(" ：:，,。；;")
+            if value:
+                return value
+    return None
+
+
+def _set_pending_revision(state: dict[str, Any], field_key: str, *, source: str) -> None:
+    qid = _question_id_for_field(field_key)
+    state["_pending_revision"] = {
+        "field": field_key,
+        "qid": qid,
+        "source": source,
+        "return_stage": state.get("stage", "INTAKE"),
+        "return_question": (state.get("intake") or {}).get("_current_question"),
+    }
+    if qid:
+        state["stage"] = "INTAKE"
+        state.setdefault("intake", {})["_current_question"] = qid
+
+
+def _render_next_intake_prompt_after_update(state: dict[str, Any], prefix: str) -> str:
+    intake = state.setdefault("intake", {})
+    nxt = _next_intake_question(intake)
+    if nxt is not None:
+        nqid, _nkey, nprompt = nxt
+        intake["_current_question"] = nqid
+        idx = next(i for i, (q, _, _) in enumerate(INTAKE_QUESTIONS) if q == nqid) + 1
+        return (
+            f"{PROGRESS_LABELS['INTAKE']}\n\n"
+            f"{prefix}\n\n"
+            f"**第 {idx} 个问题（共 5 个必填）**：\n{nprompt}"
+        )
+    intake["_current_question"] = "OPTIONAL"
+    return f"{PROGRESS_LABELS['INTAKE']}\n\n{prefix}\n\n{OPTIONAL_PROMPT}"
+
+
+def _answer_pending_revision(state: dict[str, Any], user_message: str) -> str | None:
+    pending = state.get("_pending_revision")
+    if not pending:
+        return None
+    field_key = pending.get("field")
+    if not field_key:
+        state.pop("_pending_revision", None)
+        return None
+    original = _get_field_value(state, field_key)
+    _set_field_value(state, field_key, user_message)
+    state.pop("_pending_revision", None)
+    if field_key == "pipeline_description":
+        state.get("intake", {}).pop("_q5_reasked", None)
+    prefix = (
+        f"已更新{_field_label(field_key)}。\n"
+        f"原内容：{original or '（空）'}\n"
+        f"新内容：{_get_field_value(state, field_key) or '（空）'}"
+    )
+    if _question_id_for_field(field_key):
+        return _render_next_intake_prompt_after_update(state, prefix)
+    return f"{PROGRESS_LABELS.get(state.get('stage'), '')}\n\n{prefix}".strip()
+
+
+def _handle_definition_intent(state: dict[str, Any], user_message: str) -> str:
+    field_key = _find_field_in_message(user_message, state, fallback="current")
+    label = _field_label(field_key)
+    definition = _FIELD_DEFINITIONS.get(field_key or "", "这是当前阶段需要确认的概念。")
+    return (
+        f"**解释：{label}**\n\n"
+        f"{definition}\n\n"
+        "本轮不会记录为答案，也不会推进阶段。"
+    )
+
+
+def _handle_advice_intent(state: dict[str, Any], user_message: str) -> str:
+    field_key = _find_field_in_message(user_message, state, fallback="current")
+    label = _field_label(field_key)
+    advice = _FIELD_ADVICE.get(field_key or "", "建议先用一句话描述你最确定的信息。")
+    return (
+        f"**建议：{label}**\n\n"
+        f"{advice}\n\n"
+        "请确认是否采用这个方向，或直接发送你的修改版本。"
+    )
+
+
+def _handle_confirm_understanding_intent(state: dict[str, Any], user_message: str) -> str:
+    field_key = _find_field_in_message(user_message, state, fallback="current")
+    label = _field_label(field_key)
+    current = _get_field_value(state, field_key)
+    if current:
+        understanding = f"我当前把{label}理解为：{current}"
+    else:
+        understanding = f"我当前还没有记录{label}。"
+    prefill_note = ""
+    prefill_item = (state.get("prefill") or {}).get(field_key)
+    if (
+        current
+        and isinstance(prefill_item, dict)
+        and prefill_item.get("source") in ("conversation_history", "natural_language")
+    ):
+        prefill_note = "\n\n（此值来自对话预填，建议确认是否准确）"
+    return (
+        f"**当前理解：{label}**\n\n"
+        f"{understanding}{prefill_note}\n\n"
+        "如果这不准确，请直接给出修正版；本轮不会推进阶段。"
+    )
+
+
+def _handle_show_current_intent(state: dict[str, Any], user_message: str) -> str:
+    intake = state.get("intake", {}) or {}
+    lines = [
+        "**当前已填写内容**",
+        "",
+        f"阶段：{state.get('stage', 'INTAKE')}",
+        f"当前问题：{_field_label(_current_field_key(state))}",
+    ]
+    if intake.get("_user_intent"):
+        lines.append(f"能力类型：{_USER_INTENT_LABELS.get(intake['_user_intent'], intake['_user_intent'])}")
+    for _qid, key, _prompt in INTAKE_QUESTIONS:
+        lines.append(f"{_field_label(key)}：{intake.get(key) or '（未填写）'}")
+    prefill = state.get("prefill") or {}
+    extras = [
+        key for key in ("capability_candidate_name", "judgment_criteria", "open_questions")
+        if isinstance(prefill.get(key), dict) and prefill[key].get("value")
+    ]
+    for key in extras:
+        lines.append(f"{_field_label(key)}：{prefill[key]['value']}")
+    lines.append("")
+    lines.append("本轮不会推进阶段。")
+    return "\n".join(lines)
+
+
+def _handle_revise_previous_intent(state: dict[str, Any], user_message: str) -> str:
+    field_key = _find_field_in_message(user_message, state, fallback="previous")
+    if not field_key:
+        return "我还找不到要修改的字段。请说清楚要改哪一项，例如“修改业务目标”。"
+    original = _get_field_value(state, field_key)
+    inline_value = _extract_inline_revision_value(user_message, field_key)
+    if inline_value:
+        _set_field_value(state, field_key, inline_value)
+        if field_key == "pipeline_description":
+            state.get("intake", {}).pop("_q5_reasked", None)
+        return (
+            f"已更新{_field_label(field_key)}。\n\n"
+            f"原内容：{original or '（空）'}\n"
+            f"新内容：{_get_field_value(state, field_key) or '（空）'}\n\n"
+            "其他字段保持不变。"
+        )
+    if field_key == "pipeline_description":
+        state.get("intake", {}).pop("_q5_reasked", None)
+    _set_pending_revision(state, field_key, source="revise_previous")
+    return (
+        f"准备修改{_field_label(field_key)}。\n\n"
+        f"原内容：{original or '（空）'}\n\n"
+        f"{_prompt_for_field(field_key)}\n\n"
+        "请直接发送新内容；其他字段会保持不变。"
+    )
+
+
+def _handle_go_back_intent(state: dict[str, Any], user_message: str) -> str:
+    target_stage = _find_stage_in_message(user_message)
+    target_field = _find_field_in_message(user_message, state, fallback="none")
+
+    if target_stage and target_stage != "INTAKE" and not target_field:
+        state["stage"] = target_stage
+        if target_stage == "ARCHITECT":
+            proposal = state.get("architect_proposal") or {}
+            proposal["_sub_stage"] = None
+            state["architect_proposal"] = proposal
+        return (
+            f"已回到{PROGRESS_LABELS.get(target_stage, target_stage)}。\n\n"
+            "现有 state、draft、audit、output 文件都不会被删除。请回复“继续”从这里重新执行。"
+        )
+
+    if not target_field:
+        target_field = _previous_intake_field(state)
+    if not target_field:
+        return "我还找不到可返回的字段。请指定字段，例如“回到业务目标”。"
+
+    original = _get_field_value(state, target_field)
+    _set_pending_revision(state, target_field, source="go_back")
+    return (
+        f"已回到{_field_label(target_field)}。\n\n"
+        f"原内容：{original or '（空）'}\n\n"
+        f"{_prompt_for_field(target_field)}\n\n"
+        "请直接发送新内容；其他字段和已有文件会保持不变。"
+    )
+
+
+def _handle_continue_intent(state: dict[str, Any], user_message: str, parent_agent: Any) -> str | None:
+    if state.get("_pending_revision"):
+        field_key = state["_pending_revision"].get("field")
+        return f"当前正在修改{_field_label(field_key)}。请先直接发送新内容，或说明要改其他字段。"
+    if state.get("stage") != "INTAKE":
+        return None
+    intake = state.setdefault("intake", {})
+    current_qid = intake.get("_current_question")
+    if current_qid == "OPTIONAL":
+        return _handle_optional_answer(state, "默认")
+    if current_qid in _QID_TO_INTAKE_FIELD:
+        key = _QID_TO_INTAKE_FIELD[current_qid]
+        if intake.get(key):
+            return _render_next_intake_prompt_after_update(
+                state,
+                f"{_field_label(key)}已保留为：{intake[key]}",
+            )
+    if current_qid == "INTENT_CHOICE" and intake.get("_user_intent"):
+        nxt = _next_intake_question(intake)
+        if nxt is not None:
+            intake["_current_question"] = nxt[0]
+            return f"{PROGRESS_LABELS['INTAKE']}\n\n{nxt[2]}"
+    return None
+
+
+def _content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                value = item.get("text") or item.get("content")
+                if isinstance(value, str):
+                    parts.append(value)
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts)
+    return ""
+
+
+def _collect_conversation_messages(parent_agent: Any, limit: int = 20) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    for attr in ("conversation_history", "messages", "_conversation_history", "_messages"):
+        value = getattr(parent_agent, attr, None)
+        if isinstance(value, list) and value:
+            messages.extend(msg for msg in value if isinstance(msg, dict))
+
+    session_db = getattr(parent_agent, "_session_db", None)
+    session_id = getattr(parent_agent, "session_id", None) or getattr(parent_agent, "_session_id", None)
+    if session_db is not None and session_id:
+        loader = getattr(session_db, "get_messages_as_conversation", None)
+        if callable(loader):
+            try:
+                db_messages = loader(session_id, include_ancestors=True)
+            except TypeError:
+                db_messages = loader(session_id)
+            except Exception:
+                db_messages = []
+            if isinstance(db_messages, list):
+                messages.extend(msg for msg in db_messages if isinstance(msg, dict))
+
+    cleaned: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for msg in messages[-limit:]:
+        role = str(msg.get("role") or "")
+        text = _content_to_text(msg.get("content")).strip()
+        if not text:
+            continue
+        marker = (role, text)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        cleaned.append({"role": role, "content": text})
+    return cleaned
+
+
+def _extract_natural_language_prefill(text: str) -> dict[str, dict[str, str]]:
+    """从自然语言描述中抽取预填字段（纯规则，不调用 LLM）。"""
+    result: dict[str, dict[str, str]] = {}
+
+    def add(key: str, value: str) -> None:
+        if value and key not in result:
+            result[key] = {"value": value.strip(" ，,；;。"), "source": "natural_language", "confidence": "medium"}
+
+    # capability_candidate_name
+    m = re.search(
+        r"需要(?:一个|一套|一匹)?(?:能[^，,；;\n]{0,10}的)?([^；;。\n，,]{2,20}?)(?:项目|助手|系统|能力|平台)",
+        text,
+    )
+    if m:
+        name = m.group(1).strip()
+        if name:
+            add("capability_candidate_name", name + "助手")
+
+    # business_goal: 首句"需要..."，并尝试拼接"完整的意思是..."扩展
+    m = re.search(r"需要(?:一个|一套|一匹)?([^；;。\n]{4,80})", text)
+    if m:
+        goal = m.group(1).strip()
+        ext = re.search(r"完整的意思是([^；;。\n]{4,80})", text)
+        if ext:
+            goal = goal + "；" + ext.group(1).strip()
+        add("business_goal", goal)
+
+    # input_materials: "已经拥有"/"已有"/"现有" + 关键词
+    parts: list[str] = []
+    m = re.search(r"(?:已经拥有|已有|现有)(?:一个)?([^，,；;\n。]{4,60})", text)
+    if m:
+        parts.append(m.group(1).strip(" ，,；;。"))
+    for kw in ("调研主题", "调研目标", "问卷回收", "回收数据"):
+        if kw in text:
+            parts.append(kw)
+    if parts:
+        add("input_materials", "、".join(dict.fromkeys(parts)))
+
+    # output_artifacts: "分析结果要用于："/"最终希望得到的结果是："
+    m = re.search(
+        r"(?:分析结果要用于|最终希望得到(?:的结果)?是|期望产出|输出|产出)[：:]\s*([^；;\n]{4,120})",
+        text,
+    )
+    if m:
+        add("output_artifacts", m.group(1))
+
+    # execution_flow: "——" 或 "→" 连接的序列；fallback 识别编号列表
+    m = re.search(
+        r"([^\n]{2,40}(?:——|→|=>)[^\n]{2,40}(?:(?:——|→|=>)[^\n]{2,40})+)",
+        text,
+    )
+    if m:
+        normalized = re.sub(r"——|=>", " → ", m.group(1))
+        add("execution_flow", normalized)
+    else:
+        steps = re.findall(r"[1-9１-９]\s*[、.．]\s*([^\n]{2,40})", text)
+        if len(steps) >= 2:
+            add("execution_flow", " → ".join(s.strip() for s in steps))
+
+    # open_questions: 【...】 括号内容
+    m = re.search(r"[【\[]([^】\]]{4,80})[】\]]", text)
+    if m:
+        add("open_questions", m.group(1))
+
+    return result
+
+
+def _extract_labeled_value(text: str, aliases: Iterable[str]) -> str | None:
+    if not text:
+        return None
+    alias_group = "|".join(re.escape(alias) for alias in aliases)
+    patterns = (
+        rf"(?:{alias_group})\s*(?:是|为|:|：)\s*([^。\n；;]+)",
+        rf"(?:{alias_group})\s*(?:包括|包含)\s*([^。\n；;]+)",
+    )
+    for pattern in patterns:
+        m = re.search(pattern, text, flags=re.IGNORECASE)
+        if m:
+            value = m.group(1).strip(" ：:，,。；;")
+            if value:
+                return value
+    for line in text.splitlines():
+        stripped = line.strip(" -•\t")
+        if not stripped:
+            continue
+        for alias in aliases:
+            if alias in stripped and ("：" in stripped or ":" in stripped):
+                sep = "：" if "：" in stripped else ":"
+                value = stripped.split(sep, 1)[1].strip(" ：:，,。；;")
+                if value:
+                    return value
+    return None
+
+
+def build_context_prefill(parent_agent: Any) -> dict[str, dict[str, str]]:
+    """从会话历史中规则提取养马卡预填信息；不调用 LLM 或外部 API。"""
+    messages = _collect_conversation_messages(parent_agent)
+    if not messages:
+        return {}
+    joined = "\n".join(msg["content"] for msg in messages if msg.get("role") != "tool")
+    if not joined.strip():
+        return {}
+
+    extraction_aliases = {
+        "capability_candidate_name": ("能力名称", "能力名", "技能名称", "技能名", "候选名", "马名"),
+        "business_goal": ("业务目标", "目标", "要解决的问题", "解决的问题"),
+        "typical_use_scenario": ("典型使用场景", "使用场景", "调用场景", "场景", "触发方式"),
+        "input_materials": ("输入材料", "输入", "输入类型", "数据源", "材料"),
+        "output_artifacts": ("输出产物", "输出", "产出", "期望产出", "交付物"),
+        "execution_flow": ("执行流程", "流程", "步骤", "处理流程"),
+        "judgment_criteria": ("判断标准", "评判标准", "验收标准", "标准"),
+        "open_questions": ("待澄清问题", "开放问题", "待确认", "还缺", "问题清单"),
+    }
+    prefill: dict[str, dict[str, str]] = {}
+    for field_key, aliases in extraction_aliases.items():
+        value = _extract_labeled_value(joined, aliases)
+        if not value and field_key == "capability_candidate_name":
+            m = re.search(r"(?:做|创建|沉淀|搭建)(?:一个|一匹|一套)?([^。\n；;]{2,40}?)(?:能力|技能|助手|agent|专家)", joined, flags=re.IGNORECASE)
+            if m:
+                value = m.group(1).strip(" ：:，,。；;")
+        if value:
+            prefill[field_key] = {
+                "value": value,
+                "source": "conversation_history",
+                "confidence": "high",
+            }
+
+    nl_prefill = _extract_natural_language_prefill(joined)
+    for key, item in nl_prefill.items():
+        if key not in prefill:
+            prefill[key] = item
+
+    return prefill
+
+
+def _apply_prefill_to_state(state: dict[str, Any], prefill: dict[str, dict[str, str]]) -> None:
+    state["prefill"] = prefill
+    intake = state.setdefault("intake", {})
+    if prefill and not intake.get("_user_intent"):
+        text = "\n".join(item.get("value", "") for item in prefill.values())
+        intake["_user_intent"] = _parse_user_intent(text) or "free_form"
+    for prefill_key, intake_key in _PREFILL_FIELD_TO_INTAKE_FIELD.items():
+        item = prefill.get(prefill_key)
+        if isinstance(item, dict) and item.get("value") and not intake.get(intake_key):
+            intake[intake_key] = item["value"]
+            if intake_key == "scenario":
+                intake["_scenario_kind"] = _normalize_scenario(item["value"])
+
+    nxt = _next_intake_question(intake)
+    if nxt is not None:
+        intake["_current_question"] = nxt[0]
+    elif prefill:
+        intake["_current_question"] = "OPTIONAL"
+
+
+def _render_entry_with_context(state: dict[str, Any]) -> str:
+    prefill = state.get("prefill") or {}
+    intake = state.get("intake", {}) or {}
+    recognized_lines: list[str] = []
+    for key in (
+        "capability_candidate_name",
+        "business_goal",
+        "typical_use_scenario",
+        "input_materials",
+        "output_artifacts",
+        "execution_flow",
+        "judgment_criteria",
+        "open_questions",
+    ):
+        item = prefill.get(key)
+        if isinstance(item, dict) and item.get("value"):
+            recognized_lines.append(f"  • {_field_label(key)}：{item['value']}")
+    missing: list[tuple[str, str]] = []
+    for qid, key, prompt in INTAKE_QUESTIONS:
+        if not intake.get(key):
+            missing.append((qid, key, prompt))
+
+    lines = [
+        "我先从刚才对话里预填了一版养马卡，你可以确认、修改，或问我为什么这么判断。",
+        "",
+        "**已识别：**",
+        *(recognized_lines or ["  • （没有可靠可用的信息）"]),
+        "",
+        "**还缺：**",
+    ]
+    if missing:
+        lines.extend(f"  • {_field_label(key)}" for _qid, key, _prompt in missing)
+        first_qid, first_key, first_prompt = missing[0]
+        idx = next(i for i, (q, _, _) in enumerate(INTAKE_QUESTIONS) if q == first_qid) + 1
+        lines.extend([
+            "",
+            f"我建议先确认{_field_label(first_key)}。",
+            "",
+            f"**第 {idx} 个问题（共 5 个必填）**：",
+            first_prompt,
+        ])
+    else:
+        lines.extend([
+            "  • 无",
+            "",
+            "我建议先确认业务目标；如果不准确，直接说“业务目标改成……”。如果没问题，回复“继续”。",
+        ])
+    return "\n".join(lines)
+
+
+def render_initial_reply(state: dict[str, Any], parent_agent: Any) -> str:
+    prefill = build_context_prefill(parent_agent)
+    if prefill:
+        _apply_prefill_to_state(state, prefill)
+        return _render_entry_with_context(state)
+    state.setdefault("prefill", {})
+    return (
+        "我们一起把这匹马养出来。你不需要一次性填完，也可以随时问我这是什么意思/"
+        "你建议怎么填/回到上一步改一下。\n\n"
+        "本模式用于让 Hermes 沉淀新能力。随时可说【退出深度养马模式】结束。\n\n"
+        f"{_ENTRY_RESPONSE_MENU}"
     )
 
 
@@ -870,8 +1721,11 @@ def handle_commit(state: dict[str, Any], user_message: str, parent_agent: Any) -
     errors: list[str] = []
     committed: list[str] = []
 
+    session_draft_root_str = drafts.get("session_draft_root")
+    session_root = Path(session_draft_root_str) if session_draft_root_str else root
+
     # Move skill draft → production
-    skill_src = root / "skills" / "_drafts" / skill_name
+    skill_src = session_root / "skills" / "_drafts" / skill_name
     skill_dst = root / "skills" / skill_name
     if skill_src.exists():
         skill_src.rename(skill_dst)
@@ -889,7 +1743,7 @@ def handle_commit(state: dict[str, Any], user_message: str, parent_agent: Any) -
 
     # Handle expert by action
     if expert_action == "create" and expert_name:
-        expert_src = root / "experts" / "_drafts" / expert_name
+        expert_src = session_root / "experts" / "_drafts" / expert_name
         expert_dst = root / "experts" / expert_name
         if expert_src.exists():
             expert_src.rename(expert_dst)
@@ -1041,9 +1895,51 @@ def handle(user_message: str, state_path: Path, parent_agent: Any) -> str:
     """Dispatch a single in-mode user message. Returns the response text."""
     state = load_state(state_path)
     stage = state.get("stage", "INTAKE")
+    current_field = _current_field_key(state)
+    intent_result = recognize_intent(
+        user_message,
+        current_stage=stage,
+        current_field=current_field,
+        previous_field=_previous_intake_field(state),
+    )
+    intent = str(intent_result)
+
+    if intent in _NON_ADVANCING_INTENTS:
+        readonly_state = copy.deepcopy(state)
+        if intent == "ask_definition":
+            return _handle_definition_intent(readonly_state, user_message)
+        if intent == "ask_advice":
+            return _handle_advice_intent(readonly_state, user_message)
+        if intent == "confirm_understanding":
+            return _handle_confirm_understanding_intent(readonly_state, user_message)
+        return _handle_show_current_intent(readonly_state, user_message)
+
+    if intent == "revise_previous":
+        response = _handle_revise_previous_intent(state, user_message)
+        save_state(state, state_path)
+        return response
+
+    if intent == "go_back":
+        response = _handle_go_back_intent(state, user_message)
+        save_state(state, state_path)
+        return response
+
     handler = _HANDLERS.get(stage)
     if handler is None:
         return f"未知 stage: {stage}。请说 \"退出深度养马模式\" 重置。"
+
+    if intent == "answer_current_question":
+        revision_response = _answer_pending_revision(state, user_message)
+        if revision_response is not None:
+            save_state(state, state_path)
+            return revision_response
+
+    if intent == "continue":
+        continue_response = _handle_continue_intent(state, user_message, parent_agent)
+        if continue_response is not None:
+            save_state(state, state_path)
+            return continue_response
+
     response = handler(state, user_message, parent_agent)
     save_state(state, state_path)
     return response

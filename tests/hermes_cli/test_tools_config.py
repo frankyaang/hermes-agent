@@ -73,6 +73,27 @@ def test_get_platform_tools_uses_default_when_platform_not_configured():
 def test_configurable_toolsets_include_messaging():
     assert any(ts_key == "messaging" for ts_key, _, _ in CONFIGURABLE_TOOLSETS)
 
+
+def test_configurable_toolsets_include_knowledge():
+    assert any(ts_key == "knowledge" for ts_key, _, _ in CONFIGURABLE_TOOLSETS)
+
+
+def test_get_platform_tools_default_cli_and_feishu_include_knowledge():
+    assert "knowledge" in _get_platform_tools({}, "cli")
+    assert "knowledge" in _get_platform_tools({}, "feishu")
+
+
+def test_get_platform_tools_explicit_config_can_disable_knowledge():
+    enabled = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["web", "terminal"]}},
+        "cli",
+    )
+
+    assert "knowledge" not in enabled
+    assert "web" in enabled
+    assert "terminal" in enabled
+
+
 def test_get_platform_tools_default_telegram_includes_messaging():
     enabled = _get_platform_tools({}, "telegram")
 

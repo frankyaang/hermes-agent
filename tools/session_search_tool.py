@@ -17,14 +17,84 @@ Flow:
 
 import asyncio
 import concurrent.futures
+import getpass
 import json
 import logging
+import os
 import re
 from typing import Dict, Any, List, Optional, Union
 
 from agent.auxiliary_client import async_call_llm, extract_content_or_reasoning
 MAX_SESSION_CHARS = 100_000
 MAX_SUMMARY_TOKENS = 10000
+
+
+def _candidate_user_ids(raw_user_id: str, platform: str) -> list[str]:
+    raw = (raw_user_id or "").strip()
+    platform_key = (platform or "").strip().lower()
+    candidates: list[str] = []
+    if raw:
+        if platform_key and ":" not in raw:
+            candidates.append(f"{platform_key}:{raw}")
+        candidates.append(raw)
+    else:
+        profile = os.getenv("HERMES_PROFILE", "default")
+        candidates.append(f"cli:{getpass.getuser()}:{profile}")
+
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _resolve_session_search_access(
+    platform: str | None = None,
+    user_id: str | None = None,
+) -> tuple[str, str]:
+    """Return (access_mode, matched_user_id) for session-search reads."""
+    resolved_platform = (platform or "").strip()
+    resolved_user_id = (user_id or "").strip()
+
+    if not resolved_platform or not resolved_user_id:
+        try:
+            from gateway.session_context import get_session_env
+            resolved_platform = resolved_platform or get_session_env(
+                "HERMES_SESSION_PLATFORM", ""
+            )
+            resolved_user_id = resolved_user_id or get_session_env(
+                "HERMES_SESSION_USER_ID", ""
+            )
+        except Exception:
+            pass
+
+    candidates = _candidate_user_ids(resolved_user_id, resolved_platform)
+    try:
+        from agent.conversation_acl import ConversationACLGuard
+        from agent.knowledge_user_registry import KnowledgeUserRegistry
+
+        reg = KnowledgeUserRegistry()
+        reg.load()
+        guard = ConversationACLGuard()
+        for candidate in candidates:
+            ctx = reg.get_user(candidate)
+            if ctx is None:
+                continue
+            if guard.has_all_session_access(ctx):
+                logging.info(
+                    "session_search: all_sessions access granted for %s",
+                    candidate,
+                )
+                return "all_sessions", candidate
+            return "legacy", candidate
+    except Exception as exc:
+        logging.debug(
+            "session_search: failed to resolve conversation access: %s",
+            exc,
+            exc_info=True,
+        )
+
+    return "legacy", ""
 
 
 def _get_session_search_max_concurrency(default: int = 3) -> int:
@@ -263,7 +333,12 @@ async def _summarize_session(
 _HIDDEN_SESSION_SOURCES = ("tool",)
 
 
-def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str:
+def _list_recent_sessions(
+    db,
+    limit: int,
+    current_session_id: str = None,
+    access_mode: str = "legacy",
+) -> str:
     """Return metadata for the most recent sessions (no LLM calls)."""
     try:
         sessions = db.list_sessions_rich(limit=limit + 5, exclude_sources=list(_HIDDEN_SESSION_SOURCES))  # fetch extra to skip current
@@ -307,6 +382,7 @@ def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str
         return json.dumps({
             "success": True,
             "mode": "recent",
+            "access_mode": access_mode,
             "results": results,
             "count": len(results),
             "message": f"Showing {len(results)} most recent sessions. Use a keyword query to search specific topics.",
@@ -322,6 +398,8 @@ def session_search(
     limit: int = 3,
     db=None,
     current_session_id: str = None,
+    platform: str | None = None,
+    user_id: str | None = None,
 ) -> str:
     """
     Search past sessions and return focused summaries of matching conversations.
@@ -341,11 +419,20 @@ def session_search(
         except (TypeError, ValueError):
             limit = 3
     limit = max(1, min(limit, 5))  # Clamp to [1, 5]
+    access_mode, _matched_user_id = _resolve_session_search_access(
+        platform=platform,
+        user_id=user_id,
+    )
 
     # Recent sessions mode: when query is empty, return metadata for recent sessions.
     # No LLM calls — just DB queries for titles, previews, timestamps.
     if not query or not query.strip():
-        return _list_recent_sessions(db, limit, current_session_id)
+        return _list_recent_sessions(
+            db,
+            limit,
+            current_session_id,
+            access_mode=access_mode,
+        )
 
     query = query.strip()
 
@@ -368,6 +455,7 @@ def session_search(
             return json.dumps({
                 "success": True,
                 "query": query,
+                "access_mode": access_mode,
                 "results": [],
                 "count": 0,
                 "message": "No matching sessions found.",
@@ -507,6 +595,7 @@ def session_search(
         return json.dumps({
             "success": True,
             "query": query,
+            "access_mode": access_mode,
             "results": summaries,
             "count": len(summaries),
             "sessions_searched": len(seen_sessions),
@@ -585,7 +674,9 @@ registry.register(
         role_filter=args.get("role_filter"),
         limit=args.get("limit", 3),
         db=kw.get("db"),
-        current_session_id=kw.get("current_session_id")),
+        current_session_id=kw.get("current_session_id"),
+        platform=kw.get("platform"),
+        user_id=kw.get("user_id")),
     check_fn=check_session_search_requirements,
     emoji="🔍",
 )

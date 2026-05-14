@@ -32,6 +32,11 @@ from datetime import datetime
 from typing import Dict, Optional, Any, List
 
 from agent.account_usage import fetch_account_usage, render_account_usage_lines
+from agent.progress_ui import (
+    EXECUTION_PROGRESS_HEADING,
+    TASK_PLAN_PROGRESS_HEADING,
+    extract_leading_progress_ui,
+)
 
 # --- Agent cache tuning ---------------------------------------------------
 # Bounds the per-session AIAgent cache to prevent unbounded growth in
@@ -141,36 +146,16 @@ def _tool_preview_display(tool_name: str | None, preview: str | None, args: Any 
     return preview
 
 
-_EXPERT_LAYER_PROGRESS_HEADING = "### 🧭 任务规划"
-_EXECUTION_PROGRESS_HEADING = "### 🛠 执行记录"
+_EXPERT_LAYER_PROGRESS_HEADING = TASK_PLAN_PROGRESS_HEADING
+_EXECUTION_PROGRESS_HEADING = EXECUTION_PROGRESS_HEADING
 _TASK_PLAN_PROGRESS_EVENT = "__task_plan__"
 _EXECUTION_LOG_PROGRESS_EVENT = "__execution_log__"
 
 
 def _extract_leading_expert_layer_ui(text: str | None) -> tuple[str | None, str]:
     """Extract and normalize a leading expert-layer UI block for progress display."""
-    if not text:
-        return None, text or ""
-    lines = text.splitlines()
-    if not lines or not re.match(
-        r"^\s{0,3}(?:🧭\s*)?#{1,6}\s*(?:🧭\s*)?(?:专家层调度|任务规划)\s*$",
-        lines[0].strip(),
-    ):
-        return None, text
-    # The assistant-facing prompt may still say "专家层调度" for backwards
-    # compatibility. The Gateway progress UI uses the cleaner user-facing
-    # module name, with the Markdown heading marker before the emoji.
-    lines[0] = _EXPERT_LAYER_PROGRESS_HEADING
-    split_at = None
-    for idx, line in enumerate(lines[1:], start=1):
-        if not line.strip():
-            split_at = idx
-            break
-    if split_at is None:
-        return "\n".join(lines).strip(), ""
-    block = "\n".join(lines[:split_at]).strip()
-    remainder = "\n".join(lines[split_at + 1:]).lstrip()
-    return block, remainder
+    parts = extract_leading_progress_ui(text)
+    return parts.task_plan, parts.remainder
 
 # ---------------------------------------------------------------------------
 # SSL certificate auto-detection for NixOS and other non-standard systems.
@@ -5124,6 +5109,26 @@ class GatewayRunner:
                     "results. This can happen with some models — try again or "
                     "rephrase your question."
                 )
+
+            # ── write_file mid-tool auto recovery ────────────────────
+            # run_agent.py appends [[HERMES_DELIVERY_RECOVERY:write_file_stalled]]
+            # to its partial-stream stub when a write_file tool call is
+            # dropped mid-arguments.  Re-run the agent once with an
+            # internal instruction that forbids further write_file calls
+            # and asks for the report body inline.  At-most-1 per user
+            # message; the marker is stripped from messages so it never
+            # lands in transcript or future context windows.
+            agent_result, response = await self._maybe_recover_write_file_stall(
+                agent_result=agent_result,
+                response=response,
+                source=source,
+                event=event,
+                context_prompt=context_prompt,
+                session_id=session_entry.session_id,
+                session_key=session_key,
+                run_generation=run_generation,
+            )
+
             agent_messages = agent_result.get("messages", [])
             _response_time = time.time() - _msg_start_time
             _api_calls = agent_result.get("api_calls", 0)
@@ -5378,10 +5383,56 @@ class GatewayRunner:
                         await self._deliver_media_from_response(
                             response, event, _media_adapter,
                         )
+                        await self._run_delivery_manager(event, response, _media_adapter)
                 return None
 
+            # ── Final delivery safety net ────────────────────────────
+            # Route the normal (non-streamed) response through the
+            # DeliveryManager.  It picks up:
+            #   - very long final text → chunked send labelled "第 X 段"
+            #   - local .md/.txt/.html/.csv paths → file body chunked
+            #   - local .xlsx/.pdf/.docx/.pptx/.png/.jpg paths → upload,
+            #     or text fallback when upload fails
+            # When DM handled delivery, suppress the adapter's default
+            # text send to avoid duplicates; otherwise pass through.
+            # Errors and the failure status fall back to original
+            # response so the user is never silenced.
+            if (
+                response
+                and not agent_result.get("failed")
+                and not response.startswith(("⚠️", "Error:", "Sorry, I encountered"))
+            ):
+                _delivery_adapter = self.adapters.get(source.platform)
+                if _delivery_adapter and hasattr(_delivery_adapter, "send"):
+                    try:
+                        _outcome = await self._deliver_via_manager(
+                            event, response, _delivery_adapter,
+                        )
+                    except Exception as _dexc:
+                        logger.warning(
+                            "[delivery-manager] outer dispatch failed: %s",
+                            _dexc,
+                        )
+                        _outcome = None
+
+                    if _outcome and _outcome.handled and _outcome.status in (
+                        "delivered", "partial",
+                    ):
+                        _remainder = (_outcome.remainder or "").strip()
+                        # Drop trivial wrappers ("报告：" / "请查收。") to
+                        # avoid sending a meaningless leftover after the
+                        # real content already went out.
+                        if _outcome.method in ("file_text", "file_upload", "mixed", "fallback"):
+                            if len(_remainder) < 40:
+                                return None
+                            return _remainder
+                        # chunked_text already covered the whole body.
+                        return None
+                    # outcome is None (exception) or skipped/failed →
+                    # passthrough to default adapter delivery.
+
             return response
-            
+
         except Exception as e:
             # Stop typing indicator on error too
             try:
@@ -6946,6 +6997,187 @@ class GatewayRunner:
 
         except Exception as e:
             logger.warning("Post-stream media extraction failed: %s", e)
+
+    async def _run_delivery_manager(self, event, response_text: str, adapter) -> None:
+        """Best-effort file-only delivery for the already_sent streaming path.
+
+        Kept for backward compatibility — invokes :py:meth:`DeliveryManager.process_response`
+        which only handles file paths.  The normal final-reply path uses
+        :py:meth:`_deliver_via_manager` which returns a structured outcome
+        and additionally handles long text.
+        """
+        from gateway.delivery_manager import DeliveryManager
+
+        dm = DeliveryManager(max_chars=getattr(adapter, "MAX_MESSAGE_LENGTH", 4000))
+        _thread_meta = {"thread_id": event.source.thread_id} if event.source.thread_id else None
+        chat_id = event.source.chat_id
+
+        async def _send_fn(text: str) -> None:
+            await adapter.send(chat_id, text, metadata=_thread_meta)
+
+        async def _upload_fn(path) -> bool:
+            try:
+                result = await adapter.send_document(
+                    chat_id=chat_id,
+                    file_path=str(path),
+                    file_name=path.name,
+                    metadata=_thread_meta,
+                )
+                return getattr(result, "success", False)
+            except Exception:
+                return False
+
+        try:
+            results = await dm.process_response(response_text, _send_fn, _upload_fn)
+            if results:
+                delivered = sum(1 for r in results if r.status == "delivered")
+                logger.info(
+                    "[delivery-manager] %d/%d file(s) delivered", delivered, len(results)
+                )
+        except Exception as exc:
+            logger.warning("[delivery-manager] non-fatal error: %s", exc)
+
+    async def _deliver_via_manager(self, event, response_text: str, adapter):
+        """Try to deliver ``response_text`` via DeliveryManager.
+
+        Returns a :class:`gateway.delivery_manager.DeliveryOutcome`.  When
+        ``handled`` is True and ``status`` is delivered/partial, the
+        caller should suppress the adapter's default text send (the body
+        of the response has already gone out).  When ``handled`` is
+        False, the caller should pass the response through as-is.
+        """
+        from gateway.delivery_manager import DeliveryManager, DeliveryOutcome
+
+        dm = DeliveryManager(max_chars=getattr(adapter, "MAX_MESSAGE_LENGTH", 4000))
+        _thread_meta = {"thread_id": event.source.thread_id} if event.source.thread_id else None
+        chat_id = event.source.chat_id
+
+        async def _send_fn(text: str) -> None:
+            await adapter.send(chat_id, text, metadata=_thread_meta)
+
+        async def _upload_fn(path) -> bool:
+            try:
+                result = await adapter.send_document(
+                    chat_id=chat_id,
+                    file_path=str(path),
+                    file_name=path.name,
+                    metadata=_thread_meta,
+                )
+                return getattr(result, "success", False)
+            except Exception:
+                return False
+
+        try:
+            outcome = await dm.deliver(response_text, _send_fn, _upload_fn)
+            logger.info(
+                "[delivery-manager] handled=%s status=%s method=%s chunks=%d",
+                outcome.handled, outcome.status, outcome.method, outcome.chunks_sent,
+            )
+            return outcome
+        except Exception as exc:
+            logger.warning("[delivery-manager] non-fatal error: %s", exc)
+            return DeliveryOutcome(
+                handled=False, status="failed", method="passthrough",
+                errors=[str(exc)], remainder=response_text,
+            )
+
+    @staticmethod
+    def _strip_delivery_recovery_marker(text: str) -> str:
+        """Strip the internal recovery marker from a response string.
+
+        Centralised so tests can verify the contract end-to-end.
+        """
+        if not text:
+            return text
+        from gateway.delivery_manager import RECOVERY_MARKER_WRITE_FILE_STALL
+        return text.replace(RECOVERY_MARKER_WRITE_FILE_STALL, "").rstrip()
+
+    async def _maybe_recover_write_file_stall(
+        self,
+        *,
+        agent_result: Dict[str, Any],
+        response: str,
+        source: SessionSource,
+        event,
+        context_prompt: str,
+        session_id: str,
+        session_key: Optional[str],
+        run_generation: Optional[int],
+    ) -> tuple[Dict[str, Any], str]:
+        """One-shot auto recovery for ``write_file`` mid-tool stalls.
+
+        Detects ``[[HERMES_DELIVERY_RECOVERY:write_file_stalled]]`` in
+        the final response.  When present, re-runs the agent once with
+        an internal instruction that forbids further ``write_file``
+        calls and asks for the report body inline.  The marker is
+        always stripped from the returned response, even if recovery
+        itself fails — the user must never see the literal sentinel.
+
+        Loop guard: this helper is a single non-recursive call.  If
+        the retry also yields the marker, it is stripped and a brief
+        failure note is appended instead of re-attempting recovery.
+        """
+        from gateway.delivery_manager import RECOVERY_MARKER_WRITE_FILE_STALL
+
+        if not response or RECOVERY_MARKER_WRITE_FILE_STALL not in response:
+            return agent_result, response
+
+        if agent_result.get("failed"):
+            # Don't recover on top of a failed run — the error surface
+            # is already user-visible.
+            return agent_result, self._strip_delivery_recovery_marker(response)
+
+        logger.warning(
+            "[delivery-recovery] write_file mid-tool stall detected for "
+            "session %s — running one-shot auto recovery.",
+            session_id,
+        )
+
+        orig_messages = list(agent_result.get("messages") or [])
+        scrubbed_history: List[Dict[str, Any]] = []
+        for _m in orig_messages:
+            if isinstance(_m, dict):
+                _mc = dict(_m)
+                _c = _mc.get("content")
+                if isinstance(_c, str):
+                    _mc["content"] = self._strip_delivery_recovery_marker(_c)
+                scrubbed_history.append(_mc)
+            else:
+                scrubbed_history.append(_m)
+
+        recovery_instruction = (
+            "[Hermes 内部恢复] 上一轮 write_file 工具调用因网络中断未完成，"
+            "本地文件并未生成。请不要再调用 write_file 或试图生成本地文件，"
+            "直接基于当前上下文输出用户需要的完整报告正文；"
+            "如果内容较长，请按章节连续输出，Hermes Gateway 会自动分段发送。"
+        )
+
+        try:
+            retry_result = await self._run_agent(
+                message=recovery_instruction,
+                context_prompt=context_prompt,
+                history=scrubbed_history,
+                source=source,
+                session_id=session_id,
+                session_key=session_key,
+                run_generation=run_generation,
+                event_message_id=getattr(event, "message_id", None),
+                channel_prompt=getattr(event, "channel_prompt", None),
+            )
+        except Exception as exc:
+            logger.warning("[delivery-recovery] auto recovery raised: %s", exc)
+            retry_result = None
+
+        retry_response = (retry_result or {}).get("final_response") or ""
+        if retry_response and retry_response != "(empty)":
+            return retry_result, self._strip_delivery_recovery_marker(retry_response)
+
+        # Recovery couldn't produce a usable response — at minimum
+        # surface the original partial without the marker.
+        partial = self._strip_delivery_recovery_marker(response)
+        return agent_result, partial + (
+            "\n\n⚠️ Hermes 自动恢复未能拿到完整内容；以上为已生成的部分。"
+        )
 
     async def _handle_rollback_command(self, event: MessageEvent) -> str:
         """Handle /rollback command — list or restore filesystem checkpoints."""
@@ -10043,9 +10275,12 @@ class GatewayRunner:
             if not plan:
                 return None
             first_line = plan.splitlines()[0].strip() if plan.splitlines() else ""
-            if first_line.startswith(_EXPERT_LAYER_PROGRESS_HEADING):
-                return plan
             if "全局任务规划" in first_line or "当前阶段任务规划" in first_line:
+                return plan
+            parts = extract_leading_progress_ui(plan)
+            if parts.task_plan and not parts.execution_log and not parts.remainder:
+                return parts.task_plan
+            if first_line.startswith(_EXPERT_LAYER_PROGRESS_HEADING):
                 return plan
             return f"{_EXPERT_LAYER_PROGRESS_HEADING}\n{plan}"
 
@@ -10081,6 +10316,13 @@ class GatewayRunner:
                     return progress_render_state["execution_lines"][-1]
 
             if isinstance(raw, str):
+                parts = extract_leading_progress_ui(raw)
+                if parts.task_plan or parts.execution_log:
+                    if parts.task_plan:
+                        progress_render_state["task_plan"] = parts.task_plan
+                    if parts.execution_log:
+                        _append_execution_progress(parts.execution_log)
+                    return _render_progress_text()
                 plan = _normalize_task_plan_progress(raw)
                 first_line = raw.splitlines()[0].strip() if raw.splitlines() else ""
                 if (
@@ -10493,10 +10735,13 @@ class GatewayRunner:
                 if not _run_still_current():
                     return
                 if not already_streamed and tool_progress_enabled and progress_queue:
-                    _expert_ui, _remaining_text = _extract_leading_expert_layer_ui(text)
-                    if _expert_ui:
-                        progress_queue.put((_TASK_PLAN_PROGRESS_EVENT, _expert_ui))
-                        text = _remaining_text
+                    _progress_parts = extract_leading_progress_ui(text)
+                    if _progress_parts.task_plan or _progress_parts.execution_log:
+                        if _progress_parts.task_plan:
+                            _put_progress_event((_TASK_PLAN_PROGRESS_EVENT, _progress_parts.task_plan))
+                        if _progress_parts.execution_log:
+                            _put_progress_event((_EXECUTION_LOG_PROGRESS_EVENT, _progress_parts.execution_log))
+                        text = _progress_parts.remainder
                         if not str(text or "").strip():
                             return
                 if _stream_consumer is not None:
@@ -10998,13 +11243,9 @@ class GatewayRunner:
                 try:
                     from agent.title_generator import maybe_auto_title
                     all_msgs = result_holder[0].get("messages", []) if result_holder[0] else []
-                    # Route title-generation failures through the agent's
-                    # user-visible warning channel so a depleted auxiliary
-                    # provider doesn't silently leave sessions untitled
-                    # (issue #15775).
-                    _title_failure_cb = getattr(
-                        agent, "_emit_auxiliary_failure", None
-                    )
+                    # 标题生成只是后台便利功能；gateway 群聊里失败只记日志，
+                    # 避免把 Kimi/辅助模型抖动刷到业务对话中。
+                    _title_failure_cb = None
                     maybe_auto_title(
                         self._session_db,
                         effective_session_id,
@@ -11390,13 +11631,15 @@ class GatewayRunner:
 
             # Move a leading expert-layer UI block into the editable gateway
             # progress module, keeping the final answer body focused.
-            if tool_progress_enabled and progress_queue and isinstance(response, dict):
-                _expert_ui, _stripped_response = _extract_leading_expert_layer_ui(
-                    response.get("final_response")
-                )
-                if _expert_ui:
-                    progress_queue.put((_TASK_PLAN_PROGRESS_EVENT, _expert_ui))
-                    response["final_response"] = _stripped_response
+            if isinstance(response, dict):
+                _progress_parts = extract_leading_progress_ui(response.get("final_response"))
+                if _progress_parts.task_plan or _progress_parts.execution_log:
+                    if tool_progress_enabled and progress_queue:
+                        if _progress_parts.task_plan:
+                            _put_progress_event((_TASK_PLAN_PROGRESS_EVENT, _progress_parts.task_plan))
+                        if _progress_parts.execution_log:
+                            _put_progress_event((_EXECUTION_LOG_PROGRESS_EVENT, _progress_parts.execution_log))
+                    response["final_response"] = _progress_parts.remainder
 
             # Track fallback model state: if the agent switched to a
             # fallback model during this run, persist it so /model shows
