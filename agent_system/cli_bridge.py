@@ -13,6 +13,7 @@ from agent_system.builder_dispatcher import maybe_handle_builder_mode
 from agent_system.human_approval import AgentSystemApprovalUI
 from agent_system.planner import DynamicPipelineSpec, ExpertSelection, PlannerEngine, TaskContext, TaskSpec
 from agent_system.runtime import HermesAgentSystemRuntime
+from agent_system import capability_readiness as cr
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +73,18 @@ def _check_skill_pipeline_executable(project_root: Path, skill_id: str) -> str:
         return f"{skill_id} pipeline load error: {exc}"
 
 
-def check_pipeline_readiness(routes_payload: dict, pipeline_id: str) -> tuple[bool, str]:
-    """Return (True, '') if pipeline is production-ready, (False, reason) otherwise.
-
-    Opt-out model: missing production_ready field defaults to True (ready).
-    Any route entry with production_ready=false marks the whole pipeline as non-ready.
-    """
+def check_pipeline_readiness(
+    routes_payload: dict,
+    pipeline_id: str,
+    project_root: "Path | None" = None,
+    entrypoint: str = "gateway",
+) -> tuple[bool, str]:
+    """Delegate to capability_readiness; fall back to routes.json opt-out model if root unavailable."""
+    if project_root is not None:
+        result = cr.check_pipeline_readiness(
+            Path(project_root), routes_payload, pipeline_id, entrypoint
+        )
+        return (not result.blocking), ("; ".join(result.reasons) if result.blocking else "")
     routes = [
         r for r in routes_payload.get("pipelines", []) if r.get("pipeline_id") == pipeline_id
     ]
@@ -261,11 +268,14 @@ def maybe_run_agent_system_from_message(
         planning_react_callback=_make_planning_react_callback(routes_payload),
         max_spawn_depth=max_spawn_depth,
         progress_callback=progress_callback,
+        enforce_skill_readiness=True,
     )
     explicit_pipeline_id = _resolve_explicit_pipeline_id(user_message, routes_payload)
     planning_llm_calls = 0
     if explicit_pipeline_id:
-        ready, not_ready_reason = check_pipeline_readiness(routes_payload, explicit_pipeline_id)
+        ready, not_ready_reason = check_pipeline_readiness(
+            routes_payload, explicit_pipeline_id, project_root=project_root
+        )
         if not ready:
             return _non_executable_route_response(
                 explicit_pipeline_id, not_ready_reason, parent_agent, task_id
@@ -283,6 +293,17 @@ def maybe_run_agent_system_from_message(
         selection = planner.select_primary_expert(ctx)
         spec = planner.plan_task(ctx, selection)
         pipeline_spec = planner.generate_pipeline(ctx, selection, spec)
+        # Readiness gate BEFORE Opus: implicit messages return None, explicit messages return block
+        _pre_ready, _pre_reason = check_pipeline_readiness(
+            routes_payload, pipeline_spec.pipeline_id, project_root=project_root
+        )
+        if not _pre_ready:
+            _explicit = any(marker in user_message.lower() for marker in _AGENT_SYSTEM_MARKERS)
+            if _explicit:
+                return _non_executable_route_response(
+                    pipeline_spec.pipeline_id, _pre_reason, parent_agent, task_id
+                )
+            return None
         selection, spec, pipeline_spec, planning_llm_used = _maybe_enhance_initial_plan_with_llm(
             ctx=ctx,
             selection=selection,
@@ -290,12 +311,13 @@ def maybe_run_agent_system_from_message(
             pipeline_spec=pipeline_spec,
             routes_payload=routes_payload,
             planner=planner,
+            project_root=project_root,
         )
         errors = planner.validate_dynamic_pipeline(pipeline_spec, spec)
         if errors:
             return _planning_failure_response(errors, parent_agent, task_id)
         pipeline_ready, not_ready_reason = check_pipeline_readiness(
-            routes_payload, pipeline_spec.pipeline_id
+            routes_payload, pipeline_spec.pipeline_id, project_root=project_root
         )
         if not pipeline_ready:
             explicit = any(
@@ -341,14 +363,18 @@ def _knowledge_toolset_available() -> bool:
 
 def _get_user_default_product_line_id() -> str:
     try:
-        import getpass
-        profile = os.getenv("HERMES_PROFILE", "default")
-        user_id = f"cli:{getpass.getuser()}:{profile}"
+        from agent.identity_resolver import resolve_identity, candidate_registry_ids
         from agent.knowledge_user_registry import KnowledgeUserRegistry
+        identity = resolve_identity()
+        platform = identity.platform if identity.platform not in ("cli", "") else ""
+        candidates = candidate_registry_ids(platform, identity.raw_user_id)
         reg = KnowledgeUserRegistry()
         reg.load()
-        ctx = reg.get_user(user_id)
-        return ctx.default_product_line_id if ctx else ""
+        for uid in candidates:
+            ctx = reg.get_user(uid)
+            if ctx and ctx.default_product_line_id:
+                return ctx.default_product_line_id
+        return ""
     except Exception:
         return ""
 
@@ -392,8 +418,10 @@ def _auto_sedate_knowledge(
         "2. 无值得沉淀的事实时，不写入，直接返回 {\"sedimented\": 0}\n"
         "3. 对每个符合条件的事实调用 knowledge_write，参数：\n"
         f"   product_line_id={product_line_id!r}  source_uri={source_uri!r}\n"
-        "   confidence='high'（数据直接支撑）或 'medium'（推断结论）\n"
-        "   knowledge_type='business_fact'  finance_flag=false（涉及财务时为 true）\n"
+        "   confidence='unverified'（默认；有原文数据支撑的事实）\n"
+        "   knowledge_type 从以下选择最合适的值: meeting_conclusion/org_info/product_spec/"
+        "project_history/customer_feedback/market_data/compliance/other\n"
+        "   finance_flag=false（涉及财务时为 true）\n"
         "   sensitivity_level='internal'  doc_slug=''\n"
         "4. 若 knowledge_write 返回 permission_denied，立即停止，不重试"
     )
@@ -413,6 +441,29 @@ def _auto_sedate_knowledge(
             parent_agent=parent_agent,
         )
         logger.info("[knowledge-sedimentation] run_id=%s result=%s", run_id, str(raw)[:200])
+        try:
+            result_data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+            if isinstance(result_data, dict) and result_data.get("error") == "permission_denied":
+                from agent.pending_capture import write_pending_capture
+                from agent.identity_resolver import resolve_identity
+                identity = resolve_identity()
+                write_pending_capture(
+                    title=f"[auto-sedate] {product_line_id}",
+                    summary=str(result_data)[:500],
+                    candidate_type="knowledge",
+                    scope_id=product_line_id,
+                    source_uri=source_uri,
+                    confidence="unverified",
+                    missing_fields=[],
+                    failure_reason=result_data.get("reason", "permission_denied"),
+                    session_id=run_id,
+                    user_id=identity.user_id,
+                    platform=identity.platform,
+                    suggested_next_action=result_data.get("next_action", ""),
+                )
+                logger.warning("[knowledge-sedimentation] permission_denied → pending capture written")
+        except Exception as check_exc:
+            logger.debug("[knowledge-sedimentation] result check non-fatal: %s", check_exc)
     except Exception as exc:
         logger.warning("[knowledge-sedimentation] non-blocking error: %s", exc)
 
@@ -553,7 +604,17 @@ def _truncate_text(value: Any, max_chars: int) -> str:
     return text[:max_chars] + "\n...[truncated]"
 
 
-def _route_candidates(routes_payload: dict[str, Any], *, limit: int = 24) -> list[dict[str, Any]]:
+def _route_candidates(
+    routes_payload: dict[str, Any],
+    *,
+    limit: int = 24,
+    project_root: "Path | None" = None,
+) -> list[dict[str, Any]]:
+    if project_root is not None:
+        candidates = cr.ready_route_candidates(
+            Path(project_root), routes_payload, entrypoint="gateway"
+        )
+        return candidates[:limit]
     grouped: dict[str, dict[str, Any]] = {}
     for route in routes_payload.get("pipelines", []):
         pipeline_id = str(route.get("pipeline_id") or "")
@@ -714,13 +775,14 @@ def _maybe_enhance_initial_plan_with_llm(
     pipeline_spec: DynamicPipelineSpec,
     routes_payload: dict[str, Any],
     planner: PlannerEngine,
+    project_root: "Path | None" = None,
 ) -> tuple[ExpertSelection, TaskSpec, DynamicPipelineSpec, bool]:
     payload = {
         "user_intent": _truncate_text(ctx.current_user_message, 4000),
         "reply_context_summary": _truncate_text(ctx.reply_context, 1500),
         "available_experts": ctx.available_experts,
         "available_skills": ctx.available_skills,
-        "route_candidates": _route_candidates(routes_payload),
+        "route_candidates": _route_candidates(routes_payload, project_root=project_root),
         "local_plan": {
             "expert_selection": asdict(selection),
             "task_spec": asdict(spec),
