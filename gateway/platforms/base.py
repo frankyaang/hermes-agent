@@ -23,6 +23,8 @@ from utils import normalize_proxy_url
 
 logger = logging.getLogger(__name__)
 
+_SESSION_CANCEL_DRAIN_TIMEOUT = 1.0
+
 
 def utf16_len(s: str) -> int:
     """Count UTF-16 code units in *s*.
@@ -1780,11 +1782,20 @@ class BasePlatformAdapter(ABC):
                 if stop_event is None:
                     await asyncio.sleep(interval)
                     continue
-                try:
-                    await asyncio.wait_for(stop_event.wait(), timeout=interval)
-                except asyncio.TimeoutError:
-                    continue
-                return
+
+                # Poll with cancellable sleeps instead of wrapping
+                # ``stop_event.wait()`` in ``asyncio.wait_for``.  On Python
+                # 3.11, cancelling this task while wait_for owns the inner
+                # Event.wait future can leave the typing task stuck in a
+                # cancelling state, which in turn blocks session cancellation.
+                deadline = asyncio.get_running_loop().time() + interval
+                while not stop_event.is_set():
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        break
+                    await asyncio.sleep(min(0.25, remaining))
+                if stop_event.is_set():
+                    return
         except asyncio.CancelledError:
             pass  # Normal cancellation when handler completes
         finally:
@@ -2128,9 +2139,17 @@ class BasePlatformAdapter(ABC):
             self._expected_cancelled_tasks.add(task)
             task.cancel()
             try:
-                await task
+                await asyncio.wait_for(task, timeout=_SESSION_CANCEL_DRAIN_TIMEOUT)
             except asyncio.CancelledError:
                 pass
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "[%s] Timed out waiting %.1fs for session %s to cancel; "
+                    "releasing adapter guard",
+                    self.name,
+                    _SESSION_CANCEL_DRAIN_TIMEOUT,
+                    session_key,
+                )
             except Exception:
                 logger.debug(
                     "[%s] Session cancellation raised while unwinding %s",
@@ -2731,7 +2750,19 @@ class BasePlatformAdapter(ABC):
             for task in tasks:
                 self._expected_cancelled_tasks.add(task)
                 task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=_SESSION_CANCEL_DRAIN_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "[%s] Timed out waiting %.1fs for %d background task(s) to cancel",
+                    self.name,
+                    _SESSION_CANCEL_DRAIN_TIMEOUT,
+                    len(tasks),
+                )
+                break
             # Loop: late-arrival tasks spawned during the gather above
             # will be in self._background_tasks now.  Re-check.
         self._background_tasks.clear()

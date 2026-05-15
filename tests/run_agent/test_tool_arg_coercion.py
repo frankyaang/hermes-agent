@@ -64,10 +64,15 @@ class TestCoerceNumber:
     def test_scientific_notation(self):
         assert _coerce_number("1e5") == 100000
 
-    def test_inf_stays_string_for_integer_only(self):
-        """Infinity should not be converted to int."""
+    def test_inf_stays_string(self):
+        """Infinity must stay as the original string.
+
+        float("inf") is not JSON-serializable under strict json.dumps
+        (allow_nan=False raises ValueError). Keeping the string preserves
+        safety for callers that embed coerced args in JSON payloads.
+        """
         result = _coerce_number("inf")
-        assert result == float("inf")
+        assert result == "inf"
 
     def test_negative_float(self):
         assert _coerce_number("-2.5") == -2.5

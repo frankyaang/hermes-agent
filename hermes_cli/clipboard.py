@@ -13,13 +13,17 @@ Platform support:
 """
 
 import base64
+import importlib
 import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-from hermes_constants import is_wsl as _is_wsl
+
+def _is_wsl() -> bool:
+    """Return the current WSL detection result without binding stale globals."""
+    return importlib.import_module("hermes_constants").is_wsl()
 
 logger = logging.getLogger(__name__)
 

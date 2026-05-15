@@ -627,7 +627,10 @@ def check_command_security(command: str) -> dict:
     if not cfg["tirith_enabled"]:
         return {"action": "allow", "findings": [], "summary": ""}
 
-    tirith_path = _resolve_tirith_path(cfg["tirith_path"])
+    if _resolved_path is not None and _resolved_path is not _INSTALL_FAILED:
+        tirith_path = _resolved_path
+    else:
+        tirith_path = ensure_installed(log_failures=False)
     timeout = cfg["tirith_timeout"]
     fail_open = cfg["tirith_fail_open"]
 

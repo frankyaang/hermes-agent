@@ -1,0 +1,224 @@
+Skip to main content
+expand_more
+chat_spark
+Playground
+chevron_right
+History
+design_services
+Build
+chevron_right
+Apps
+Gallery
+speed
+Dashboard
+chevron_right
+developer_guide
+Documentation
+arrow_outward
+Upgrade to unlock more
+Access higher limits, Pro models, and more.
+search
+Search
+⌘ /
+notifications
+What's new
+key
+Get API key
+settings
+Settings
+frank.yangzf@outlook.com
+menu_open
+Copy of Copy of Evaluate New Mid-Range Model
+edit
+
+41,760 tokens
+
+design_services
+share
+compare_arrows
+add
+more_vert
+more_vert
+more_vert
+more_vert
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+
+Expand to view model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+more_vert
+Model
+Thoughts
+
+Expand to view model thoughts
+
+chevron_right
+edit
+more_vert
+edit
+more_vert
+User
+帮我生成第二页的提示词
+
+---
+
+主题是莎士比亚（T90）中国区新增中配版
+价格要说明是国补后的价格
+5W2H 重新刷新一下，需要是进一步策略的事。认可变更后本来就是会国内全渠道铺货，再讲没有意义。
+6400mAh并不能作为卖点来讲
+竞品长滚筒版机器国补后价格低至3598
+5W2H不要生成营销侧的内容
+more_vert
+Model
+Thoughts
+
+Expand to view model thoughts
+
+chevron_right
+edit
+more_vert
+以下是为您设计的第二页 PPT 生成提示词（结构化指令），专注于**莎士比亚（T90）**实战案例。本页旨在通过严谨的经营分析与竞争策略，向钱董展示中配版在“后国补时代”的战略卡位价值。
+
+---
+
+### PPT 第 2 页：莎士比亚（T90）中国区新增中配版变更评估
+
+**【页面风格建议】**
+*   **底色：** 纯白色
+*   **设计：** 结构化分栏。左侧为“量化对比与竞争分析”，右侧为“经营管理级 5W2H 策略”。
+*   **强调：** 价格均显著标注“国补后参考价”。
+
+---
+
+#### 1. 标题区 (Title)
+*   **主标题：** 莎士比亚（T90）中国区中配版变更价值分析
+*   **副标题：** 应对竞品价格下探（3598元）的战略防御与盈利优化
+
+#### 2. 核心分析：财务损益与竞争位势 (Financial & Competitive Analysis)
+*   **核心对比表（建议三列）：**
+    *   **莎士比亚高配版：** 国补后 3,654元起 | 卖点：无限续航（快充逻辑）、自动化全配
+    *   **莎士比亚中配版：** **国补后 3,144元起** | 价值：结构化降本（BOM -102元）、长效能电池逻辑
+    *   **竞品（长滚筒）：** **国补后 3,598元** | 现状：价格下压，威胁我方高配市场
+*   **核心洞察 (Insight)：** 
+    *   **价格压制：** 中配版下探至 3,144元，对比竞品形成约 **450元** 的压制空间，成功拦截 3k-3.5k 价格段流量。
+    *   **盈利模型：** 虽 ASP 下移，但通过剥离快充与双仓系统实现的结构化降本，确保了单机边际贡献率符合集团标准。
+
+#### 3. 内部踩脚管控 (Portfolio Protection)
+*   **防踩脚策略：** 明确“快充逻辑（高配）”与“传统电池逻辑（中配）”的物理区隔，通过配置包差异（自动化程度）引导用户向上转化，确保高配版 34% 以上的销量份额。
+
+#### 4. 经营级 5W2H 行动计划（侧重运营、供应链与经营管理）
+*   **What (任务)：** 启动全链路动态损益监控与供应链降本专项。
+*   **Why (目标)：** 应对竞品长滚筒下探至 3598元带来的毛利侵蚀风险，确保中配版长期生命力。
+*   **Who (负责人)：** 产品经营 BP、财务部、研发中心、供应链管理部。
+*   **Where (范围)：** 全渠道进销存管理、上游 BOM 成本管控。
+*   **When (时间)：** 方案认可后即刻进入月度经营滚动分析周期。
+*   **How (方法)：** 
+    1. **动态定价：** 密切监控竞品 3598元档位的销量异动，动态调整中配版的促销折让额。
+    2. **BOM 优化：** 针对中配版 6400mAh 电池及充电模块，启动第二波供应链竞争性谈判。
+    3. **库存警戒：** 建立高中配库存比例（4:1）预警机制，防止低价 SKU 过度挤压高端份额。
+*   **How much (指标)：** 实现中配版单机毛利额与全系列综合毛利（Portfolio Margin）的双稳增长。
+
+#### 5. 底部结论 (Bottom Line)
+*   **结论：** 认可中配版变更。其本质是**“以结构化成本优势构建的价格防御墙”**，不仅拦截了竞品长滚筒机型的下探，也为高配版留出了品牌溢价空间。
+
+---
+
+### 视觉元素提示（Design Clues）：
+*   **价格对比图：** 使用阶梯图展示 3144（中配）→ 3598（竞品）→ 3654（高配）的关系，直观体现“拦截效应”。
+*   **重点标注：** 在 5W2H 区域使用“盾牌”或“计算器”小图标，强调这是关于“防御”与“算账”的经营行为。
+*   **无营销元素：** 页面不出现任何广告语、海报或用户宣传口号，纯粹以数据图表和经营策略为主。
+
+---
+
+**这页 PPT 提示词是否精准覆盖了您的新需求（T90、国补价、非营销 5W2H、竞品 3598 对标）？**
+thumb_up
+thumb_down
+info
+Google AI models may make mistakes, so double-check outputs.
+Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
+key_off
+widgets
+Tools
+google
+Grounding with Google Search
+close
+mic
+add_circle
+Run
+keyboard_command_key
+keyboard_return
+Run settings
+code
+Get code
+reset_settings
+close
+Gemini 3 Flash Preview
+gemini-3-flash-preview
+Our most intelligent model built for speed, combining frontier intelligence with superior search and grounding.
+System instructions
+Optional tone and style instructions for the model
+Temperature
+Thinking level
+High
+expand_more
+
+Tools
+
+Structured outputs
+Edit
+Code execution
+Function calling
+Edit
+Grounding with Google Search
+Source:
+Google Search
+Grounding with Google Maps
+URL context
+expand_more
+
+Advanced settings
+
+Response ready.

@@ -1,7 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from cli import HermesCLI, _build_compact_banner, _rich_text_from_ansi
+import cli as cli_module
+from cli import HermesCLI, _rich_text_from_ansi
 from hermes_cli.skin_engine import get_active_skin, set_active_skin
 
 
@@ -92,21 +93,22 @@ class TestCliSkinPromptIntegration:
 
 
 class TestCompactBannerSkinIntegration:
+    def _build_banner_with_version(self, version: str) -> str:
+        with patch.object(cli_module.shutil, "get_terminal_size", return_value=SimpleNamespace(columns=90)), \
+             patch.object(cli_module, "format_banner_version_label", return_value=version):
+            return cli_module._build_compact_banner()
+
     def test_default_compact_banner_keeps_legacy_nous_hermes_branding(self):
         set_active_skin("default")
 
-        with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
-             patch("cli.format_banner_version_label", return_value="Hermes Agent v0.1.0 (test)"):
-            banner = _build_compact_banner()
+        banner = self._build_banner_with_version("Hermes Agent v0.1.0 (test)")
 
         assert "NOUS HERMES" in banner
 
     def test_poseidon_compact_banner_uses_skin_branding_instead_of_nous_hermes(self):
         set_active_skin("poseidon")
 
-        with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
-             patch("cli.format_banner_version_label", return_value="Hermes Agent v0.1.0 (test)"):
-            banner = _build_compact_banner()
+        banner = self._build_banner_with_version("Hermes Agent v0.1.0 (test)")
 
         assert "Poseidon Agent" in banner
         assert "NOUS HERMES" not in banner
@@ -115,9 +117,7 @@ class TestCompactBannerSkinIntegration:
         set_active_skin("poseidon")
         skin = get_active_skin()
 
-        with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
-             patch("cli.format_banner_version_label", return_value="Hermes Agent v0.1.0 (test)"):
-            banner = _build_compact_banner()
+        banner = self._build_banner_with_version("Hermes Agent v0.1.0 (test)")
 
         assert skin.get_color("banner_border") in banner
         assert skin.get_color("banner_title") in banner
@@ -126,9 +126,7 @@ class TestCompactBannerSkinIntegration:
     def test_compact_banner_shows_version_label(self):
         set_active_skin("default")
 
-        with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
-             patch("cli.format_banner_version_label", return_value="Hermes Agent v1.0 (test) · upstream abc12345"):
-            banner = _build_compact_banner()
+        banner = self._build_banner_with_version("Hermes Agent v1.0 (test) · upstream abc12345")
 
         assert "upstream abc12345" in banner
 

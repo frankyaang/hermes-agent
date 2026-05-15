@@ -1,0 +1,55 @@
+{
+  "target_region": "中国",
+  "focus_change_keywords": [
+    "中配"
+  ],
+  "before_workbook": "/Users/frank/Downloads/莎士比亚 量价渠分布 - 变更前.xlsx",
+  "after_workbook": "/Users/frank/Downloads/莎士比亚 量价渠分布 - 变更后.xlsx",
+  "total": {
+    "before": {
+      "units": 513600.0,
+      "revenue": 1444628099.0,
+      "cost": 678080395.0,
+      "gross_margin": 766547704.0,
+      "gross_margin_rate": 0.5306194061507037,
+      "weighted_asp": 3851.084890965732,
+      "weighted_msrp": 4190.386292834891,
+      "weighted_target_cost": 1491.8824902647975
+    },
+    "after": {
+      "units": 597850.0,
+      "revenue": 1604782040.0,
+      "cost": 810948939.0,
+      "gross_margin": 793833100.0,
+      "gross_margin_rate": 0.4946672384244779,
+      "weighted_asp": 3531.468177636531,
+      "weighted_msrp": 3834.7804089654596,
+      "weighted_target_cost": 1532.7796311783893
+    },
+    "delta": {
+      "units": 84250.0,
+      "revenue": 160153941.0,
+      "cost": 132868544.0,
+      "gross_margin": 27285396.0,
+      "gross_margin_rate": -0.03595216772622578,
+      "weighted_asp": -319.61671332920105,
+      "weighted_msrp": -355.6058838694312,
+      "weighted_target_cost": 40.897140913591784
+    }
+  },
+  "new_sku": {
+    "units": 20000.0,
+    "revenue": 51916565.0,
+    "cost": 25468779.0,
+    "gross_margin": 26447787.0,
+    "gross_margin_rate": 0.5094286765698001,
+    "weighted_asp": 2933.35,
+    "weighted_msrp": 3297.15,
+    "weighted_target_cost": 1438.986
+  },
+  "new_sku_contribution": {
+    "units": 0.23738872403560832,
+    "revenue": 0.3241666403950684,
+    "gross_margin": 0.9693019298675379
+  }
+}

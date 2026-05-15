@@ -1,0 +1,18 @@
+{
+  "change_name": "莎士比亚 T90 中国区新增中配版",
+  "change_type": [
+    "SKU",
+    "配置",
+    "价格"
+  ],
+  "target_region": "中国",
+  "focus_change_keywords": [
+    "中配"
+  ],
+  "competitor_price": 3598,
+  "decision_constraints": [
+    "价格使用国补后口径",
+    "只归因新增中配相关影响",
+    "5W2H 不生成营销侧内容"
+  ]
+}

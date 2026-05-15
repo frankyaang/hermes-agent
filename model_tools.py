@@ -475,7 +475,8 @@ def _coerce_number(value: str, integer_only: bool = False):
         f = float(value)
     except (ValueError, OverflowError):
         return value
-    # Guard against inf/nan — not JSON-serializable, keep original string
+    # Guard against inf/nan — not JSON-serializable under strict allow_nan=False;
+    # keep original string so callers embedding args in JSON payloads stay safe.
     if f != f or f == float("inf") or f == float("-inf"):
         return value
     # If it looks like an integer (no fractional part), return int

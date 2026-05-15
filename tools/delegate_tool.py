@@ -2342,8 +2342,24 @@ def _load_config() -> dict:
     of the entry point (CLI, gateway, cron).
     """
     try:
-        from cli import CLI_CONFIG
+        import cli as _cli_mod
 
+        try:
+            from hermes_constants import get_hermes_home
+
+            cli_home = getattr(_cli_mod, "_hermes_home", None)
+            if cli_home is not None:
+                current_home = get_hermes_home()
+                if os.path.abspath(os.fspath(cli_home)) != os.path.abspath(
+                    os.fspath(current_home)
+                ):
+                    raise RuntimeError("stale cli.CLI_CONFIG for another HERMES_HOME")
+        except RuntimeError:
+            raise
+        except Exception:
+            pass
+
+        CLI_CONFIG = getattr(_cli_mod, "CLI_CONFIG", {})
         cfg = CLI_CONFIG.get("delegation", {})
         if cfg:
             return cfg

@@ -752,6 +752,10 @@ class TestAgentCacheSpilloverLive:
         from gateway import run as gw_run
 
         CAP = 16
+        monkeypatch.setattr(
+            "run_agent.AIAgent._check_compression_model_feasibility",
+            lambda self: None,
+        )
         monkeypatch.setattr(gw_run, "_AGENT_CACHE_MAX_SIZE", CAP)
         runner = self._runner()
 
@@ -778,7 +782,9 @@ class TestAgentCacheSpilloverLive:
 
         # Let daemon cleanup threads settle.
         import time as _t
+        import logging
         _t.sleep(0.5)
+        logging.disable(logging.NOTSET)
 
         assert len(runner._agent_cache) == CAP, (
             f"Expected exactly {CAP} entries after concurrent inserts, "

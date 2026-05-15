@@ -1773,6 +1773,18 @@ class AIAgent:
         except Exception:
             pass
 
+        # Knowledge sedimentation review: periodic post-response pass that may
+        # save stable business facts through knowledge_write.
+        self._knowledge_nudge_interval = 10
+        self._turns_since_knowledge = 0
+        try:
+            knowledge_config = _agent_cfg.get("knowledge", {})
+            self._knowledge_nudge_interval = int(
+                knowledge_config.get("sedimentation_nudge_interval", 10)
+            )
+        except Exception:
+            pass
+
         # Tool-use enforcement config: "auto" (default — matches hardcoded
         # model list), true (always), false (never), or list of substrings.
         _agent_section = _agent_cfg.get("agent", {})
@@ -3254,6 +3266,23 @@ class AIAgent:
         "If nothing stands out, just say 'Nothing to save.' and stop."
     )
 
+    _KNOWLEDGE_REVIEW_PROMPT = (
+        "Review the conversation above and consider whether stable business knowledge "
+        "should be saved.\n\n"
+        "Only save concise, reusable business facts, decisions, meeting conclusions, "
+        "product/project facts, company-level executive context, or customer/market "
+        "findings that are supported by the conversation. Do not write user preferences "
+        "or personal working style here; those belong in memory. Do not write workflow "
+        "instructions or reusable procedures here; those belong in skills.\n\n"
+        "Use knowledge_write only when you can provide a compact title, structured "
+        "content, product_line_id/scope, knowledge_type, confidence, and a source_uri. "
+        "Use source_uri='hermes://session/{session_id}' unless a more specific source "
+        "URI appears in the conversation. Never write an entire raw chat log as the "
+        "knowledge content. If knowledge_write is denied, do not retry or bypass ACL; "
+        "the tool will preserve a pending capture when appropriate.\n\n"
+        "If nothing is worth saving, just say 'Nothing to save.' and stop."
+    )
+
     @staticmethod
     def _summarize_background_review_actions(
         review_messages: List[Dict],
@@ -3315,6 +3344,8 @@ class AIAgent:
             elif "removed" in message.lower() or "replaced" in message.lower():
                 label = "Memory" if target == "memory" else "User profile" if target == "user" else target
                 actions.append(f"{label} updated")
+            elif data.get("slug") and data.get("product_line_id"):
+                actions.append("Knowledge saved")
         return actions
 
     def _spawn_background_review(
@@ -3322,6 +3353,7 @@ class AIAgent:
         messages_snapshot: List[Dict],
         review_memory: bool = False,
         review_skills: bool = False,
+        review_knowledge: bool = False,
     ) -> None:
         """Spawn a background thread to review the conversation for memory/skill saves.
 
@@ -3337,8 +3369,16 @@ class AIAgent:
             prompt = self._COMBINED_REVIEW_PROMPT
         elif review_memory:
             prompt = self._MEMORY_REVIEW_PROMPT
-        else:
+        elif review_skills:
             prompt = self._SKILL_REVIEW_PROMPT
+        else:
+            prompt = ""
+
+        if review_knowledge:
+            knowledge_prompt = self._KNOWLEDGE_REVIEW_PROMPT.format(
+                session_id=self.session_id or "unknown"
+            )
+            prompt = f"{prompt}\n\n{knowledge_prompt}" if prompt else knowledge_prompt
 
         def _run_review():
             import contextlib
@@ -3371,6 +3411,10 @@ class AIAgent:
                     # reconstruct auth from scratch -- producing the spurious
                     # "No LLM provider configured" warning at end of turn.
                     _parent_runtime = self._current_main_runtime()
+                    enabled_toolsets = ["memory", "skills"]
+                    if review_knowledge:
+                        enabled_toolsets.append("knowledge")
+
                     review_agent = AIAgent(
                         model=self.model,
                         max_iterations=8,
@@ -3382,7 +3426,7 @@ class AIAgent:
                         api_key=_parent_runtime.get("api_key") or None,
                         credential_pool=getattr(self, "_credential_pool", None),
                         parent_session_id=self.session_id,
-                        enabled_toolsets=["memory", "skills"],
+                        enabled_toolsets=enabled_toolsets,
                     )
                     review_agent._memory_write_origin = "background_review"
                     review_agent._memory_write_context = "background_review"
@@ -3391,6 +3435,7 @@ class AIAgent:
                     review_agent._user_profile_enabled = self._user_profile_enabled
                     review_agent._memory_nudge_interval = 0
                     review_agent._skill_nudge_interval = 0
+                    review_agent._knowledge_nudge_interval = 0
 
                     review_agent.run_conversation(
                         user_message=prompt,
@@ -10189,6 +10234,14 @@ class AIAgent:
                 _should_review_memory = True
                 self._turns_since_memory = 0
 
+        _should_review_knowledge = False
+        if (getattr(self, "_knowledge_nudge_interval", 0) > 0
+                and "knowledge_write" in self.valid_tool_names):
+            self._turns_since_knowledge += 1
+            if self._turns_since_knowledge >= self._knowledge_nudge_interval:
+                _should_review_knowledge = True
+                self._turns_since_knowledge = 0
+
         # Add user message
         user_msg = {"role": "user", "content": user_message}
         messages.append(user_msg)
@@ -13497,14 +13550,16 @@ class AIAgent:
             interrupted=interrupted,
         )
 
-        # Background memory/skill review — runs AFTER the response is delivered
+        # Background asset review — runs AFTER the response is delivered
         # so it never competes with the user's task for model attention.
-        if final_response and not interrupted and (_should_review_memory or _should_review_skills):
+        if final_response and not interrupted and (
+                _should_review_memory or _should_review_skills or _should_review_knowledge):
             try:
                 self._spawn_background_review(
                     messages_snapshot=list(messages),
                     review_memory=_should_review_memory,
                     review_skills=_should_review_skills,
+                    review_knowledge=_should_review_knowledge,
                 )
             except Exception:
                 pass  # Background review is best-effort
