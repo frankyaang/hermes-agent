@@ -14,7 +14,9 @@ import os
 import sys
 import threading
 import time
+import types
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from tools.delegate_tool import (
@@ -32,6 +34,7 @@ from tools.delegate_tool import (
     _strip_blocked_tools,
     _resolve_child_credential_pool,
     _resolve_delegation_credentials,
+    _load_config,
 )
 
 
@@ -741,6 +744,27 @@ class TestBlockedTools(unittest.TestCase):
         self.assertTrue(_get_orchestrator_enabled())      # default
         self.assertEqual(_MIN_SPAWN_DEPTH, 1)
         self.assertEqual(_MAX_SPAWN_DEPTH_CAP, 3)
+
+
+class TestDelegateConfigLoading(unittest.TestCase):
+    def test_stale_cli_config_from_other_hermes_home_is_ignored(self):
+        fake_cli = types.ModuleType("cli")
+        fake_cli._hermes_home = Path("/real/hermes/home")
+        fake_cli.CLI_CONFIG = {
+            "delegation": {
+                "provider": "openai-codex",
+                "max_concurrent_children": 5,
+            }
+        }
+
+        with patch.dict(sys.modules, {"cli": fake_cli}):
+            with patch("hermes_cli.config.load_config", return_value={"delegation": {}}):
+                with patch.dict(
+                    os.environ,
+                    {"HERMES_HOME": "/tmp/hermes-test-current"},
+                    clear=False,
+                ):
+                    self.assertEqual(_load_config(), {})
 
 
 class TestDelegationCredentialResolution(unittest.TestCase):

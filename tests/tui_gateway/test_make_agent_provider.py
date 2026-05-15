@@ -28,6 +28,16 @@ def test_make_agent_passes_resolved_provider():
     }
 
     with (
+        patch.dict(
+            "os.environ",
+            {
+                "HERMES_MODEL": "",
+                "HERMES_INFERENCE_MODEL": "",
+                "HERMES_TUI_PROVIDER": "",
+                "HERMES_INFERENCE_PROVIDER": "",
+            },
+            clear=False,
+        ),
         patch("tui_gateway.server._load_cfg", return_value=fake_cfg),
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
         patch("tui_gateway.server._load_tool_progress_mode", return_value="compact"),
@@ -45,7 +55,10 @@ def test_make_agent_passes_resolved_provider():
 
         _make_agent("sid-1", "key-1")
 
-        mock_resolve.assert_called_once_with(requested=None)
+        mock_resolve.assert_called_once_with(
+            requested=None,
+            target_model="claude-opus-4-6",
+        )
 
         call_kwargs = mock_agent.call_args
         assert call_kwargs.kwargs["provider"] == "anthropic"

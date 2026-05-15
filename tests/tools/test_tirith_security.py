@@ -369,20 +369,19 @@ class TestFailedDownloadCaching:
     def test_failed_install_scan_uses_fail_open(self, mock_cfg, mock_run,
                                                  mock_which, mock_install,
                                                  mock_disk_check, mock_mark):
-        """After cached miss, check_command_security hits OSError → fail_open."""
+        """Missing tirith does not synchronously install during command checks."""
         _tirith_mod._resolved_path = None
         mock_cfg.return_value = {"tirith_enabled": True, "tirith_path": "tirith",
                                  "tirith_timeout": 5, "tirith_fail_open": True}
-        mock_run.side_effect = FileNotFoundError("No such file: tirith")
-        # First command triggers install attempt + cached miss + scan
-        result = check_command_security("echo hello")
-        assert result["action"] == "allow"
-        assert mock_install.call_count == 1
+        with patch("tools.tirith_security.threading.Thread") as mock_thread:
+            mock_thread.return_value = MagicMock()
 
-        # Second command: no install retry, just hits OSError → allow
-        result = check_command_security("echo world")
-        assert result["action"] == "allow"
-        assert mock_install.call_count == 1  # still 1
+            result = check_command_security("echo hello")
+            assert result["action"] == "allow"
+            assert "unavailable" in result["summary"]
+            mock_install.assert_not_called()
+            mock_run.assert_not_called()
+            mock_thread.return_value.start.assert_called_once()
 
         _tirith_mod._resolved_path = None
 

@@ -2241,3 +2241,79 @@ git status --short --branch
 git log --oneline --decorate --max-count=8
 HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
 ```
+
+---
+
+# Integrate Optimization Closure（2026-05-15）
+
+## Goal
+
+完成 dev / official 整合后的失败簇优化，把 `codex/integrate-dev-official` 收束到完整测试通过、可合回 `codex/dev-env` 的状态。
+
+## Scope
+
+- 修复/对齐 full-suite 暴露的 delegate、auth、gateway cancellation、file state、systemd/WSL、TUI provider、Matrix E2EE、TokenHub context、logging/cache/stale import 等失败簇。
+- 保留 official 的 fail-closed auth、codex_pipeline、conversation access、planner/model routing 等较新行为。
+- 保留 dev 的 knowledge pending replay / sedimentation / alias 相关能力。
+
+## Progress
+
+- [x] 修复 delegate/subagent 配置污染和 guardrail 测试导入时机问题。
+- [x] 修复 file tools 在 macOS `/private/var` tempdir 下的误拦截。
+- [x] 对齐 Codex auth fail-closed、gateway delivery manager、Tirith background install、gateway cancellation、Matrix E2EE mock、TUI provider/session resume、TokenHub 256Ki context、local interrupt cleanup。
+- [x] 收敛完整测试中的 full-only 全局状态污染：`oneshot` logging restore、clipboard WSL stale binding、TUI env override、file tool backend cache、agent cache slow init、ACP forced redaction。
+- [x] 完整测试通过。
+
+## Validation
+
+重点回归：
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_subagent_stop_hook.py \
+  tests/tools/test_delegate.py tests/run_agent/test_agent_guardrails.py
+# 157 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_file_read_guards.py \
+  tests/tools/test_file_staleness.py tests/tools/test_file_state_registry.py
+# 61 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_tirith_security.py \
+  tests/gateway/test_approve_deny_commands.py \
+  tests/gateway/test_gateway_shutdown.py \
+  tests/gateway/test_session_split_brain_11016.py
+# 105 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/hermes_cli/test_gateway_service.py \
+  tests/hermes_cli/test_gateway_wsl.py tests/hermes_cli/test_update_autostash.py \
+  tests/hermes_cli/test_cmd_update.py tests/hermes_cli/test_provider_config_validation.py \
+  tests/test_phase3_semantic_search.py tests/tools/test_clipboard.py
+# 293 passed
+```
+
+完整回归：
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+# 17681 passed, 54 skipped, 194 warnings
+```
+
+## Decision Log
+
+- `oneshot` logging 静音必须恢复原始 `logging.disable` 状态；否则 full-suite 后续 caplog 会被跨测试污染。
+- ACP `fs/read_text_file` 属于安全边界，读取内容即使全局 redaction 未开启也强制脱敏。
+- 文件工具 integration 测试必须显式隔离 `TERMINAL_ENV=local` 并清理 terminal/file_ops 缓存，避免 full-suite 中其他 backend 测试残留。
+- TUI provider 测试必须清空 `HERMES_MODEL` / `HERMES_INFERENCE_MODEL` / `HERMES_TUI_PROVIDER`，因为这些是合法 runtime override，不应污染该单元断言。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short --branch
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+```

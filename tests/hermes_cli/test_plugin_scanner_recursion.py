@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -196,13 +197,13 @@ class TestKindField:
         )
         _enable(hermes_home, "p1")
 
-        with caplog.at_level("WARNING"):
+        with patch("hermes_cli.plugins.logger.warning") as warn:
             mgr = PluginManager()
             mgr.discover_and_load()
 
         assert mgr._plugins["p1"].manifest.kind == "standalone"
         assert any(
-            "unknown kind" in rec.getMessage() for rec in caplog.records
+            "unknown kind" in str(call.args[0]) for call in warn.call_args_list
         )
 
 

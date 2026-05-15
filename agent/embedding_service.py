@@ -358,6 +358,8 @@ class EmbeddingService:
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics from all layers."""
         stats = {
+            "entries": self._cache_size,
+            "max_size": self._max_cache_size,
             "memory": {
                 "entries": self._cache_size,
                 "max_size": self._max_cache_size

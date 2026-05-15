@@ -45,13 +45,6 @@ def run_oneshot(
 
     Returns the exit code.  Caller should sys.exit() with the return.
     """
-    # Silence every stdlib logger for the duration.  AIAgent, tools, and
-    # provider adapters all log to stderr through the root logger; file
-    # handlers added by setup_logging() keep working (they're attached to
-    # the root logger's handler list, not affected by level), but no
-    # bytes reach the terminal.
-    logging.disable(logging.CRITICAL)
-
     # --provider without --model is ambiguous: carrying the user's configured
     # model across to a different provider is usually wrong (that provider may
     # not host it), and silently picking the provider's catalog default hides
@@ -64,6 +57,14 @@ def run_oneshot(
             "Pass both explicitly, or neither to use your configured defaults.\n"
         )
         return 2
+
+    # Silence every stdlib logger for the duration.  AIAgent, tools, and
+    # provider adapters all log to stderr through the root logger; file
+    # handlers added by setup_logging() keep working (they're attached to
+    # the root logger's handler list, not affected by level), but no
+    # bytes reach the terminal.
+    previous_logging_disable = logging.root.manager.disable
+    logging.disable(logging.CRITICAL)
 
     # Auto-approve any shell / tool approvals.  Non-interactive by
     # definition — a prompt would hang forever.
@@ -79,6 +80,7 @@ def run_oneshot(
         with redirect_stdout(devnull), redirect_stderr(devnull):
             response = _run_agent(prompt, model=model, provider=provider)
     finally:
+        logging.disable(previous_logging_disable)
         try:
             devnull.close()
         except Exception:

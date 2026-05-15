@@ -86,10 +86,13 @@ class TestNormalizeCustomProviderEntry:
             "unknownField": "value",
             "anotherBad": 42,
         }
-        with caplog.at_level(logging.WARNING):
+        with patch("hermes_cli.config.logger.warning") as warn:
             result = _normalize_custom_provider_entry(entry, provider_key="test")
         assert result is not None
-        assert any("unknown config keys" in r.message.lower() for r in caplog.records)
+        assert any(
+            "unknown config keys" in str(call.args[0]).lower()
+            for call in warn.call_args_list
+        )
 
     def test_timeout_keys_not_flagged_unknown(self, caplog):
         """request_timeout_seconds and stale_timeout_seconds should not produce warnings."""
@@ -110,10 +113,14 @@ class TestNormalizeCustomProviderEntry:
             "baseUrl": "https://api.example.com/v1",
             "apiKey": "sk-test-key",
         }
-        with caplog.at_level(logging.WARNING):
+        with patch("hermes_cli.config.logger.warning") as warn:
             result = _normalize_custom_provider_entry(entry, provider_key="test")
         assert result is not None
-        camel_warnings = [r for r in caplog.records if "camelcase" in r.message.lower() or "auto-mapped" in r.message.lower()]
+        camel_warnings = [
+            call for call in warn.call_args_list
+            if "camelcase" in str(call.args[0]).lower()
+            or "auto-mapped" in str(call.args[0]).lower()
+        ]
         assert len(camel_warnings) >= 1
 
     def test_snake_case_takes_precedence_over_camel(self):
