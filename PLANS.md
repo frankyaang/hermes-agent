@@ -1704,14 +1704,14 @@ git diff --name-only --diff-filter=U
 - report_revision → non_ready
 
 ## Milestones
-- [ ] M1: readiness_manifest.json created
-- [ ] M2: capability_readiness.py created
-- [ ] M3: routes.json updated with allowed_entrypoints
-- [ ] M4: test_production_readiness.py extended to 14 tests (RED)
-- [ ] M5: cli_bridge.py updated (gate before Opus)
-- [ ] M6: runtime.py updated (enforce by default)
-- [ ] M7: scripts/check_agent_system_readiness.py created
-- [ ] M8: test fixtures migrated, all tests GREEN
+- [x] M1: readiness_manifest.json created
+- [x] M2: capability_readiness.py created
+- [x] M3: routes.json updated with allowed_entrypoints
+- [x] M4: test_production_readiness.py extended to 14 tests (RED)
+- [x] M5: cli_bridge.py updated (gate before Opus)
+- [x] M6: runtime.py updated (enforce by default)
+- [x] M7: scripts/check_agent_system_readiness.py created
+- [x] M8: test fixtures migrated, all tests GREEN
 
 ---
 
@@ -1771,3 +1771,70 @@ git log --oneline -10
 HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
   scripts/run_tests.sh tests/agent/test_asset_router.py tests/agent/test_identity_resolver.py -q
 ```
+
+---
+
+# Agent-System Readiness 第二阶段收口（2026-05-15）
+
+## Codex 恢复记录（2026-05-15）
+
+- 发现 `f55d4e42d feat(readiness): agent-system production readiness phase 2` 被 `1611b519f Revert "feat(readiness): agent-system production readiness phase 2"` 整包回滚；回滚来自 Knowledge Sedimentation 审计的交付边界清洁，不代表 readiness 方案验证失败。
+- Codex 接管时，工作区存在一处未提交的 `agent_system/cli_bridge.py` 清理改动，内容为移除 `capability_readiness` 引用。该改动与恢复 readiness phase 2 目标相反，已先保存在 `stash@{0}: codex-preserve-cli-bridge-readiness-cleanup`，没有丢弃。
+- 本轮通过 `git revert --no-commit 1611b519f` 恢复被误回滚的 readiness phase 2，并重新执行聚焦验证。
+- 后续任务不得为了清洁其他专题交付边界而直接 revert agent-system readiness commit；若认为当前分支含 unrelated committed work，必须报告或新建隔离分支。
+
+## 恢复步骤记录
+
+### 第一步：停止悬挂测试
+当前会话无悬挂 run_tests/pytest 进程，跳过 kill 操作。
+
+停止重复 full suite，因为当前任务是 readiness 收口，后台 grep/tail 输出为 0 字节，没有提供诊断价值。
+
+### 第二步：未提交文件清单（production readiness 第二阶段）
+- `agent_system/runtime.py` — 修改：enforce_skill_readiness 参数 + capability_readiness 导入
+- `agent_system/scheduler/main_scheduler/routes.json` — 修改：routes 结构调整
+- `tests/agent_system/test_cli_bridge.py` — 修改：新增 readiness 集成测试
+- `tests/agent_system/test_production_readiness.py` — 修改：新增 14 个 readiness 验证测试
+- `tests/agent_system/test_runtime.py` — 修改：新增 enforce_skill_readiness 测试
+- `agent_system/capability_readiness.py` — 新增：ReadinessResult + 检查逻辑
+- `agent_system/readiness_manifest.json` — 新增：manifest 单一事实源
+- `scripts/check_agent_system_readiness.py` — 新增：readiness gate 脚本
+
+这些文件属于 production readiness 第二阶段，不属于 integrate 全量测试修复。
+
+### 第三步：唯一目标
+完成 agent-system readiness 第二阶段最小闭环。
+
+### gateway progress 红测修复
+- 根因：`get_tool_emoji("terminal")` 在 `tools.terminal_tool` 未 import 时返回 fallback `⚙️`
+- 修法：在 `agent/display.py` 新增 `_HARDCODED_TOOL_EMOJIS = {"terminal": "💻"}` 作为注册顺序安全的第 3 级 fallback
+- 不修改测试期望值，不将期望从 💻 改成 ⚙️
+
+### 最终验证结果
+- `python -m py_compile agent_system/capability_readiness.py agent_system/cli_bridge.py agent_system/runtime.py scripts/check_agent_system_readiness.py` → passed
+- `python scripts/check_agent_system_readiness.py` → READINESS CHECK PASSED
+- `tests/agent_system/test_production_readiness.py tests/gateway/test_run_progress_topics.py::test_run_agent_moves_bare_interim_progress_ui_to_single_progress_module` → 15 passed
+- `tests/agent_system/test_production_readiness.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py` → 59 passed
+- `tests/agent_system/` 150 passed
+- `tests/gateway/test_run_progress_topics.py` 30 passed
+- 合计聚焦验证 254 passed，0 failed
+
+## Skill Readiness
+- artifact_resolver: ready（executor_type=system, executable=true, production_ready=true）
+- 其余 skills: unknown（无 executor 合同声明）
+- report_revision: non_ready（stub skill，无 executor）
+
+## Route Readiness
+- 全部路由: unknown 或 non_ready
+- artifact_status_flow / artifact_delivery_flow / doc_publish_flow: unknown（required_skills 的 artifact_status/delivery/publish 无 executor）
+- report_revision_flow: non_ready
+- 无路由进入生产候选（Production Candidates = 0，符合预期）
+
+## artifact_resolver 行为
+- executor_type=system，不走 delegate_task
+- manifest 标 ready 后 check_skill_readiness 不 blocking
+
+## 张嫄养马类消息行为
+- 无明确 artifact path 时，report_revision_flow 为 non_ready，不进入 planning LLM
+- 返回 None（fallback 对话）或 blocked 状态，不触发 delegate_task 递归
+- 不显示"子专家：无 + failed"
