@@ -1071,16 +1071,43 @@ class TestPartialToolCallWarning:
         assert "Let me write the audit:" in content, (
             f"Partial text not preserved in stub: {content!r}"
         )
-        assert "Stream stalled mid tool-call" in content, (
-            f"Stub content is missing the dropped-tool-call warning; users "
-            f"get silent failure.  Got content={content!r}"
+        # The warning must explain in user-facing language that the
+        # report write was interrupted — no English "stalled" wording,
+        # no "ask me to retry" instructions (gateway recovers automatically).
+        assert "报告写入" in content and "连接中断" in content, (
+            f"Stub content is missing the dropped-tool-call warning; "
+            f"users get silent failure.  Got content={content!r}"
+        )
+        assert "Ask me to retry" not in content, (
+            f"User must not be asked to retry — gateway recovers "
+            f"automatically.  Got content={content!r}"
+        )
+        assert "请发送" not in content, (
+            f"User must not be asked to send anything to retry — gateway "
+            f"recovers automatically.  Got content={content!r}"
         )
         assert "write_file" in content, (
             f"Warning should name the dropped tool. Got: {content!r}"
         )
+        # The recovery marker is the gateway's signal — it MUST be present
+        # so gateway/run.py can detect a stalled write_file and trigger
+        # one-shot auto recovery.
+        assert "[[HERMES_DELIVERY_RECOVERY:write_file_stalled]]" in content, (
+            f"Recovery marker missing — gateway cannot auto-recover. "
+            f"Got content={content!r}"
+        )
         assert response.choices[0].message.tool_calls is None
-        assert any("Stream stalled mid tool-call" in d for d in fired_deltas), (
+        # The human-readable warning is the only thing that should be
+        # surfaced to the user mid-stream; the internal marker must NOT
+        # be fired as a delta.
+        assert any("报告写入" in d for d in fired_deltas), (
             f"Warning was not surfaced as a live stream delta. "
+            f"fired_deltas={fired_deltas}"
+        )
+        assert not any(
+            "HERMES_DELIVERY_RECOVERY" in d for d in fired_deltas
+        ), (
+            f"Internal recovery marker leaked to the user's live stream. "
             f"fired_deltas={fired_deltas}"
         )
 
@@ -1129,8 +1156,11 @@ class TestPartialToolCallWarning:
         assert content == "Here's my answer so far", (
             f"Pre-fix behaviour regressed for text-only partial streams: {content!r}"
         )
-        assert "Stream stalled" not in content, (
+        assert "连接中断" not in content, (
             f"Unexpected warning on text-only partial stream: {content!r}"
+        )
+        assert "HERMES_DELIVERY_RECOVERY" not in content, (
+            f"Recovery marker leaked into text-only partial stream: {content!r}"
         )
 
 
@@ -1235,7 +1265,7 @@ class TestSilentRetryMidToolCall:
         )
         # Stub-path warning must NOT appear (this was the whole point).
         joined = "".join(fired_deltas)
-        assert "Stream stalled" not in joined, (
+        assert "连接中断" not in joined, (
             f"Stub-path warning leaked into silent-retry path: {joined!r}"
         )
 
@@ -1289,8 +1319,11 @@ class TestSilentRetryMidToolCall:
 
         # After retries exhaust, the stub-with-warning path must engage.
         content = response.choices[0].message.content or ""
-        assert "Stream stalled mid tool-call" in content, (
+        assert "报告写入" in content and "连接中断" in content, (
             f"Exhausted-retry fallback dropped the user-visible warning: {content!r}"
+        )
+        assert "[[HERMES_DELIVERY_RECOVERY:write_file_stalled]]" in content, (
+            f"Exhausted-retry fallback dropped the gateway recovery marker: {content!r}"
         )
         assert response.choices[0].message.tool_calls is None
 
@@ -1351,7 +1384,7 @@ class TestSilentRetryMidToolCall:
         assert content == "Here's my answer so far", (
             f"Text-only stall regressed: {content!r}"
         )
-        assert "Stream stalled" not in content, (
+        assert "连接中断" not in content, (
             f"Text-only stall should not emit tool-call warning: {content!r}"
         )
 

@@ -1,0 +1,104 @@
+{
+  "run_id": "Run_insight_flow_20260511T042925",
+  "pipeline_id": "insight_flow",
+  "node_key": "briefing",
+  "node_id": "briefing",
+  "display_name": "过程汇报",
+  "status": "completed",
+  "expert_role": "system",
+  "skill_id": "briefing",
+  "final_output": false,
+  "depends_on": ["voc_insight"],
+  "started_at_utc": "2026-05-11T04:29:25.555283+00:00",
+  "upstream_completed_at_utc": "2026-05-11T04:34:28.994106+00:00",
+  "briefing_generated_at_utc": "2026-05-11T04:35:17.614794+00:00",
+  "wall_seconds": 303.438823,
+  "input_interpretation": "用户回复‘方法1’，表示选择直接复制粘贴导入飞书；上游节点执行报告校验与剪贴板复制，而非重新进行 VOC 分析。",
+  "result_summary": "已完成 insight_flow:briefing 过程汇报。上游 voc_insight 节点完成报告校验、pbcopy 剪贴板复制和一致性验证；ops_expert 通过 ops_dashboard 输出运营转译结论。用户当前可在目标飞书文档中按 ⌘V 粘贴完整报告。",
+  "upstream_summary": {
+    "voc_insight": {
+      "status": "completed",
+      "output_quality": 90.0,
+      "primary_expert": {
+        "expert_id": "user_analyst",
+        "skill_id": "voc_insight",
+        "status": "completed",
+        "api_calls": 23,
+        "duration_seconds": 303.02,
+        "model": "claude-opus-4-7",
+        "tokens_input": 1790652,
+        "tokens_output": 11551,
+        "key_actions": [
+          "校验飞书格式主报告存在且为 1033 行 / 36404 bytes",
+          "执行 pbcopy 将完整报告复制到 macOS 剪贴板",
+          "最终验证剪贴板内容与源文件完全一致",
+          "生成 voc_insight 节点结果 Markdown 与 JSON",
+          "写入 voc_insight Skill 与 user_analyst 专家经验"
+        ]
+      },
+      "secondary_expert": {
+        "expert_id": "ops_expert",
+        "skill_id": "ops_dashboard",
+        "requested_skill_id": "voc_insight",
+        "status": "completed",
+        "dynamic_override": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+        "api_calls": 17,
+        "duration_seconds": 241.04,
+        "model": "claude-opus-4-7",
+        "tokens_input": 1256835,
+        "tokens_output": 8307,
+        "key_actions": [
+          "读取既有 voc_insight 主报告与交叉验证报告",
+          "将用户画像、设置项缺口、痛点和行动建议转译为运营结论",
+          "生成 voc_insight_ops_expert_conclusion_20260511.md 并验证文件完整性"
+        ]
+      }
+    }
+  },
+  "aggregate_stats": {
+    "api_calls_total": 40,
+    "tokens_input_total": 3047487,
+    "tokens_output_total": 19858,
+    "tokens_total": 3067345,
+    "parallel_wall_seconds": 303.438823,
+    "sum_expert_duration_seconds": 544.06
+  },
+  "key_findings": [
+    "主报告已可用于飞书直接粘贴，源文件 1033 行 / 36404 bytes。",
+    "5 大典型用户画像已整理：品质生活家、效率至上派、宠物家庭守护者、精致地面呵护者、老用户升级派。",
+    "12 个核心设置项中 8 个已有、1 个部分实现、3 个缺失，设置项完整度约 66.7%。",
+    "高风险画像占比为 34%，需重点关注宠物安全、地面材质、越障稳定性等闭环。",
+    "P0 行动建议为喷溶引导链路、宠物安全模式、地面材质选择。"
+  ],
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T043517_method1.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T043517_method1.json"
+  ],
+  "files_referenced": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/user_persona_report_feishu_format.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T123112_method1.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T123112_method1.json",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_conclusion_20260511.md"
+  ],
+  "files_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/skill_mem/MEMORY.md"
+  ],
+  "quality_score": 90.0,
+  "audit_checks": {
+    "briefing_skill_loaded_from_local_agent_system": true,
+    "upstream_voc_insight_completed": true,
+    "source_report_exists": true,
+    "source_report_lines_1033": true,
+    "source_report_bytes_36404": true,
+    "dynamic_override_recorded": true,
+    "human_review_required": false,
+    "blocking_exception_absent": true,
+    "write_boundary_respected": true
+  },
+  "issues_encountered": [
+    "全局 skill_view 中未注册 briefing，已改为读取 Agent System 本地 briefing Skill 文件执行。",
+    "上游第一次验证时剪贴板被外部内容覆盖；已由上游重新执行 pbcopy 并验证通过。",
+    "输入材料不是原始 VOC，而是用户选择‘方法1’的交付动作请求；已按交付流程处理。"
+  ],
+  "next_user_action": "在目标飞书文档中按 ⌘V 粘贴完整报告；如剪贴板被覆盖，可重新执行 pbcopy < /Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/user_persona_report_feishu_format.md。"
+}

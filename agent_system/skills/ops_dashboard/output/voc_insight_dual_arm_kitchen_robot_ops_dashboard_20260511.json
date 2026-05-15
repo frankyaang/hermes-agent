@@ -1,0 +1,28 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "expert_id": "ops_expert",
+  "skill_id": "ops_dashboard",
+  "status": "completed",
+  "output_type": "用户洞察结论",
+  "source_materials": [
+    "调研双臂厨房做饭机器人所需关键部件、材料/规格/智能化需求和成本浮动空间。"
+  ],
+  "artifact": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_dual_arm_kitchen_robot_ops_dashboard_20260511.md",
+  "core_findings": [
+    "双臂厨房机器人首代应做结构化厨房单元，不应承诺开放式全能AI大厨。",
+    "用户关键门槛是成本、空间、清洁、食材准备、安全信任；B2B关键门槛是ROI、出品一致和维护SLA。",
+    "关键部件闭环为双臂、工具快换、定量投料、烹饪模块、感知安全、自动清洁和食谱/调度软件。",
+    "公开采购双臂成本约12–15万元到约50万元人民币量级；整机规划级硬件/单站成本约25–100万元。",
+    "MVP建议先验证5道菜高保真PoC，再扩展到20–50道结构化菜谱和小批B2B/高端家庭试点。"
+  ],
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_dual_arm_kitchen_robot_ops_dashboard_20260511.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_dual_arm_kitchen_robot_ops_dashboard_20260511.json"
+  ],
+  "issues": [
+    "输入仅为单句调研需求，无原始VOC/评论/竞品数据集；成本为公开资料+规划级估算，需RFQ复核。"
+  ],
+  "related_existing_artifacts": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.md"
+  ]
+}

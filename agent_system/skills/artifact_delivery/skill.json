@@ -1,0 +1,9 @@
+{
+  "name": "artifact_delivery",
+  "display_name": "产物交付",
+  "description": "返回已有结果的路径或内容；无法访问时给出清晰的 fallback（路径、待发布内容、所需权限）",
+  "type": "status_report",
+  "pipeline": "artifact_delivery_pipeline",
+  "private_memory": true,
+  "root": "skills/artifact_delivery"
+}

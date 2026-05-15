@@ -1,0 +1,66 @@
+model_reasoning_effort = "xhigh"
+model = "gpt-5.5"
+
+[features]
+multi_agent = true
+
+[mcp_servers]
+
+[mcp_servers.ddg-search]
+type = "stdio"
+command = "uvx"
+args = ["duckduckgo-mcp-server"]
+
+[mcp_servers.mcp-deepwiki]
+type = "stdio"
+command = "npx"
+args = ["-y", "mcp-deepwiki@latest"]
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[plugins."google-drive@openai-curated"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
+[projects."/Users/frank/.openclaw/workspace"]
+trust_level = "trusted"
+
+[projects."/Users/frank/.hermes/hermes-agent-official"]
+trust_level = "trusted"
+
+[projects."/private/tmp/pipeline_test"]
+trust_level = "trusted"
+
+[projects."/private/tmp/pipeline_test2"]
+trust_level = "trusted"
+
+[projects."/private/tmp/hermes_pipeline_test"]
+trust_level = "trusted"
+
+[marketplaces.openai-bundled]
+last_updated = "2026-05-14T12:20:50Z"
+source_type = "local"
+source = "/Users/frank/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-05-14T12:23:59Z"
+source_type = "local"
+source = "/Users/frank/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"

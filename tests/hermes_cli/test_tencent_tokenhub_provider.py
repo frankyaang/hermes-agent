@@ -303,7 +303,7 @@ class TestTencentTokenhubContextLength:
     def test_hy3_preview_context_length(self):
         from agent.model_metadata import get_model_context_length
         ctx = get_model_context_length("hy3-preview")
-        assert ctx == 256000
+        assert ctx == 262144
 
 
 # =============================================================================
@@ -491,4 +491,3 @@ class TestTencentTokenhubKnownProviderNames:
     def test_alias_known(self, alias):
         from hermes_cli.models import _KNOWN_PROVIDER_NAMES
         assert alias in _KNOWN_PROVIDER_NAMES
-

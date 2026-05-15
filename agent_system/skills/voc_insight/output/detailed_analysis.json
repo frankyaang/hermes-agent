@@ -1,0 +1,335 @@
+{
+  "country_issue_cross": {
+    "AU": {
+      "Failure": 3406,
+      "Aftersale-Service inquiry": 1097,
+      "How to use": 600,
+      "Other": 347,
+      "Product experience": 163
+    },
+    "US": {
+      "Failure": 3075,
+      "Aftersale-Service inquiry": 1017,
+      "How to use": 689,
+      "Other": 796,
+      "Product experience": 161
+    },
+    "FR": {
+      "Failure": 2242,
+      "Aftersale-Service inquiry": 592,
+      "How to use": 571,
+      "Other": 328,
+      "Product experience": 212
+    },
+    "DE": {
+      "Failure": 2307,
+      "Aftersale-Service inquiry": 598,
+      "How to use": 272,
+      "Other": 181,
+      "Product experience": 191
+    },
+    "KR": {
+      "Failure": 2219,
+      "Aftersale-Service inquiry": 824,
+      "How to use": 644,
+      "Other": 165,
+      "Product experience": 123
+    },
+    "JP": {
+      "Failure": 2130,
+      "Aftersale-Service inquiry": 346,
+      "How to use": 462,
+      "Other": 392,
+      "Product experience": 62
+    },
+    "IT": {
+      "Failure": 1758,
+      "Aftersale-Service inquiry": 458,
+      "How to use": 260,
+      "Other": 229,
+      "Product experience": 101
+    },
+    "TW": {
+      "Failure": 796,
+      "Aftersale-Service inquiry": 329,
+      "How to use": 96,
+      "Other": 100,
+      "Product experience": 19
+    },
+    "CA": {
+      "Failure": 449,
+      "Aftersale-Service inquiry": 122,
+      "How to use": 111,
+      "Other": 74,
+      "Product experience": 18
+    },
+    "IN": {
+      "Failure": 455,
+      "Aftersale-Service inquiry": 79,
+      "How to use": 14,
+      "Other": 32,
+      "Product experience": 24
+    }
+  },
+  "model_issue_cross": {
+    "N/A": {
+      "Failure": 573,
+      "Aftersale-Service inquiry": 368,
+      "How to use": 192,
+      "Other": 818,
+      "Product experience": 42
+    },
+    "Null-Ecovacs": {
+      "Failure": 655,
+      "Aftersale-Service inquiry": 695,
+      "How to use": 281,
+      "Other": 830,
+      "Product experience": 33
+    },
+    "Unknown / Not Applicable": {
+      "Failure": 179,
+      "Aftersale-Service inquiry": 518,
+      "How to use": 65,
+      "Other": 450,
+      "Product experience": 7
+    },
+    "DEEBOT T50 PRO OMNI": {
+      "Failure": 676,
+      "Aftersale-Service inquiry": 178,
+      "How to use": 262,
+      "Other": 51,
+      "Product experience": 41
+    },
+    "DEEBOT X8 PRO OMNI": {
+      "Failure": 737,
+      "Aftersale-Service inquiry": 188,
+      "How to use": 80,
+      "Other": 53,
+      "Product experience": 49
+    },
+    "Unknown": {
+      "Failure": 528,
+      "Aftersale-Service inquiry": 84,
+      "How to use": 29,
+      "Other": 39,
+      "Product experience": 29
+    },
+    "X1 OMNI": {
+      "Failure": 656,
+      "Aftersale-Service inquiry": 148,
+      "How to use": 63,
+      "Other": 19,
+      "Product experience": 21
+    },
+    "DEEBOT X11 OMNICYCLONE EU": {
+      "Failure": 435,
+      "Aftersale-Service inquiry": 83,
+      "How to use": 106,
+      "Other": 13,
+      "Product experience": 56
+    },
+    "DEEBOT X11 OmniCyclone": {
+      "Failure": 464,
+      "Aftersale-Service inquiry": 111,
+      "How to use": 123,
+      "Other": 52,
+      "Product experience": 48
+    },
+    "DEEBOT T80 OMNI": {
+      "Failure": 426,
+      "Aftersale-Service inquiry": 97,
+      "How to use": 157,
+      "Other": 64,
+      "Product experience": 38
+    },
+    "X2 OMNI": {
+      "Failure": 446,
+      "Aftersale-Service inquiry": 151,
+      "How to use": 59,
+      "Other": 16,
+      "Product experience": 7
+    },
+    "T20 OMNI": {
+      "Failure": 465,
+      "Aftersale-Service inquiry": 78,
+      "How to use": 45,
+      "Other": 6,
+      "Product experience": 2
+    },
+    "DEEBOT T50 PRO OMNI BLACK GEN 2 EU": {
+      "Failure": 260,
+      "Aftersale-Service inquiry": 44,
+      "How to use": 41,
+      "Other": 4,
+      "Product experience": 10
+    },
+    "DEEBOT N30 PRO OMNI": {
+      "Failure": 325,
+      "Aftersale-Service inquiry": 75,
+      "How to use": 83,
+      "Other": 15,
+      "Product experience": 9
+    },
+    "T10 OMNI": {
+      "Failure": 374,
+      "Aftersale-Service inquiry": 77,
+      "How to use": 49,
+      "Other": 15,
+      "Product experience": 3
+    }
+  },
+  "top_issue_examples": {
+    "Failure": [
+      {
+        "country": "US",
+        "model": "n79s",
+        "issue_en": "Failure::Not working after powered on/Deebot light blinking but can not work",
+        "issue_l1": "Failure",
+        "issue_l2": "Not working after powered on/Deebot light blinking but can not work"
+      },
+      {
+        "country": "IN",
+        "model": "Unknown",
+        "issue_en": "Failure::Auto-empty malfunction",
+        "issue_l1": "Failure",
+        "issue_l2": "Auto-empty malfunction"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT N30 OMNI",
+        "issue_en": "Failure::Robot spins in circles or moves backward",
+        "issue_l1": "Failure",
+        "issue_l2": "Robot spins in circles or moves backward"
+      }
+    ],
+    "Aftersale-Service inquiry": [
+      {
+        "country": "US",
+        "model": "DEEBOT X9 PRO OMNI",
+        "issue_en": "Aftersale-Service inquiry::Replacement Efficiency Consultation",
+        "issue_l1": "Aftersale-Service inquiry",
+        "issue_l2": "Replacement Efficiency Consultation"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT X11 OmniCyclone",
+        "issue_en": "Aftersale-Service inquiry::Accessory Purchase",
+        "issue_l1": "Aftersale-Service inquiry",
+        "issue_l2": "Accessory Purchase"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT OZMO T8",
+        "issue_en": "Aftersale-Service inquiry::Accessory Purchase",
+        "issue_l1": "Aftersale-Service inquiry",
+        "issue_l2": "Accessory Purchase"
+      }
+    ],
+    "How to use": [
+      {
+        "country": "IN",
+        "model": "Unknown",
+        "issue_en": "How to use::Mop Drying Time Setting",
+        "issue_l1": "How to use",
+        "issue_l2": "Mop Drying Time Setting"
+      },
+      {
+        "country": "KR",
+        "model": "Null-Ecovacs",
+        "issue_en": "How to use::OK-YIKO Assistant",
+        "issue_l1": "How to use",
+        "issue_l2": "OK-YIKO Assistant"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT N30 OMNI",
+        "issue_en": "How to use::Charging instruction",
+        "issue_l1": "How to use",
+        "issue_l2": "Charging instruction"
+      }
+    ],
+    "Other": [
+      {
+        "country": "CA",
+        "model": "Null-Ecovacs",
+        "issue_en": "Other::Invalid Consultation",
+        "issue_l1": "Other",
+        "issue_l2": "Invalid Consultation"
+      },
+      {
+        "country": "CA",
+        "model": "Null-Ecovacs",
+        "issue_en": "Other::Invalid Consultation",
+        "issue_l1": "Other",
+        "issue_l2": "Invalid Consultation"
+      },
+      {
+        "country": "US",
+        "model": "Unknown / Not Applicable",
+        "issue_en": "Other::Invalid Consultation",
+        "issue_l1": "Other",
+        "issue_l2": "Invalid Consultation"
+      }
+    ],
+    "Product experience": [
+      {
+        "country": "US",
+        "model": "YEEDI C12 PLUS",
+        "issue_en": "Product experience::Low suction power",
+        "issue_l1": "Product experience",
+        "issue_l2": "Low suction power"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT T50 PRO OMNI",
+        "issue_en": "Product experience::Unable to climb slopes",
+        "issue_l1": "Product experience",
+        "issue_l2": "Unable to climb slopes"
+      },
+      {
+        "country": "US",
+        "model": "DEEBOT X9 PRO OMNI",
+        "issue_en": "Product experience::Voice volume too low",
+        "issue_l1": "Product experience",
+        "issue_l2": "Voice volume too low"
+      }
+    ]
+  },
+  "issue_translation": {
+    "Failure": "故障",
+    "How to use": "使用指导",
+    "Aftersale-Service inquiry": "售后服务咨询",
+    "Product experience": "产品体验",
+    "Damaged parts": "部件损坏",
+    "Express Related": "物流相关",
+    "Other": "其他",
+    "Complaint": "投诉",
+    "Pre-sales": "售前咨询",
+    "DTC-Aftersales": "DTC售后",
+    "Not working after powered on/Deebot light blinking but can not work": "开机后无法工作/指示灯闪烁但无法工作",
+    "Low suction power": "吸力不足",
+    "Mop Drying Time Setting": "拖布烘干时间设置",
+    "Auto-empty malfunction": "自动集尘故障",
+    "OK-YIKO Assistant": "OK-YIKO语音助手",
+    "Robot spins in circles or moves backward": "机器人原地打转或后退",
+    "Unable to return to station": "无法返回基站",
+    "Charging instruction": "充电说明",
+    "Missed cleaning in areas": "区域漏扫",
+    "Prolonged mop drying duration / Drying does not stop": "拖布烘干时间过长/烘干不停止",
+    "Replacement Efficiency Consultation": "更换效率咨询",
+    "Cleaning mode switch": "清洁模式切换",
+    "App connection": "APP连接",
+    "Deformed side brush": "边刷变形",
+    "Abnormal delivery": "配送异常",
+    "Invalid Consultation": "无效咨询",
+    "New machines": "新机器使用",
+    "Unable to connect to WiFi": "无法连接WiFi",
+    "Obstacle avoidance malfunction": "避障故障",
+    "Mapping malfunction": "建图故障",
+    "Mopping malfunction": "拖地故障",
+    "Water tank leakage": "水箱漏水",
+    "Noise": "噪音",
+    "Battery malfunction": "电池故障",
+    "Brush malfunction": "刷子故障"
+  }
+}

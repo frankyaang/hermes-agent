@@ -1140,6 +1140,60 @@ def test_interim_commentary_preserves_assistant_content(monkeypatch):
     assert "I'll inspect the repo structure first." in observed["text"]
 
 
+def test_progress_only_assistant_content_is_stripped_for_history(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    message = {
+        "role": "assistant",
+        "content": (
+            "🧭 任务规划\n"
+            "主专家：Weekly Meeting 总结模块写入专家\n"
+            "🛠 执行记录\n"
+            "- 正在新增第二个模块。"
+        ),
+        "codex_message_items": [{"id": "msg_progress", "phase": "commentary"}],
+    }
+
+    sanitized = agent._sanitize_assistant_message_for_history(message)
+
+    assert sanitized["content"] == ""
+    assert sanitized["codex_message_items"] == message["codex_message_items"]
+    assert message["content"].startswith("🧭 任务规划")
+
+
+def test_regular_interim_commentary_is_preserved_for_history(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    message = {
+        "role": "assistant",
+        "content": "我会先检查仓库结构。",
+    }
+
+    sanitized = agent._sanitize_assistant_message_for_history(message)
+
+    assert sanitized is message
+    assert sanitized["content"] == "我会先检查仓库结构。"
+
+
+def test_tool_call_message_strips_progress_but_keeps_tool_calls(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    tool_calls = [
+        {
+            "id": "call_1",
+            "type": "function",
+            "function": {"name": "terminal", "arguments": "{\"command\":\"pwd\"}"},
+        }
+    ]
+    message = {
+        "role": "assistant",
+        "content": "🛠 执行记录\n- 准备运行终端。",
+        "tool_calls": tool_calls,
+    }
+
+    sanitized = agent._sanitize_assistant_message_for_history(message)
+
+    assert sanitized["content"] == ""
+    assert sanitized["tool_calls"] is tool_calls
+
+
 def test_stream_delta_strips_leaked_memory_context(monkeypatch):
     agent = _build_agent(monkeypatch)
     observed = []

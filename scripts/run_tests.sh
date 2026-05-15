@@ -24,18 +24,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Activate venv ───────────────────────────────────────────────────────────
-# Prefer a .venv in the current tree, fall back to the main checkout's venv
-# (useful for worktrees where we don't always duplicate the venv).
+# Prefer HERMES_TEST_VENV (explicit override for worktrees that share a venv
+# from another checkout), then look for a local .venv / venv.
 VENV=""
-for candidate in "$REPO_ROOT/.venv" "$REPO_ROOT/venv" "$HOME/.hermes/hermes-agent/venv"; do
-  if [ -f "$candidate/bin/activate" ]; then
-    VENV="$candidate"
-    break
+if [ -n "${HERMES_TEST_VENV:-}" ]; then
+  if [ ! -f "$HERMES_TEST_VENV/bin/activate" ]; then
+    echo "error: HERMES_TEST_VENV=$HERMES_TEST_VENV does not contain bin/activate" >&2
+    exit 1
   fi
-done
+  VENV="$HERMES_TEST_VENV"
+fi
 
 if [ -z "$VENV" ]; then
-  echo "error: no virtualenv found in $REPO_ROOT/.venv or $REPO_ROOT/venv" >&2
+  for candidate in "$REPO_ROOT/.venv" "$REPO_ROOT/venv" "$HOME/.hermes/hermes-agent/venv"; do
+    if [ -f "$candidate/bin/activate" ]; then
+      VENV="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$VENV" ]; then
+  echo "error: no virtualenv found; set HERMES_TEST_VENV or create $REPO_ROOT/.venv" >&2
   exit 1
 fi
 
@@ -87,18 +97,23 @@ WORKERS="${HERMES_TEST_WORKERS:-4}"
 # ── Run pytest ──────────────────────────────────────────────────────────────
 cd "$REPO_ROOT"
 
-# If the first argument starts with `-` treat all args as pytest flags;
-# otherwise treat them as test paths.
-ARGS=("$@")
-
 echo "▶ running pytest with $WORKERS workers, hermetic env, in $REPO_ROOT"
 echo "  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; all credential env vars unset)"
 
 # -o "addopts=" clears pyproject.toml's `-n auto` so our -n wins.
-exec "$PYTHON" -m pytest \
-  -o "addopts=" \
-  -n "$WORKERS" \
-  --ignore=tests/integration \
-  --ignore=tests/e2e \
-  -m "not integration" \
-  "${ARGS[@]}"
+if [ "$#" -gt 0 ]; then
+  exec "$PYTHON" -m pytest \
+    -o "addopts=" \
+    -n "$WORKERS" \
+    --ignore=tests/integration \
+    --ignore=tests/e2e \
+    -m "not integration" \
+    "$@"
+else
+  exec "$PYTHON" -m pytest \
+    -o "addopts=" \
+    -n "$WORKERS" \
+    --ignore=tests/integration \
+    --ignore=tests/e2e \
+    -m "not integration"
+fi

@@ -1,0 +1,172 @@
+{
+  "run_id": "Run_insight_flow_20260511T070846",
+  "flow_id": "insight_flow",
+  "node_id": "briefing",
+  "node_key": "briefing",
+  "task_id": "insight_flow:briefing",
+  "display_name": "过程汇报",
+  "skill_id": "briefing",
+  "expert_role": "system",
+  "status": "completed",
+  "final_output": false,
+  "generated_at_cst": "2026-05-11 15:19:46 CST",
+  "generated_at_iso": "2026-05-11T15:19:46.847386+08:00",
+  "input_summary": {
+    "source_materials_count": 1,
+    "source_material": "从用户价值、用户体验验证标准和运营优先级角度，分析家庭自主做饭双臂机器人应如何定义 MVP。",
+    "input_type": "用户洞察结论 / 产品MVP定义问题",
+    "output_format": "report"
+  },
+  "executive_summary": "家庭自主做饭双臂机器人的 MVP 应收敛为固定/标准化家庭烹饪工位、标准食材输入和少量高频低风险成餐闭环，优先验证安全可信、免看管、稳定复现、低准备清洁负担和双臂不可替代价值，而不是追求任意厨房、任意食材、任意菜谱的全自主厨师。",
+  "upstream_nodes": {
+    "voc_insight": {
+      "status": "completed",
+      "primary": {
+        "expert_id": "user_analyst",
+        "skill_id": "voc_insight",
+        "api_calls": 9,
+        "duration_seconds": 329.79,
+        "tokens_input": 243359,
+        "tokens_output": 14397,
+        "model": "gpt-5.5",
+        "summary": "家庭自主做饭双臂机器人的MVP不应是任意厨房、任意菜谱的全自主厨师，而应是在标准化家庭厨房与预置食材约束下，安全稳定完成2-3个高频低风险家常烹饪闭环的可信任双臂做饭助手。核心要验证少操心、少站灶台、安全和稳定复现，而不是菜谱数量。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.md",
+        "json_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.json"
+      },
+      "secondary": {
+        "expert_id": "ops_expert",
+        "skill_id": "ops_dashboard",
+        "requested_skill_id": "voc_insight",
+        "dynamic_override": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+        "api_calls": 10,
+        "duration_seconds": 417.44,
+        "tokens_input": 369398,
+        "tokens_output": 12950,
+        "model": "gpt-5.5",
+        "summary": "家庭自主做饭双臂机器人的 MVP 应聚焦固定工位、标准食材输入和少量高频热餐的免看管成餐闭环，而不是全厨房、全菜系、全流程自动化。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.md",
+        "json_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.json"
+      }
+    }
+  },
+  "mvp_definition": {
+    "one_sentence": "在固定/标准化家庭烹饪工位、标准锅具与预置/预切食材约束下，机器人安全、稳定、可恢复地完成2-3个高频低风险热餐/家常菜闭环，让用户无需持续站灶看管，并愿意在真实家庭中反复使用。",
+    "north_star_metric": "有效免看管成餐率",
+    "in_scope": [
+      "固定烹饪工位、标准台面、标准电磁炉/封闭热源、标准锅具/容器位",
+      "预清洗、预切、预称重、净菜盒/标准食材盒",
+      "2-3个高频低风险菜谱或3类高频菜谱原型",
+      "双臂扶持、倒入、刮取、搅拌/翻炒、出锅、装盘",
+      "急停、热区识别、夹碰防护、异常停机/降级",
+      "基础清洁/提示清理和接触食物部件可拆洗"
+    ],
+    "out_of_scope": [
+      "任意厨房自由移动",
+      "开冰箱取菜、洗菜、削皮、复杂切配",
+      "开放明火、高温油炸、复杂肉类熟化",
+      "任意菜谱、大规模菜谱库、复杂多锅大餐",
+      "全自动洗碗、深度厨房清洁、垃圾处理"
+    ],
+    "validation_thresholds": {
+      "safety_incidents": "0",
+      "emergency_stop_response": "<=1s",
+      "lab_success_rate": ">=90% per recipe over 50-100 runs",
+      "home_trial_success_rate": ">=80-85% / target >=85%",
+      "active_user_time_per_meal": "<=5-8min",
+      "attention_release": ">=15-20min or watch-time down >=50%",
+      "taste_satisfaction": ">=3.8-4.0/5 or >=75% willing to repeat",
+      "post_meal_cleanup_time": "<=5min",
+      "reuse": "D7 >=3 uses or weekly active use >=3 times"
+    }
+  },
+  "execution_statistics": {
+    "upstream_expert_calls": 2,
+    "upstream_api_calls_total": 19,
+    "duration_sum_seconds": 747.23,
+    "wallclock_seconds_approx": 418.23,
+    "tokens_input_total": 612757,
+    "tokens_output_total": 27347,
+    "tokens_total": 640104,
+    "dynamic_overrides": 1,
+    "output_quality_average": 90.0
+  },
+  "quality_assessment": {
+    "task_understanding": 95,
+    "insight_consistency": 95,
+    "multi_expert_complementarity": 95,
+    "output_completeness": 95,
+    "data_boundary_transparency": 90,
+    "memory_boundary_compliance": 95
+  },
+  "issues_encountered": [
+    "源材料不是直接 VOC/评论/竞品/质量反馈数据，当前结论属于概念阶段产品策略与验证框架，不能视为样本统计结论。",
+    "任务包中 human_review_required=否/user_gate=false 与上游聚合字段 human_review_decision=missing/human_review_blocking=true 存在字段表征不一致；本节点记录为非阻塞。"
+  ],
+  "missing_inputs": [
+    "目标用户分层与优先人群",
+    "目标厨房、设备体积、价格带和安装约束",
+    "首批菜系/菜谱偏好与 meal-kit 接受度",
+    "安全合规、家庭保险与责任边界",
+    "与智能锅/炒菜机/单臂机器人/外卖/预制菜等替代方案的对比数据",
+    "家庭试点真实失败原因、接管次数、清洁负担、复用频次和信任评分"
+  ],
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T151946_cooking_robot_mvp.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T151946_cooking_robot_mvp.json"
+  ],
+  "files_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/skill_mem/MEMORY.md"
+  ],
+  "upstream_files_verified": {
+    "voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.md": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.md",
+      "exists": true,
+      "bytes": 13388,
+      "lines": 253
+    },
+    "voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.json": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.json",
+      "exists": true,
+      "bytes": 8792,
+      "lines": 229
+    },
+    "voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.md": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.md",
+      "exists": true,
+      "bytes": 15997,
+      "lines": 237
+    },
+    "voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.json": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.json",
+      "exists": true,
+      "bytes": 2649,
+      "lines": 74
+    }
+  },
+  "real_skill_execution": true,
+  "production_llm_required": true,
+  "skill_execution_modes": [
+    "local_agent_system_skill_execution",
+    "production_llm_subagent_current"
+  ],
+  "online_agent_probe": {
+    "credential_status": "direct_key_available",
+    "base_url_configured": true,
+    "provider": "openai-codex",
+    "model": "gpt-5.5"
+  },
+  "audit_checks": {
+    "local_briefing_skill_read": true,
+    "briefing_memory_read": true,
+    "upstream_voc_insight_report_verified": true,
+    "upstream_voc_insight_json_parsed": true,
+    "upstream_ops_dashboard_report_verified": true,
+    "upstream_ops_dashboard_json_parsed": true,
+    "dynamic_override_recorded": true,
+    "human_review_requirement_recorded": true,
+    "final_output_false": true,
+    "output_files_written": true,
+    "memory_boundary_respected": true,
+    "blocking_exception_absent": true
+  }
+}

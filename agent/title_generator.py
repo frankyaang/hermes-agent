@@ -5,6 +5,7 @@ adds latency to the user-facing reply.
 """
 
 import logging
+import re
 import threading
 from typing import Callable, Optional
 
@@ -23,12 +24,30 @@ _TITLE_PROMPT = (
     "following exchange. The title should capture the main topic or intent. "
     "Return ONLY the title text, nothing else. No quotes, no punctuation at the end, no prefixes."
 )
+_FEISHU_REPLY_RE = re.compile(r'^\[Replying to:\s*"(.+?)"\]\s*\n?', re.DOTALL)
+_LEADING_SPEAKER_RE = re.compile(r"^\[[^\]\n]{1,80}\]\s*")
+_URL_RE = re.compile(r"https?://\S+")
+_TITLE_TRIM_CHARS = " \t\r\n。.!！?？:：;；,，\"'“”‘’`[]【】"
+
+
+def fallback_title(user_message: str, assistant_response: str = "") -> Optional[str]:
+    """LLM 标题失败时的本地兜底标题。"""
+    text = user_message or assistant_response or ""
+    text = _FEISHU_REPLY_RE.sub("", text, count=1).strip()
+    text = _LEADING_SPEAKER_RE.sub("", text, count=1).strip()
+    text = _URL_RE.sub("", text)
+    text = " ".join(text.split()).strip(_TITLE_TRIM_CHARS)
+    if not text:
+        return None
+    if len(text) > 80:
+        text = text[:77].rstrip(_TITLE_TRIM_CHARS) + "..."
+    return text or None
 
 
 def generate_title(
     user_message: str,
     assistant_response: str,
-    timeout: float = 30.0,
+    timeout: float = 8.0,
     failure_callback: Optional[FailureCallback] = None,
     main_runtime: dict = None,
 ) -> Optional[str]:
@@ -113,6 +132,8 @@ def auto_title_session(
     title = generate_title(
         user_message, assistant_response, failure_callback=failure_callback, main_runtime=main_runtime
     )
+    if not title:
+        title = fallback_title(user_message, assistant_response)
     if not title:
         return
 

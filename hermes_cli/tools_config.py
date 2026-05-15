@@ -62,6 +62,7 @@ CONFIGURABLE_TOOLSETS = [
     ("todo",            "📋 Task Planning",             "todo"),
     ("memory",          "💾 Memory",                    "persistent memory across sessions"),
     ("session_search",  "🔎 Session Search",            "search past conversations"),
+    ("knowledge",       "🏛️  Business Knowledge",       "product-line knowledge query/write with ACL"),
     ("clarify",         "❓ Clarifying Questions",      "clarify"),
     ("delegation",      "👥 Task Delegation",           "delegate_task"),
     ("cronjob",         "⏰ Cron Jobs",                 "create/list/update/pause/resume/run, with optional attached skills"),
@@ -691,6 +692,14 @@ def _get_platform_tools(
 
     platform_toolsets = config.get("platform_toolsets") or {}
     toolset_names = platform_toolsets.get(platform)
+
+    if (
+        isinstance(platform_toolsets, dict)
+        and platform in platform_toolsets
+        and isinstance(toolset_names, list)
+        and not toolset_names
+    ):
+        return set()
 
     if toolset_names is None or not isinstance(toolset_names, list):
         default_ts = PLATFORMS[platform]["default_toolset"]

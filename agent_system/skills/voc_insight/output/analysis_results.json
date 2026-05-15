@@ -1,0 +1,4274 @@
+{
+  "total_records": 40377,
+  "country_distribution": {
+    "AU": 6463,
+    "US": 6460,
+    "FR": 5570,
+    "DE": 4821,
+    "KR": 4150,
+    "JP": 3711,
+    "IT": 3537,
+    "TW": 1395,
+    "CA": 1011,
+    "IN": 796,
+    "UK": 722,
+    "AT": 418,
+    "HK": 240,
+    "CH": 223,
+    "DK": 158,
+    "NZ": 156,
+    "SE": 104,
+    "NO": 100,
+    "APAC": 78,
+    "FI": 71,
+    "MT": 52,
+    "Unknown": 47,
+    "MY": 24,
+    "BE": 24,
+    "SG": 17,
+    "PR": 16,
+    "IE": 6,
+    "VE": 2,
+    "AR": 2,
+    "VN": 1,
+    "SA": 1,
+    "DO": 1
+  },
+  "brand_distribution": {
+    "DEEBOT": 21928,
+    "Other": 14776,
+    "Unknown": 2888,
+    "YEEDI": 785
+  },
+  "category_distribution": {
+    "Mid-range": 13383,
+    "Entry-level": 13345,
+    "High-end": 8987,
+    "Unknown": 2888,
+    "Other": 1774
+  },
+  "series_distribution": {
+    "T Series": 13383,
+    "N Series": 13345,
+    "X Series": 8987,
+    "Unknown": 2888,
+    "Other Series": 1774
+  },
+  "top_models": {
+    "N/A": 3748,
+    "Null-Ecovacs": 2888,
+    "Unknown / Not Applicable": 1460,
+    "DEEBOT T50 PRO OMNI": 1377,
+    "DEEBOT X8 PRO OMNI": 1184,
+    "Unknown": 1115,
+    "X1 OMNI": 957,
+    "DEEBOT X11 OMNICYCLONE EU": 932,
+    "DEEBOT X11 OmniCyclone": 911,
+    "DEEBOT T80 OMNI": 854,
+    "X2 OMNI": 715,
+    "T20 OMNI": 613,
+    "DEEBOT T50 PRO OMNI BLACK GEN 2 EU": 537,
+    "DEEBOT N30 PRO OMNI": 533,
+    "T10 OMNI": 526,
+    "DEEBOT T50 PRO OMNI WHITE GEN 2 EU": 493,
+    "DEEBOT T50 OMNI": 479,
+    "DEEBOT X5 PRO OMNI": 457,
+    "T30S PRO": 454,
+    "DEEBOT N20 PRO PLUS": 443
+  },
+  "issue_l1_distribution": {
+    "Failure": 19651,
+    "Aftersale-Service inquiry": 5776,
+    "How to use": 3844,
+    "Other": 3187,
+    "Product experience": 1130,
+    "Complaint": 1099,
+    "Damaged parts": 977,
+    "Pre-sales": 900,
+    "Express Related": 658,
+    "DTC-Aftersales": 571,
+    "DTC-Presale": 514,
+    "DTC-Refund": 334,
+    "DTC-Logistics": 310,
+    "Missing parts": 251,
+    "Shipping issues": 180,
+    "DTC-Web page": 152,
+    "DTC-Return Request": 148,
+    "Feedback": 135,
+    "DTC-Members": 131,
+    "Membership": 100,
+    "Invoice Issues": 91,
+    "DTC-Collaboration": 50,
+    "Return Request": 46,
+    "DTC-Complaints": 37,
+    "Gift": 30,
+    "DTC-Payment": 24,
+    "其他": 12,
+    "Mowed area inconsistent with actual area": 5,
+    "Humidifying wet curtain dirt": 4,
+    "The working noise of the water supply and drainage module is loud": 3,
+    "Wi-Fi management": 3,
+    "Breakage": 2,
+    "After-sales - Guide to use - APP pictures (for internal service use, do not select)": 2,
+    "Promotion details complaints": 2,
+    "Track order": 2,
+    "Unknown": 2,
+    "Order refund": 1,
+    "After mapping, the APP does not display/does not map/mapping is messy": 1,
+    "APP information acquisition timed out": 1,
+    "Roller brush damaged part": 1,
+    "Stop and go/alarm": 1,
+    "Firmware upgrade failed/firmware version issue": 1,
+    "Mapping failed": 1,
+    "门店销售产品知识咨询": 1,
+    "非授权渠道买机器寻求支持": 1,
+    "WINBOT working mode": 1,
+    "Can start up but not work/start light flashing but not working": 1,
+    "RTK error 656": 1,
+    "Service parts": 1,
+    "PIN required after OTA update": 1
+  },
+  "issue_l2_distribution": {
+    "Invalid Consultation": 1900,
+    "Repair/Disassembly and Assembly Progress Inquiry": 1390,
+    "Unable to charge/fully charge": 1386,
+    "Waste water cannot be recycled": 1028,
+    "Others": 1022,
+    "DToF/LDS/Navigation module malfunction": 994,
+    "App connection": 916,
+    "Accessory Purchase": 889,
+    "Other": 883,
+    "Drive wheel alarm/Stuck with foreign object": 861,
+    "Agency/Cooperation Consulting": 844,
+    "Unable to return to station": 830,
+    "Robot making abnormal sound/noise": 827,
+    "Station self-cleaning no water come out": 808,
+    "Network setup failed": 775,
+    "Cleaning sink is malfunction or full alarm": 645,
+    "Anti-drop sensors are faulty": 498,
+    "Auto-empty malfunction": 475,
+    "Missed cleaning in areas": 413,
+    "Product": 391,
+    "Device offline after network setup": 380,
+    "Urging Return/Refund": 360,
+    "Robot suddenly powers off by itself": 353,
+    "Side brush not rotating or rotating automatically": 346,
+    "Unable to charge after returning to station": 332,
+    "Map creation": 326,
+    "Deebot water tank not dispensing / Water seeping slowly": 320,
+    "Main brush entangled / Main brush malfunction": 319,
+    "Unable to power on the robot": 313,
+    "Cleaning solution": 313
+  },
+  "country_issue_matrix": {
+    "US": {
+      "Product experience": 161,
+      "Failure": 3075,
+      "How to use": 689,
+      "Aftersale-Service inquiry": 1017,
+      "Damaged parts": 137,
+      "Pre-sales": 126,
+      "Other": 796,
+      "Shipping issues": 32,
+      "Feedback": 32,
+      "DTC-Members": 17,
+      "Missing parts": 31,
+      "Express Related": 69,
+      "DTC-Presale": 82,
+      "DTC-Web page": 15,
+      "DTC-Return Request": 44,
+      "Membership": 28,
+      "Gift": 4,
+      "Complaint": 46,
+      "DTC-Aftersales": 28,
+      "Return Request": 6,
+      "DTC-Collaboration": 2,
+      "DTC-Refund": 8,
+      "DTC-Payment": 12,
+      "DTC-Logistics": 2,
+      "Invoice Issues": 1
+    },
+    "IN": {
+      "How to use": 14,
+      "Failure": 455,
+      "Other": 32,
+      "Product experience": 24,
+      "Aftersale-Service inquiry": 79,
+      "Humidifying wet curtain dirt": 4,
+      "Complaint": 17,
+      "Order refund": 1,
+      "DTC-Aftersales": 122,
+      "Pre-sales": 2,
+      "Mowed area inconsistent with actual area": 5,
+      "Missing parts": 9,
+      "APP information acquisition timed out": 1,
+      "Roller brush damaged part": 1,
+      "Feedback": 2,
+      "Stop and go/alarm": 1,
+      "The working noise of the water supply and drainage module is loud": 3,
+      "After-sales - Guide to use - APP pictures (for internal service use, do not select)": 2,
+      "Wi-Fi management": 3,
+      "Firmware upgrade failed/firmware version issue": 1,
+      "Damaged parts": 6,
+      "Mapping failed": 1,
+      "Promotion details complaints": 2,
+      "Track order": 2,
+      "门店销售产品知识咨询": 1,
+      "非授权渠道买机器寻求支持": 1,
+      "Can start up but not work/start light flashing but not working": 1,
+      "Gift": 1,
+      "Express Related": 1,
+      "Service parts": 1,
+      "PIN required after OTA update": 1
+    },
+    "KR": {
+      "How to use": 644,
+      "Failure": 2219,
+      "Other": 165,
+      "Aftersale-Service inquiry": 824,
+      "Product experience": 123,
+      "Damaged parts": 25,
+      "Missing parts": 17,
+      "Complaint": 27,
+      "Pre-sales": 59,
+      "Return Request": 12,
+      "Membership": 13,
+      "Gift": 12,
+      "Express Related": 5,
+      "Feedback": 1,
+      "Shipping issues": 3,
+      "其他": 1
+    },
+    "IT": {
+      "Failure": 1758,
+      "How to use": 260,
+      "Other": 229,
+      "Aftersale-Service inquiry": 458,
+      "Product experience": 101,
+      "Pre-sales": 75,
+      "Express Related": 64,
+      "DTC-Presale": 51,
+      "Damaged parts": 141,
+      "DTC-Web page": 22,
+      "DTC-Members": 15,
+      "Feedback": 30,
+      "Complaint": 129,
+      "DTC-Logistics": 59,
+      "DTC-Refund": 32,
+      "Missing parts": 31,
+      "DTC-Aftersales": 39,
+      "Shipping issues": 8,
+      "Invoice Issues": 15,
+      "DTC-Collaboration": 3,
+      "Breakage": 1,
+      "Gift": 3,
+      "Return Request": 2,
+      "DTC-Return Request": 5,
+      "Membership": 5,
+      "DTC-Complaints": 1
+    },
+    "CA": {
+      "How to use": 111,
+      "Damaged parts": 21,
+      "Other": 74,
+      "Failure": 449,
+      "Pre-sales": 34,
+      "Aftersale-Service inquiry": 122,
+      "DTC-Presale": 53,
+      "Express Related": 34,
+      "Return Request": 2,
+      "DTC-Refund": 15,
+      "DTC-Members": 5,
+      "Missing parts": 10,
+      "Complaint": 15,
+      "DTC-Aftersales": 20,
+      "Product experience": 18,
+      "DTC-Return Request": 11,
+      "DTC-Collaboration": 2,
+      "Membership": 3,
+      "Shipping issues": 7,
+      "DTC-Payment": 2,
+      "Feedback": 2,
+      "Gift": 1
+    },
+    "FR": {
+      "Express Related": 291,
+      "Failure": 2242,
+      "Feedback": 27,
+      "How to use": 571,
+      "Damaged parts": 176,
+      "Complaint": 204,
+      "Product experience": 212,
+      "Aftersale-Service inquiry": 592,
+      "DTC-Logistics": 138,
+      "Gift": 3,
+      "DTC-Web page": 38,
+      "Membership": 18,
+      "DTC-Refund": 107,
+      "Missing parts": 32,
+      "Invoice Issues": 23,
+      "DTC-Complaints": 17,
+      "DTC-Aftersales": 149,
+      "Other": 328,
+      "DTC-Presale": 121,
+      "After mapping, the APP does not display/does not map/mapping is messy": 1,
+      "Pre-sales": 175,
+      "DTC-Members": 43,
+      "DTC-Collaboration": 9,
+      "DTC-Return Request": 9,
+      "Shipping issues": 35,
+      "Return Request": 3,
+      "DTC-Payment": 3,
+      "其他": 1,
+      "WINBOT working mode": 1,
+      "RTK error 656": 1
+    },
+    "UK": {
+      "Failure": 232,
+      "Complaint": 98,
+      "Damaged parts": 16,
+      "Express Related": 9,
+      "Aftersale-Service inquiry": 50,
+      "DTC-Presale": 12,
+      "Other": 195,
+      "Feedback": 9,
+      "How to use": 19,
+      "DTC-Aftersales": 16,
+      "Product experience": 26,
+      "DTC-Refund": 14,
+      "DTC-Logistics": 3,
+      "Pre-sales": 9,
+      "Shipping issues": 3,
+      "DTC-Members": 4,
+      "Invoice Issues": 1,
+      "DTC-Collaboration": 1,
+      "DTC-Complaints": 1,
+      "Gift": 1,
+      "Missing parts": 3
+    },
+    "PR": {
+      "Failure": 7,
+      "Other": 3,
+      "How to use": 2,
+      "Product experience": 3,
+      "Damaged parts": 1
+    },
+    "Unknown": {
+      "Damaged parts": 6,
+      "Other": 4,
+      "How to use": 2,
+      "Failure": 26,
+      "Aftersale-Service inquiry": 5,
+      "Product experience": 1,
+      "DTC-Presale": 1,
+      "Unknown": 2
+    },
+    "DE": {
+      "Aftersale-Service inquiry": 598,
+      "Failure": 2307,
+      "Complaint": 288,
+      "Product experience": 191,
+      "Damaged parts": 152,
+      "How to use": 272,
+      "DTC-Logistics": 75,
+      "Pre-sales": 130,
+      "Express Related": 75,
+      "DTC-Return Request": 41,
+      "Feedback": 14,
+      "DTC-Refund": 110,
+      "DTC-Collaboration": 20,
+      "DTC-Presale": 65,
+      "Other": 181,
+      "DTC-Aftersales": 106,
+      "DTC-Web page": 35,
+      "Missing parts": 37,
+      "Invoice Issues": 37,
+      "Shipping issues": 28,
+      "DTC-Complaints": 12,
+      "Return Request": 3,
+      "DTC-Members": 32,
+      "Membership": 7,
+      "其他": 1,
+      "Gift": 2,
+      "DTC-Payment": 1,
+      "Breakage": 1
+    },
+    "TW": {
+      "Aftersale-Service inquiry": 329,
+      "Failure": 796,
+      "Membership": 12,
+      "Other": 100,
+      "How to use": 96,
+      "Product experience": 19,
+      "Shipping issues": 23,
+      "Damaged parts": 4,
+      "Feedback": 2,
+      "Missing parts": 2,
+      "DTC-Return Request": 1,
+      "Complaint": 2,
+      "Express Related": 6,
+      "Pre-sales": 1,
+      "DTC-Aftersales": 1,
+      "DTC-Logistics": 1
+    },
+    "AU": {
+      "Aftersale-Service inquiry": 1097,
+      "Complaint": 128,
+      "Failure": 3406,
+      "How to use": 600,
+      "Other": 347,
+      "DTC-Web page": 17,
+      "Product experience": 163,
+      "DTC-Return Request": 30,
+      "DTC-Aftersales": 49,
+      "Express Related": 71,
+      "Damaged parts": 191,
+      "DTC-Presale": 93,
+      "Pre-sales": 107,
+      "Shipping issues": 28,
+      "DTC-Logistics": 14,
+      "Missing parts": 48,
+      "Return Request": 6,
+      "DTC-Refund": 32,
+      "Membership": 4,
+      "DTC-Members": 10,
+      "Feedback": 8,
+      "Invoice Issues": 2,
+      "DTC-Payment": 4,
+      "DTC-Collaboration": 4,
+      "DTC-Complaints": 3,
+      "其他": 1
+    },
+    "NZ": {
+      "Failure": 88,
+      "Aftersale-Service inquiry": 31,
+      "How to use": 15,
+      "Other": 7,
+      "DTC-Presale": 2,
+      "Pre-sales": 1,
+      "Damaged parts": 5,
+      "Product experience": 4,
+      "Return Request": 1,
+      "Complaint": 2
+    },
+    "JP": {
+      "Failure": 2130,
+      "Product experience": 62,
+      "Other": 392,
+      "Aftersale-Service inquiry": 346,
+      "How to use": 462,
+      "DTC-Refund": 7,
+      "Express Related": 10,
+      "DTC-Web page": 21,
+      "DTC-Return Request": 4,
+      "DTC-Logistics": 9,
+      "Invoice Issues": 5,
+      "Pre-sales": 133,
+      "Damaged parts": 51,
+      "Shipping issues": 7,
+      "DTC-Aftersales": 12,
+      "Gift": 3,
+      "DTC-Payment": 2,
+      "DTC-Members": 3,
+      "Return Request": 10,
+      "Missing parts": 19,
+      "Complaint": 6,
+      "DTC-Presale": 4,
+      "Feedback": 2,
+      "Membership": 7,
+      "其他": 1,
+      "DTC-Collaboration": 3
+    },
+    "APAC": {
+      "Failure": 26,
+      "DTC-Presale": 4,
+      "Shipping issues": 1,
+      "Aftersale-Service inquiry": 26,
+      "Other": 13,
+      "Complaint": 2,
+      "Product experience": 2,
+      "How to use": 2,
+      "DTC-Aftersales": 1,
+      "Damaged parts": 1
+    },
+    "CH": {
+      "Other": 50,
+      "Aftersale-Service inquiry": 26,
+      "Failure": 80,
+      "Product experience": 7,
+      "Missing parts": 1,
+      "Complaint": 19,
+      "How to use": 17,
+      "DTC-Aftersales": 1,
+      "Pre-sales": 11,
+      "Damaged parts": 5,
+      "DTC-Collaboration": 1,
+      "DTC-Web page": 1,
+      "其他": 1,
+      "Feedback": 2,
+      "DTC-Presale": 1
+    },
+    "DK": {
+      "Other": 44,
+      "Pre-sales": 7,
+      "Failure": 41,
+      "How to use": 10,
+      "Damaged parts": 8,
+      "DTC-Logistics": 1,
+      "DTC-Aftersales": 3,
+      "Aftersale-Service inquiry": 18,
+      "Complaint": 18,
+      "Membership": 2,
+      "Missing parts": 1,
+      "Product experience": 1,
+      "Feedback": 3,
+      "其他": 1
+    },
+    "HK": {
+      "How to use": 23,
+      "Failure": 63,
+      "Aftersale-Service inquiry": 80,
+      "Other": 27,
+      "Complaint": 4,
+      "DTC-Presale": 16,
+      "Pre-sales": 17,
+      "Product experience": 1,
+      "Damaged parts": 3,
+      "Shipping issues": 1,
+      "Express Related": 2,
+      "DTC-Aftersales": 2,
+      "Membership": 1
+    },
+    "SG": {
+      "Failure": 9,
+      "Aftersale-Service inquiry": 6,
+      "Complaint": 1,
+      "How to use": 1
+    },
+    "AT": {
+      "DTC-Aftersales": 18,
+      "Failure": 152,
+      "Aftersale-Service inquiry": 38,
+      "Feedback": 1,
+      "DTC-Logistics": 7,
+      "Complaint": 32,
+      "How to use": 26,
+      "Other": 55,
+      "Damaged parts": 10,
+      "DTC-Refund": 6,
+      "DTC-Collaboration": 4,
+      "Missing parts": 7,
+      "Express Related": 16,
+      "Pre-sales": 9,
+      "Invoice Issues": 7,
+      "Shipping issues": 4,
+      "Product experience": 8,
+      "DTC-Return Request": 3,
+      "DTC-Presale": 5,
+      "其他": 1,
+      "DTC-Web page": 3,
+      "DTC-Members": 2,
+      "DTC-Complaints": 3,
+      "Return Request": 1
+    },
+    "FI": {
+      "Failure": 12,
+      "Pre-sales": 3,
+      "Damaged parts": 6,
+      "Other": 32,
+      "Complaint": 11,
+      "How to use": 1,
+      "Aftersale-Service inquiry": 3,
+      "Product experience": 2,
+      "其他": 1
+    },
+    "MY": {
+      "Aftersale-Service inquiry": 15,
+      "Other": 1,
+      "How to use": 3,
+      "Failure": 2,
+      "DTC-Presale": 1,
+      "Complaint": 2
+    },
+    "NO": {
+      "Complaint": 16,
+      "Failure": 25,
+      "Other": 42,
+      "Missing parts": 2,
+      "DTC-Collaboration": 1,
+      "Damaged parts": 8,
+      "Aftersale-Service inquiry": 2,
+      "其他": 1,
+      "Product experience": 1,
+      "DTC-Aftersales": 1,
+      "Pre-sales": 1
+    },
+    "SE": {
+      "Failure": 36,
+      "Complaint": 15,
+      "Other": 40,
+      "Aftersale-Service inquiry": 5,
+      "Damaged parts": 3,
+      "How to use": 3,
+      "其他": 1,
+      "Missing parts": 1
+    },
+    "BE": {
+      "Express Related": 5,
+      "Failure": 5,
+      "Aftersale-Service inquiry": 5,
+      "DTC-Refund": 3,
+      "Damaged parts": 1,
+      "DTC-Presale": 1,
+      "DTC-Aftersales": 3,
+      "DTC-Logistics": 1
+    },
+    "MT": {
+      "Complaint": 16,
+      "Other": 28,
+      "Aftersale-Service inquiry": 1,
+      "Failure": 4,
+      "其他": 1,
+      "DTC-Presale": 2
+    },
+    "VN": {
+      "Other": 1
+    },
+    "IE": {
+      "Failure": 4,
+      "How to use": 1,
+      "Other": 1
+    },
+    "SA": {
+      "Complaint": 1
+    },
+    "VE": {
+      "Aftersale-Service inquiry": 2
+    },
+    "AR": {
+      "Aftersale-Service inquiry": 1,
+      "Failure": 1
+    },
+    "DO": {
+      "Failure": 1
+    }
+  },
+  "model_issue_matrix": {
+    "YEEDI C12 PLUS": {
+      "Product experience": 1,
+      "Failure": 8,
+      "Damaged parts": 1
+    },
+    "n79s": {
+      "Failure": 35,
+      "Aftersale-Service inquiry": 11,
+      "How to use": 13,
+      "Other": 2,
+      "Missing parts": 2
+    },
+    "Unknown": {
+      "How to use": 29,
+      "Failure": 528,
+      "DTC-Return Request": 11,
+      "Express Related": 48,
+      "Pre-sales": 49,
+      "DTC-Presale": 28,
+      "DTC-Logistics": 15,
+      "DTC-Aftersales": 137,
+      "Other": 39,
+      "Product experience": 29,
+      "Complaint": 14,
+      "Aftersale-Service inquiry": 84,
+      "Humidifying wet curtain dirt": 4,
+      "Shipping issues": 9,
+      "DTC-Refund": 14,
+      "Membership": 1,
+      "Order refund": 1,
+      "After mapping, the APP does not display/does not map/mapping is messy": 1,
+      "DTC-Web page": 12,
+      "Damaged parts": 10,
+      "Mowed area inconsistent with actual area": 5,
+      "Missing parts": 9,
+      "Invoice Issues": 2,
+      "APP information acquisition timed out": 1,
+      "DTC-Members": 4,
+      "Roller brush damaged part": 1,
+      "DTC-Payment": 1,
+      "Feedback": 3,
+      "Stop and go/alarm": 1,
+      "The working noise of the water supply and drainage module is loud": 3,
+      "DTC-Collaboration": 2,
+      "After-sales - Guide to use - APP pictures (for internal service use, do not select)": 2,
+      "Wi-Fi management": 3,
+      "Firmware upgrade failed/firmware version issue": 1,
+      "Mapping failed": 1,
+      "Promotion details complaints": 2,
+      "Track order": 2,
+      "门店销售产品知识咨询": 1,
+      "非授权渠道买机器寻求支持": 1,
+      "WINBOT working mode": 1,
+      "Can start up but not work/start light flashing but not working": 1,
+      "Gift": 1,
+      "Service parts": 1,
+      "PIN required after OTA update": 1,
+      "Unknown": 2
+    },
+    "Null-Ecovacs": {
+      "How to use": 281,
+      "Express Related": 29,
+      "Other": 830,
+      "Failure": 655,
+      "Complaint": 78,
+      "Aftersale-Service inquiry": 695,
+      "DTC-Web page": 21,
+      "DTC-Return Request": 4,
+      "DTC-Presale": 68,
+      "Shipping issues": 10,
+      "Product experience": 33,
+      "Pre-sales": 69,
+      "DTC-Aftersales": 24,
+      "DTC-Logistics": 18,
+      "DTC-Refund": 10,
+      "DTC-Collaboration": 5,
+      "DTC-Complaints": 2,
+      "Damaged parts": 24,
+      "Feedback": 1,
+      "Membership": 9,
+      "DTC-Members": 5,
+      "Missing parts": 7,
+      "DTC-Payment": 2,
+      "Return Request": 6,
+      "Invoice Issues": 1,
+      "Gift": 1
+    },
+    "DEEBOT N30 OMNI": {
+      "Failure": 101,
+      "How to use": 38,
+      "Missing parts": 2,
+      "DTC-Aftersales": 2,
+      "Complaint": 4,
+      "Other": 9,
+      "Aftersale-Service inquiry": 21,
+      "Damaged parts": 6,
+      "Express Related": 2,
+      "DTC-Presale": 3,
+      "Product experience": 3,
+      "Pre-sales": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT X1 OMNI": {
+      "Failure": 109,
+      "Aftersale-Service inquiry": 11,
+      "How to use": 16,
+      "Product experience": 3,
+      "Complaint": 2,
+      "Other": 1,
+      "Pre-sales": 2,
+      "Shipping issues": 1,
+      "Damaged parts": 2,
+      "Membership": 1,
+      "DTC-Presale": 1
+    },
+    "DEEBOT MINI BLUE EU": {
+      "Failure": 45,
+      "Aftersale-Service inquiry": 9,
+      "Complaint": 2,
+      "Pre-sales": 4,
+      "DTC-Return Request": 2,
+      "How to use": 8,
+      "Other": 2,
+      "Missing parts": 1,
+      "DTC-Aftersales": 2,
+      "Damaged parts": 7,
+      "Feedback": 3,
+      "Product experience": 6
+    },
+    "DEEBOT X9 PRO OMNI": {
+      "Aftersale-Service inquiry": 37,
+      "Pre-sales": 4,
+      "Shipping issues": 2,
+      "Failure": 216,
+      "How to use": 41,
+      "Product experience": 16,
+      "Other": 49,
+      "Damaged parts": 15,
+      "Complaint": 5,
+      "DTC-Aftersales": 3,
+      "Membership": 2,
+      "DTC-Return Request": 2,
+      "Express Related": 6,
+      "Gift": 1,
+      "DTC-Presale": 4,
+      "Feedback": 2,
+      "DTC-Logistics": 1,
+      "DTC-Members": 1
+    },
+    "DEEBOT X11 OMNICYCLONE EU": {
+      "How to use": 106,
+      "Failure": 435,
+      "Product experience": 56,
+      "Feedback": 7,
+      "Aftersale-Service inquiry": 83,
+      "Complaint": 32,
+      "DTC-Aftersales": 18,
+      "Express Related": 36,
+      "DTC-Refund": 19,
+      "Pre-sales": 25,
+      "Damaged parts": 39,
+      "DTC-Logistics": 9,
+      "DTC-Presale": 17,
+      "Other": 13,
+      "Invoice Issues": 4,
+      "DTC-Collaboration": 1,
+      "Shipping issues": 13,
+      "DTC-Web page": 4,
+      "DTC-Members": 8,
+      "DTC-Return Request": 4,
+      "Missing parts": 1,
+      "Membership": 1,
+      "DTC-Complaints": 1
+    },
+    "N79W Robot Vacuum": {
+      "How to use": 7,
+      "Failure": 16,
+      "Aftersale-Service inquiry": 3,
+      "Product experience": 2
+    },
+    "DEEBOT X11 OmniCyclone": {
+      "Damaged parts": 19,
+      "Failure": 464,
+      "Aftersale-Service inquiry": 111,
+      "How to use": 123,
+      "Complaint": 10,
+      "Other": 52,
+      "Pre-sales": 14,
+      "Express Related": 21,
+      "DTC-Presale": 12,
+      "Missing parts": 6,
+      "DTC-Return Request": 6,
+      "DTC-Aftersales": 10,
+      "Product experience": 48,
+      "DTC-Refund": 3,
+      "Feedback": 1,
+      "DTC-Logistics": 1,
+      "Shipping issues": 5,
+      "Membership": 2,
+      "Gift": 1,
+      "Return Request": 1,
+      "DTC-Members": 1
+    },
+    "DEEBOT N30 PRO OMNI": {
+      "How to use": 83,
+      "Failure": 325,
+      "DTC-Refund": 1,
+      "Other": 15,
+      "Missing parts": 5,
+      "Aftersale-Service inquiry": 75,
+      "Product experience": 9,
+      "Complaint": 2,
+      "Damaged parts": 3,
+      "Pre-sales": 7,
+      "DTC-Presale": 1,
+      "Shipping issues": 3,
+      "Express Related": 4
+    },
+    "DEEBOT T30S AI": {
+      "Damaged parts": 3,
+      "Failure": 37,
+      "Product experience": 2,
+      "Gift": 1,
+      "How to use": 5,
+      "Shipping issues": 1,
+      "Other": 2,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T50 PRO OMNI": {
+      "Product experience": 41,
+      "Failure": 676,
+      "Aftersale-Service inquiry": 178,
+      "How to use": 262,
+      "Express Related": 13,
+      "Complaint": 17,
+      "Missing parts": 21,
+      "DTC-Presale": 11,
+      "Other": 51,
+      "Feedback": 1,
+      "DTC-Aftersales": 16,
+      "Shipping issues": 6,
+      "DTC-Refund": 7,
+      "Pre-sales": 37,
+      "DTC-Return Request": 7,
+      "Return Request": 6,
+      "DTC-Payment": 4,
+      "Damaged parts": 19,
+      "Gift": 3,
+      "DTC-Members": 1
+    },
+    "DEEBOT T30S": {
+      "Failure": 175,
+      "Feedback": 1,
+      "Damaged parts": 11,
+      "Product experience": 15,
+      "Aftersale-Service inquiry": 17,
+      "How to use": 25,
+      "Pre-sales": 7,
+      "DTC-Return Request": 1,
+      "Express Related": 2,
+      "Other": 3,
+      "Missing parts": 1
+    },
+    "YEEDI M12 PRO+": {
+      "Failure": 69,
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 8,
+      "Product experience": 1,
+      "Missing parts": 2,
+      "How to use": 2,
+      "Feedback": 1,
+      "Other": 1
+    },
+    "DEEBOT OZMO T8": {
+      "Pre-sales": 5,
+      "Aftersale-Service inquiry": 11,
+      "Failure": 92,
+      "Complaint": 1,
+      "Product experience": 4,
+      "How to use": 7,
+      "Other": 2,
+      "Damaged parts": 3,
+      "DTC-Aftersales": 1
+    },
+    "WINBOT MINI Grey EU": {
+      "Failure": 54,
+      "Feedback": 2,
+      "Product experience": 14,
+      "Aftersale-Service inquiry": 15,
+      "How to use": 25,
+      "DTC-Aftersales": 1,
+      "Missing parts": 2,
+      "Complaint": 9,
+      "Pre-sales": 6,
+      "Express Related": 5,
+      "DTC-Logistics": 1,
+      "Shipping issues": 2,
+      "DTC-Collaboration": 1,
+      "DTC-Members": 1,
+      "DTC-Return Request": 1,
+      "DTC-Web page": 3,
+      "DTC-Presale": 1,
+      "DTC-Refund": 1,
+      "Other": 3,
+      "Membership": 2,
+      "Invoice Issues": 1
+    },
+    "WINBOT MINI": {
+      "Failure": 71,
+      "How to use": 18,
+      "Return Request": 4,
+      "Pre-sales": 14,
+      "Aftersale-Service inquiry": 27,
+      "Product experience": 5,
+      "DTC-Refund": 4,
+      "Gift": 2,
+      "DTC-Return Request": 3,
+      "Invoice Issues": 1,
+      "Other": 2,
+      "DTC-Logistics": 1,
+      "DTC-Presale": 2,
+      "Complaint": 1,
+      "DTC-Aftersales": 2,
+      "Express Related": 3,
+      "Membership": 2,
+      "Shipping issues": 3
+    },
+    "Unknown / Not Applicable": {
+      "Other": 450,
+      "Aftersale-Service inquiry": 518,
+      "Failure": 179,
+      "How to use": 65,
+      "Pre-sales": 49,
+      "DTC-Presale": 77,
+      "DTC-Web page": 7,
+      "Feedback": 6,
+      "Damaged parts": 5,
+      "Membership": 15,
+      "Missing parts": 2,
+      "Complaint": 5,
+      "DTC-Aftersales": 7,
+      "Express Related": 24,
+      "Shipping issues": 5,
+      "DTC-Members": 10,
+      "DTC-Collaboration": 2,
+      "DTC-Refund": 7,
+      "DTC-Payment": 8,
+      "DTC-Return Request": 9,
+      "Product experience": 7,
+      "Return Request": 2,
+      "DTC-Logistics": 1
+    },
+    "DEEBOT X2 COMBO EU": {
+      "Failure": 17,
+      "Aftersale-Service inquiry": 10,
+      "How to use": 4,
+      "Complaint": 2,
+      "Damaged parts": 4,
+      "Product experience": 3,
+      "Missing parts": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT T10 PLUS UK": {
+      "Failure": 1,
+      "Damaged parts": 3
+    },
+    "GOAT G1-800 GREY EU": {
+      "Other": 2,
+      "Aftersale-Service inquiry": 4,
+      "Failure": 14,
+      "DTC-Presale": 1,
+      "Product experience": 1,
+      "Complaint": 2,
+      "Pre-sales": 1
+    },
+    "DEEBOT T50 OMNI WHITE EU": {
+      "Damaged parts": 9,
+      "Failure": 85,
+      "How to use": 22,
+      "Missing parts": 3,
+      "Aftersale-Service inquiry": 20,
+      "DTC-Aftersales": 1,
+      "DTC-Presale": 2,
+      "Other": 2,
+      "Express Related": 2,
+      "DTC-Return Request": 1,
+      "Membership": 1,
+      "Complaint": 3,
+      "Product experience": 4,
+      "Shipping issues": 3,
+      "Pre-sales": 2
+    },
+    "DEEBOT T80 OMNI": {
+      "How to use": 157,
+      "Failure": 426,
+      "Aftersale-Service inquiry": 97,
+      "Product experience": 38,
+      "Shipping issues": 4,
+      "Complaint": 5,
+      "Express Related": 6,
+      "DTC-Return Request": 4,
+      "Other": 64,
+      "Missing parts": 5,
+      "Feedback": 7,
+      "Pre-sales": 13,
+      "Damaged parts": 10,
+      "DTC-Payment": 1,
+      "DTC-Presale": 6,
+      "Membership": 3,
+      "Invoice Issues": 2,
+      "DTC-Refund": 4,
+      "DTC-Complaints": 1,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT N20e PLUS": {
+      "Failure": 68,
+      "How to use": 35,
+      "Aftersale-Service inquiry": 6,
+      "Other": 4,
+      "Express Related": 3,
+      "Product experience": 7,
+      "DTC-Return Request": 1,
+      "Complaint": 1,
+      "Damaged parts": 1,
+      "Pre-sales": 1
+    },
+    "Null-YEEDI": {
+      "Other": 79,
+      "Aftersale-Service inquiry": 31,
+      "Failure": 59,
+      "Missing parts": 2,
+      "How to use": 28,
+      "Feedback": 4,
+      "DTC-Aftersales": 1,
+      "Product experience": 3,
+      "Complaint": 3,
+      "Pre-sales": 2,
+      "Express Related": 1,
+      "Damaged parts": 1,
+      "DTC-Collaboration": 1
+    },
+    "DEEBOT N8 EU": {
+      "Damaged parts": 2,
+      "Failure": 18,
+      "Aftersale-Service inquiry": 9,
+      "Pre-sales": 1,
+      "Product experience": 1,
+      "How to use": 3,
+      "Complaint": 1
+    },
+    "DEEBOT X2 OMNI": {
+      "Damaged parts": 9,
+      "Failure": 101,
+      "How to use": 15,
+      "Aftersale-Service inquiry": 10,
+      "Membership": 1,
+      "Pre-sales": 3,
+      "Other": 3,
+      "Product experience": 2,
+      "Shipping issues": 1,
+      "Complaint": 4,
+      "Missing parts": 1
+    },
+    "DEEBOT T30C": {
+      "Failure": 18,
+      "Express Related": 4,
+      "Other": 2,
+      "Complaint": 1,
+      "Pre-sales": 3,
+      "How to use": 8,
+      "DTC-Refund": 1,
+      "Aftersale-Service inquiry": 6,
+      "Product experience": 3,
+      "Damaged parts": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT T80 OMNI WHITE EU": {
+      "How to use": 51,
+      "Membership": 3,
+      "Failure": 184,
+      "DTC-Return Request": 2,
+      "Missing parts": 2,
+      "Invoice Issues": 4,
+      "Aftersale-Service inquiry": 37,
+      "DTC-Refund": 4,
+      "DTC-Aftersales": 20,
+      "Other": 5,
+      "Express Related": 19,
+      "DTC-Presale": 14,
+      "Complaint": 10,
+      "Product experience": 25,
+      "Shipping issues": 4,
+      "Pre-sales": 15,
+      "DTC-Logistics": 4,
+      "DTC-Members": 4,
+      "Damaged parts": 9,
+      "DTC-Complaints": 2,
+      "DTC-Web page": 4,
+      "Feedback": 4,
+      "DTC-Payment": 1
+    },
+    "DEEBOT T50 MAX PRO Black": {
+      "Failure": 92,
+      "Aftersale-Service inquiry": 8,
+      "Damaged parts": 5,
+      "DTC-Aftersales": 2,
+      "How to use": 14,
+      "Complaint": 2,
+      "DTC-Presale": 2,
+      "Express Related": 3,
+      "Other": 31,
+      "Pre-sales": 2,
+      "DTC-Return Request": 3,
+      "Shipping issues": 1,
+      "Missing parts": 4,
+      "Product experience": 3,
+      "DTC-Refund": 1
+    },
+    "yeedi Floor 3 Station": {
+      "Damaged parts": 2,
+      "Aftersale-Service inquiry": 2,
+      "Failure": 16,
+      "Product experience": 1
+    },
+    "yeedi Floor 3": {
+      "Aftersale-Service inquiry": 5,
+      "Failure": 1
+    },
+    "DEEBOT N20 PRO PLUS": {
+      "Failure": 243,
+      "How to use": 76,
+      "Aftersale-Service inquiry": 34,
+      "DTC-Aftersales": 1,
+      "Product experience": 9,
+      "Express Related": 2,
+      "DTC-Refund": 1,
+      "DTC-Logistics": 1,
+      "Pre-sales": 9,
+      "DTC-Members": 2,
+      "Shipping issues": 4,
+      "Other": 6,
+      "Missing parts": 12,
+      "Damaged parts": 34,
+      "DTC-Payment": 1,
+      "DTC-Presale": 3,
+      "DTC-Web page": 1,
+      "DTC-Return Request": 1,
+      "Return Request": 1,
+      "Feedback": 1,
+      "Complaint": 1
+    },
+    "DEEBOT T20e OMNI EU": {
+      "Failure": 84,
+      "Damaged parts": 11,
+      "Other": 2,
+      "Aftersale-Service inquiry": 28,
+      "Complaint": 7,
+      "How to use": 2,
+      "DTC-Presale": 1,
+      "Express Related": 2
+    },
+    "GOAT O1-1000 RTK": {
+      "How to use": 21,
+      "Product experience": 2,
+      "Failure": 13,
+      "Pre-sales": 1,
+      "Express Related": 1,
+      "Aftersale-Service inquiry": 4,
+      "Other": 2
+    },
+    "GOAT O1000 LiDAR PRO": {
+      "Failure": 4,
+      "How to use": 3,
+      "Aftersale-Service inquiry": 3,
+      "Pre-sales": 1,
+      "DTC-Return Request": 1
+    },
+    "OZMOT20 OMNI": {
+      "Failure": 154,
+      "Product experience": 4,
+      "Aftersale-Service inquiry": 13,
+      "How to use": 26,
+      "Pre-sales": 2,
+      "Other": 2,
+      "Express Related": 1,
+      "Membership": 1,
+      "DTC-Refund": 1,
+      "Damaged parts": 4,
+      "DTC-Presale": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT OZMO N8 Pro+ (N8 Pro with Auto-Empty Station)": {
+      "Failure": 25,
+      "Product experience": 1,
+      "How to use": 2,
+      "Aftersale-Service inquiry": 1,
+      "Other": 1
+    },
+    "WINBOT W2 PRO": {
+      "DTC-Presale": 3,
+      "DTC-Members": 1,
+      "Failure": 18,
+      "Aftersale-Service inquiry": 8,
+      "Pre-sales": 2,
+      "Other": 2,
+      "How to use": 2,
+      "Product experience": 9,
+      "DTC-Aftersales": 2,
+      "Complaint": 1,
+      "Express Related": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT N20 PLUS WHITE EU": {
+      "Failure": 102,
+      "How to use": 30,
+      "DTC-Members": 7,
+      "Damaged parts": 6,
+      "Other": 4,
+      "Aftersale-Service inquiry": 25,
+      "Pre-sales": 4,
+      "Breakage": 2,
+      "Missing parts": 7,
+      "Product experience": 4,
+      "DTC-Logistics": 5,
+      "Express Related": 2,
+      "DTC-Refund": 2,
+      "Complaint": 2
+    },
+    "DEEBOT OZMO T8+ (T8 with Self-Empty Station)": {
+      "Failure": 25,
+      "Damaged parts": 2,
+      "Aftersale-Service inquiry": 1,
+      "How to use": 5,
+      "Complaint": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT T80 OMNI BLACK EU": {
+      "Failure": 210,
+      "Aftersale-Service inquiry": 48,
+      "How to use": 41,
+      "Feedback": 3,
+      "DTC-Aftersales": 7,
+      "Damaged parts": 23,
+      "Other": 11,
+      "Complaint": 8,
+      "Pre-sales": 9,
+      "Product experience": 23,
+      "Express Related": 9,
+      "DTC-Refund": 4,
+      "DTC-Logistics": 3,
+      "DTC-Presale": 5,
+      "Invoice Issues": 1,
+      "DTC-Payment": 1,
+      "Missing parts": 1
+    },
+    "DEEBOT T50 OMNI Black": {
+      "How to use": 21,
+      "Failure": 44,
+      "Aftersale-Service inquiry": 8,
+      "DTC-Collaboration": 1,
+      "Missing parts": 2,
+      "Express Related": 2,
+      "Pre-sales": 2,
+      "Other": 4,
+      "Damaged parts": 1,
+      "DTC-Presale": 3,
+      "Feedback": 1,
+      "Complaint": 1
+    },
+    "DEEBOT X8 PRO OMNI": {
+      "Failure": 737,
+      "How to use": 80,
+      "Aftersale-Service inquiry": 188,
+      "Express Related": 8,
+      "Product experience": 49,
+      "Complaint": 17,
+      "Other": 53,
+      "Damaged parts": 13,
+      "Shipping issues": 9,
+      "Pre-sales": 11,
+      "DTC-Aftersales": 1,
+      "Invoice Issues": 1,
+      "DTC-Presale": 3,
+      "Return Request": 4,
+      "Missing parts": 1,
+      "Gift": 2,
+      "DTC-Members": 1,
+      "DTC-Payment": 1,
+      "Membership": 2,
+      "DTC-Logistics": 1,
+      "DTC-Return Request": 1,
+      "DTC-Refund": 1
+    },
+    "DEEBOT X5 OMNI WHITE EU": {
+      "Failure": 125,
+      "Aftersale-Service inquiry": 18,
+      "Missing parts": 2,
+      "Damaged parts": 6,
+      "DTC-Presale": 1,
+      "How to use": 5,
+      "DTC-Aftersales": 1,
+      "Complaint": 5,
+      "Product experience": 10,
+      "Express Related": 1
+    },
+    "WINBOT W2 PRO OMNI": {
+      "Aftersale-Service inquiry": 23,
+      "Failure": 40,
+      "DTC-Members": 1,
+      "Pre-sales": 11,
+      "DTC-Return Request": 3,
+      "How to use": 13,
+      "Product experience": 7,
+      "Other": 3,
+      "Feedback": 1,
+      "Complaint": 3,
+      "Damaged parts": 7,
+      "DTC-Aftersales": 1,
+      "Shipping issues": 4,
+      "DTC-Presale": 3
+    },
+    "WINBOT W2 OMNI": {
+      "Failure": 17,
+      "Shipping issues": 1,
+      "Pre-sales": 2,
+      "Aftersale-Service inquiry": 7,
+      "How to use": 8,
+      "DTC-Presale": 1,
+      "Feedback": 1,
+      "Product experience": 3,
+      "Other": 1
+    },
+    "DEEBOT T30S COMBO": {
+      "Failure": 110,
+      "Aftersale-Service inquiry": 11,
+      "Other": 4,
+      "How to use": 13,
+      "Return Request": 1,
+      "DTC-Presale": 1,
+      "Express Related": 1,
+      "Damaged parts": 1,
+      "Pre-sales": 1,
+      "DTC-Aftersales": 1,
+      "Complaint": 1
+    },
+    "DEEBOT OZMO N8": {
+      "Pre-sales": 1,
+      "Failure": 7,
+      "How to use": 4,
+      "Aftersale-Service inquiry": 2,
+      "Other": 1,
+      "Product experience": 1
+    },
+    "DEEBOT OZMO N8+ Black (N8 with Auto-Empty Station)": {
+      "Pre-sales": 5,
+      "Aftersale-Service inquiry": 12,
+      "Failure": 34,
+      "Product experience": 1,
+      "How to use": 13,
+      "DTC-Presale": 1,
+      "Complaint": 2,
+      "DTC-Members": 1,
+      "DTC-Web page": 1,
+      "Feedback": 1
+    },
+    "DEEBOT U2": {
+      "Aftersale-Service inquiry": 4,
+      "Failure": 3,
+      "How to use": 1,
+      "Pre-sales": 1
+    },
+    "Deebot 500": {
+      "Failure": 6,
+      "How to use": 2,
+      "Aftersale-Service inquiry": 1,
+      "Missing parts": 1
+    },
+    "yeedi mop station pro": {
+      "Failure": 5,
+      "Complaint": 1,
+      "Aftersale-Service inquiry": 2,
+      "Product experience": 1
+    },
+    "X1 OMNI": {
+      "Other": 19,
+      "Feedback": 2,
+      "Failure": 656,
+      "Product experience": 21,
+      "Aftersale-Service inquiry": 148,
+      "Complaint": 9,
+      "How to use": 63,
+      "Return Request": 2,
+      "Membership": 7,
+      "Damaged parts": 10,
+      "Shipping issues": 4,
+      "Pre-sales": 5,
+      "DTC-Aftersales": 3,
+      "DTC-Refund": 1,
+      "DTC-Presale": 3,
+      "Express Related": 2,
+      "Missing parts": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT N20e WHITE EU": {
+      "How to use": 11,
+      "Aftersale-Service inquiry": 12,
+      "Failure": 30,
+      "Other": 1,
+      "Damaged parts": 2,
+      "Product experience": 2,
+      "Complaint": 1
+    },
+    "DEEBOT N10 PLUS": {
+      "Failure": 25,
+      "How to use": 1,
+      "DTC-Members": 1,
+      "Aftersale-Service inquiry": 3,
+      "Damaged parts": 1
+    },
+    "DEEBOT OZMO N7": {
+      "Failure": 7,
+      "Aftersale-Service inquiry": 2
+    },
+    "OZMO930": {
+      "How to use": 1,
+      "Failure": 8
+    },
+    "OZMO T5 Robotic Vacuum": {
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 1,
+      "Failure": 6,
+      "How to use": 1
+    },
+    "DEEBOT U2 Pro": {
+      "How to use": 2,
+      "Failure": 3
+    },
+    "DEEBOT T50 OMNI CARE Black": {
+      "Aftersale-Service inquiry": 2,
+      "Failure": 12,
+      "How to use": 9,
+      "DTC-Refund": 1,
+      "Shipping issues": 3,
+      "Missing parts": 2,
+      "Complaint": 1,
+      "Other": 1
+    },
+    "DEEBOT T10 OMNI": {
+      "Failure": 65,
+      "Damaged parts": 3,
+      "Aftersale-Service inquiry": 11,
+      "How to use": 5,
+      "Product experience": 1,
+      "Other": 3,
+      "DTC-Return Request": 3,
+      "Pre-sales": 1
+    },
+    "DEEBOT T50 MAX PRO OMNI": {
+      "Failure": 156,
+      "How to use": 22,
+      "Aftersale-Service inquiry": 28,
+      "DTC-Members": 1,
+      "Pre-sales": 2,
+      "Other": 3,
+      "Damaged parts": 5,
+      "Express Related": 5,
+      "Shipping issues": 1,
+      "Product experience": 3,
+      "Missing parts": 4,
+      "DTC-Presale": 1,
+      "Complaint": 1
+    },
+    "DEEBOT X8 OMNI WHITE EU": {
+      "Product experience": 6,
+      "Failure": 26,
+      "Aftersale-Service inquiry": 17,
+      "DTC-Refund": 4,
+      "Complaint": 3,
+      "How to use": 8,
+      "Pre-sales": 2,
+      "Missing parts": 1,
+      "Express Related": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT T50 MAX PRO": {
+      "Failure": 123,
+      "Express Related": 1,
+      "DTC-Aftersales": 2,
+      "DTC-Refund": 2,
+      "DTC-Presale": 1,
+      "Aftersale-Service inquiry": 32,
+      "How to use": 15,
+      "Pre-sales": 2,
+      "Product experience": 3,
+      "Missing parts": 4,
+      "Return Request": 1,
+      "Damaged parts": 3,
+      "DTC-Return Request": 1,
+      "DTC-Payment": 1
+    },
+    "Yeedi S16 Plus": {
+      "Failure": 4,
+      "Aftersale-Service inquiry": 2,
+      "Shipping issues": 1,
+      "How to use": 2,
+      "Feedback": 1
+    },
+    "Deebot 661": {
+      "Failure": 4,
+      "How to use": 3,
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT T30C PRO WHITE GEN 2 EU": {
+      "Damaged parts": 2,
+      "Failure": 14,
+      "How to use": 6,
+      "Return Request": 1,
+      "Missing parts": 4,
+      "Aftersale-Service inquiry": 3,
+      "Complaint": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT N50 OMNI": {
+      "Failure": 100,
+      "How to use": 26,
+      "Aftersale-Service inquiry": 5,
+      "Return Request": 1,
+      "Complaint": 1,
+      "Pre-sales": 3,
+      "Feedback": 1,
+      "Damaged parts": 2,
+      "Product experience": 3,
+      "Other": 1,
+      "Missing parts": 4
+    },
+    "DEEBOT N20 PLUS": {
+      "Aftersale-Service inquiry": 12,
+      "How to use": 41,
+      "Failure": 128,
+      "Missing parts": 3,
+      "Express Related": 2,
+      "Damaged parts": 8,
+      "Product experience": 8,
+      "DTC-Aftersales": 1,
+      "Pre-sales": 6,
+      "Shipping issues": 1,
+      "Other": 2,
+      "Invoice Issues": 1,
+      "DTC-Members": 2,
+      "DTC-Presale": 2,
+      "Complaint": 1
+    },
+    "T10 OMNI": {
+      "Failure": 374,
+      "Other": 15,
+      "Aftersale-Service inquiry": 77,
+      "How to use": 49,
+      "Damaged parts": 2,
+      "Complaint": 2,
+      "Pre-sales": 3,
+      "Product experience": 3,
+      "Membership": 1
+    },
+    "DEEBOT MINI": {
+      "Aftersale-Service inquiry": 49,
+      "Failure": 79,
+      "How to use": 31,
+      "DTC-Web page": 1,
+      "Other": 5,
+      "Damaged parts": 13,
+      "Pre-sales": 7,
+      "Product experience": 3,
+      "Feedback": 1,
+      "DTC-Aftersales": 1,
+      "Complaint": 2,
+      "Express Related": 4
+    },
+    "DEEBOT 711": {
+      "Failure": 1
+    },
+    "DEEBOT N10 MAX+ (Black)": {
+      "Failure": 22,
+      "Damaged parts": 1,
+      "How to use": 5,
+      "Aftersale-Service inquiry": 2
+    },
+    "T20e OMNI": {
+      "Other": 3,
+      "Failure": 45,
+      "Complaint": 4,
+      "Aftersale-Service inquiry": 13,
+      "Product experience": 1,
+      "How to use": 2,
+      "Damaged parts": 1
+    },
+    "U2": {
+      "Aftersale-Service inquiry": 5,
+      "Failure": 11,
+      "How to use": 3,
+      "Damaged parts": 1,
+      "Other": 1
+    },
+    "DEEBOT X9 PRO OMNI BLACK EU": {
+      "How to use": 52,
+      "Product experience": 20,
+      "Failure": 206,
+      "Express Related": 7,
+      "Aftersale-Service inquiry": 33,
+      "DTC-Logistics": 8,
+      "DTC-Refund": 3,
+      "Shipping issues": 1,
+      "DTC-Aftersales": 5,
+      "Complaint": 17,
+      "Damaged parts": 24,
+      "DTC-Complaints": 3,
+      "DTC-Presale": 5,
+      "Other": 3,
+      "DTC-Return Request": 1,
+      "Pre-sales": 8,
+      "Return Request": 1,
+      "Missing parts": 3,
+      "Invoice Issues": 2,
+      "DTC-Members": 1,
+      "Feedback": 1
+    },
+    "T9+": {
+      "How to use": 18,
+      "Failure": 203,
+      "Damaged parts": 13,
+      "Product experience": 9,
+      "Aftersale-Service inquiry": 40,
+      "Pre-sales": 6,
+      "DTC-Presale": 1,
+      "Complaint": 2,
+      "Other": 2
+    },
+    "DEEBOT T50 OMNI": {
+      "Failure": 276,
+      "How to use": 74,
+      "Aftersale-Service inquiry": 45,
+      "Complaint": 1,
+      "Pre-sales": 24,
+      "DTC-Refund": 4,
+      "Shipping issues": 2,
+      "Express Related": 4,
+      "Product experience": 16,
+      "DTC-Aftersales": 3,
+      "DTC-Return Request": 1,
+      "Missing parts": 8,
+      "Other": 8,
+      "Damaged parts": 5,
+      "DTC-Web page": 2,
+      "Membership": 3,
+      "DTC-Logistics": 2,
+      "Gift": 1
+    },
+    "W2 OMNI": {
+      "Failure": 30,
+      "Aftersale-Service inquiry": 14,
+      "How to use": 9,
+      "Complaint": 1,
+      "Pre-sales": 3,
+      "Product experience": 1,
+      "Other": 3,
+      "DTC-Refund": 1,
+      "DTC-Presale": 1,
+      "DTC-Aftersales": 1
+    },
+    "Deebot T8 AIVI Plus": {
+      "Failure": 3,
+      "Aftersale-Service inquiry": 4
+    },
+    "DEEBOT TEO OMNI": {
+      "Failure": 28,
+      "How to use": 10,
+      "Aftersale-Service inquiry": 6,
+      "Other": 6,
+      "Damaged parts": 2,
+      "Product experience": 1,
+      "DTC-Web page": 4,
+      "Pre-sales": 1
+    },
+    "Deebot Ozmo920 Smart Navi 3.0": {
+      "Failure": 19,
+      "How to use": 4,
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 3,
+      "Other": 1
+    },
+    "X2 OMNI": {
+      "Failure": 446,
+      "How to use": 59,
+      "Aftersale-Service inquiry": 151,
+      "Product experience": 7,
+      "Complaint": 3,
+      "Other": 16,
+      "Pre-sales": 8,
+      "Damaged parts": 21,
+      "Membership": 1,
+      "Return Request": 2,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT T30 OMNI MIX COMBO COMPLETE (STICK VAC)": {
+      "Failure": 11,
+      "Complaint": 1,
+      "Damaged parts": 1,
+      "How to use": 1,
+      "Pre-sales": 1,
+      "Aftersale-Service inquiry": 2
+    },
+    "N10 PLUS": {
+      "Failure": 60,
+      "Aftersale-Service inquiry": 15,
+      "How to use": 5,
+      "Product experience": 2,
+      "Complaint": 1
+    },
+    "N8": {
+      "Failure": 42,
+      "Membership": 2,
+      "How to use": 7,
+      "Aftersale-Service inquiry": 8,
+      "Damaged parts": 2,
+      "Product experience": 1
+    },
+    "T30S COMBO": {
+      "Product experience": 6,
+      "Pre-sales": 3,
+      "Failure": 102,
+      "How to use": 9,
+      "Complaint": 7,
+      "Aftersale-Service inquiry": 35,
+      "Damaged parts": 3,
+      "DTC-Aftersales": 2,
+      "Other": 2
+    },
+    "Accessory": {
+      "DTC-Aftersales": 12,
+      "Aftersale-Service inquiry": 4,
+      "DTC-Return Request": 15,
+      "Pre-sales": 7,
+      "Other": 13,
+      "DTC-Logistics": 3,
+      "DTC-Payment": 1,
+      "DTC-Presale": 2,
+      "How to use": 1,
+      "DTC-Web page": 3,
+      "DTC-Refund": 4,
+      "DTC-Members": 4,
+      "Failure": 1
+    },
+    "DEEBOT X1": {
+      "Failure": 6,
+      "Complaint": 1,
+      "How to use": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N20": {
+      "Aftersale-Service inquiry": 22,
+      "Failure": 101,
+      "How to use": 20,
+      "DTC-Aftersales": 1,
+      "Product experience": 3,
+      "Damaged parts": 4,
+      "Pre-sales": 6,
+      "Missing parts": 1,
+      "Complaint": 1,
+      "Express Related": 1
+    },
+    "DEEBOT NEO 2.0": {
+      "How to use": 24,
+      "Failure": 70,
+      "DTC-Presale": 1,
+      "Damaged parts": 13,
+      "Other": 4,
+      "DTC-Web page": 1,
+      "Missing parts": 2,
+      "Product experience": 1,
+      "Aftersale-Service inquiry": 17,
+      "Complaint": 3
+    },
+    "DEEBOT 600 Series": {
+      "How to use": 1,
+      "Failure": 1
+    },
+    "DEEBOT X5 PRO OMNI": {
+      "Failure": 282,
+      "Damaged parts": 26,
+      "Aftersale-Service inquiry": 91,
+      "Other": 7,
+      "Pre-sales": 5,
+      "Complaint": 9,
+      "Product experience": 8,
+      "Express Related": 4,
+      "Missing parts": 2,
+      "DTC-Presale": 2,
+      "DTC-Web page": 1,
+      "How to use": 19,
+      "DTC-Refund": 1
+    },
+    "WINBOT W1S": {
+      "How to use": 3,
+      "Aftersale-Service inquiry": 8,
+      "Failure": 32,
+      "Pre-sales": 2,
+      "Complaint": 1,
+      "Product experience": 6,
+      "Other": 3
+    },
+    "N8 PRO": {
+      "Failure": 54,
+      "Other": 1,
+      "Aftersale-Service inquiry": 14,
+      "How to use": 7,
+      "Damaged parts": 1,
+      "Complaint": 1
+    },
+    "T30S PRO": {
+      "Failure": 285,
+      "DTC-Aftersales": 3,
+      "Product experience": 15,
+      "Aftersale-Service inquiry": 82,
+      "How to use": 40,
+      "Complaint": 6,
+      "Other": 10,
+      "Pre-sales": 1,
+      "Damaged parts": 5,
+      "Missing parts": 2,
+      "DTC-Presale": 3,
+      "DTC-Refund": 2
+    },
+    "DEEBOT X11 PRO OMNI": {
+      "Other": 5,
+      "Failure": 87,
+      "Aftersale-Service inquiry": 34,
+      "How to use": 36,
+      "Product experience": 7,
+      "DTC-Aftersales": 2,
+      "Damaged parts": 5,
+      "Feedback": 1,
+      "Pre-sales": 6,
+      "Shipping issues": 2,
+      "Membership": 3,
+      "Complaint": 2,
+      "DTC-Return Request": 1,
+      "DTC-Complaints": 1
+    },
+    "DEEBOT X5 OMNI": {
+      "Product experience": 1,
+      "Failure": 81,
+      "Aftersale-Service inquiry": 10,
+      "Pre-sales": 2,
+      "DTC-Presale": 1,
+      "How to use": 1,
+      "Other": 2,
+      "Damaged parts": 5,
+      "Missing parts": 1
+    },
+    "DEEBOT N7": {
+      "Failure": 5,
+      "Product experience": 1,
+      "Aftersale-Service inquiry": 3,
+      "How to use": 1,
+      "Pre-sales": 2
+    },
+    "N8+": {
+      "Failure": 117,
+      "Damaged parts": 3,
+      "Product experience": 3,
+      "How to use": 12,
+      "Other": 1,
+      "Pre-sales": 2,
+      "Aftersale-Service inquiry": 15,
+      "Complaint": 1,
+      "DTC-Aftersales": 1
+    },
+    "T8 AIVI": {
+      "Failure": 24,
+      "Other": 1,
+      "Aftersale-Service inquiry": 10,
+      "How to use": 2,
+      "Complaint": 1
+    },
+    "X1 TURBO": {
+      "Failure": 60,
+      "Aftersale-Service inquiry": 12,
+      "Product experience": 2,
+      "How to use": 1,
+      "Damaged parts": 2,
+      "Complaint": 1,
+      "Express Related": 1,
+      "Missing parts": 1
+    },
+    "DEEBOT Y1 Pro Plus": {
+      "Failure": 25,
+      "Aftersale-Service inquiry": 11,
+      "How to use": 7,
+      "Pre-sales": 1,
+      "DTC-Return Request": 1,
+      "Missing parts": 1,
+      "Product experience": 1,
+      "Other": 1,
+      "Damaged parts": 1
+    },
+    "T30S": {
+      "Failure": 18,
+      "Damaged parts": 1,
+      "How to use": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT Y1 Plus": {
+      "Failure": 65,
+      "Aftersale-Service inquiry": 6,
+      "How to use": 8,
+      "Pre-sales": 3,
+      "Other": 2,
+      "Membership": 1
+    },
+    "DEEBOT T50 MAX": {
+      "Failure": 7,
+      "Aftersale-Service inquiry": 3,
+      "DTC-Refund": 1,
+      "How to use": 1
+    },
+    "OZMO 920 Series": {
+      "Aftersale-Service inquiry": 13,
+      "Failure": 45,
+      "How to use": 5,
+      "Damaged parts": 1,
+      "Product experience": 2
+    },
+    "T20 OMNI": {
+      "Failure": 465,
+      "Pre-sales": 1,
+      "Membership": 4,
+      "Aftersale-Service inquiry": 78,
+      "How to use": 45,
+      "Damaged parts": 5,
+      "Other": 6,
+      "Product experience": 2,
+      "Complaint": 5,
+      "DTC-Presale": 1,
+      "Express Related": 1
+    },
+    "T30 Pro OMNI": {
+      "Aftersale-Service inquiry": 81,
+      "Failure": 241,
+      "How to use": 40,
+      "Damaged parts": 7,
+      "Other": 10,
+      "Product experience": 16,
+      "Complaint": 6,
+      "DTC-Presale": 2,
+      "Shipping issues": 1,
+      "Pre-sales": 2
+    },
+    "DEEBOT X8 PRO OMNI BLACK UK": {
+      "Damaged parts": 3,
+      "Complaint": 1,
+      "Failure": 19,
+      "Product experience": 4,
+      "Aftersale-Service inquiry": 2,
+      "Feedback": 1,
+      "How to use": 2,
+      "Shipping issues": 1,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT X8 OMNI": {
+      "Failure": 51,
+      "Express Related": 2,
+      "Aftersale-Service inquiry": 11,
+      "How to use": 7,
+      "Product experience": 3,
+      "Membership": 1,
+      "Pre-sales": 1,
+      "DTC-Presale": 1,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT X11 OMNICYCLONE UK": {
+      "Failure": 7,
+      "DTC-Aftersales": 2,
+      "Aftersale-Service inquiry": 11,
+      "Express Related": 4,
+      "DTC-Presale": 2,
+      "Other": 1,
+      "Product experience": 1,
+      "Pre-sales": 1,
+      "Complaint": 3,
+      "How to use": 1,
+      "Feedback": 1
+    },
+    "WINBOT W1 PRO": {
+      "Failure": 133,
+      "Aftersale-Service inquiry": 27,
+      "Product experience": 8,
+      "Express Related": 2,
+      "How to use": 4,
+      "Other": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT T30 OMNI": {
+      "How to use": 15,
+      "Failure": 136,
+      "Aftersale-Service inquiry": 26,
+      "Shipping issues": 1,
+      "Damaged parts": 4,
+      "Pre-sales": 4,
+      "DTC-Aftersales": 2,
+      "Return Request": 1,
+      "Product experience": 3,
+      "Missing parts": 1,
+      "Complaint": 4,
+      "Other": 3
+    },
+    "DEEBOT N9+": {
+      "Failure": 30,
+      "Other": 4,
+      "How to use": 6
+    },
+    "DEEBOT X1 TURBO EU": {
+      "How to use": 1,
+      "Damaged parts": 1,
+      "Failure": 25,
+      "Product experience": 3,
+      "Aftersale-Service inquiry": 1,
+      "Complaint": 3,
+      "Express Related": 1
+    },
+    "DEEBOT X8 PRO OMNI BLACK EU": {
+      "Product experience": 22,
+      "Failure": 245,
+      "Aftersale-Service inquiry": 62,
+      "Damaged parts": 15,
+      "Complaint": 15,
+      "How to use": 17,
+      "Express Related": 4,
+      "DTC-Presale": 1,
+      "Other": 5,
+      "DTC-Aftersales": 2,
+      "Missing parts": 1,
+      "Return Request": 1,
+      "DTC-Web page": 1,
+      "Feedback": 1
+    },
+    "DEEBOT T50 PRO OMNI WHITE EU": {
+      "Failure": 152,
+      "DTC-Logistics": 2,
+      "Aftersale-Service inquiry": 21,
+      "Pre-sales": 5,
+      "Damaged parts": 11,
+      "Membership": 1,
+      "DTC-Presale": 4,
+      "Feedback": 2,
+      "Missing parts": 3,
+      "How to use": 29,
+      "Product experience": 6,
+      "Other": 3,
+      "DTC-Aftersales": 4,
+      "DTC-Refund": 3,
+      "Complaint": 5,
+      "Express Related": 2,
+      "DTC-Complaints": 1,
+      "Shipping issues": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT N79 Series": {
+      "Failure": 1
+    },
+    "DEEBOT NEO 2.0 PLUS": {
+      "Aftersale-Service inquiry": 27,
+      "Failure": 70,
+      "How to use": 31,
+      "Product experience": 5,
+      "Missing parts": 2,
+      "DTC-Presale": 1,
+      "DTC-Return Request": 1,
+      "Damaged parts": 11,
+      "Complaint": 7,
+      "Pre-sales": 1,
+      "DTC-Aftersales": 1,
+      "Other": 2
+    },
+    "DEEBOT T50 PRO OMNI WHITE GEN 2 EU": {
+      "How to use": 57,
+      "Pre-sales": 15,
+      "Failure": 199,
+      "Complaint": 7,
+      "Feedback": 7,
+      "Damaged parts": 13,
+      "Aftersale-Service inquiry": 74,
+      "DTC-Presale": 14,
+      "Express Related": 22,
+      "DTC-Refund": 10,
+      "DTC-Aftersales": 18,
+      "Other": 6,
+      "Product experience": 16,
+      "DTC-Logistics": 5,
+      "Gift": 3,
+      "Invoice Issues": 6,
+      "Shipping issues": 5,
+      "Missing parts": 10,
+      "DTC-Complaints": 1,
+      "DTC-Members": 2,
+      "DTC-Web page": 2,
+      "Membership": 1
+    },
+    "DEEBOT T30C WHITE EU": {
+      "Failure": 87,
+      "Gift": 1,
+      "Aftersale-Service inquiry": 16,
+      "Pre-sales": 5,
+      "How to use": 10,
+      "DTC-Aftersales": 3,
+      "Product experience": 5,
+      "Shipping issues": 1,
+      "Complaint": 4,
+      "DTC-Logistics": 2,
+      "DTC-Web page": 1,
+      "Damaged parts": 2
+    },
+    "DEEBOT T20 OMNI EU 7777": {
+      "Complaint": 2,
+      "Aftersale-Service inquiry": 11,
+      "Failure": 67,
+      "Damaged parts": 2,
+      "Product experience": 2,
+      "How to use": 1,
+      "DTC-Members": 2
+    },
+    "DEEBOT N8+ EU": {
+      "Failure": 41,
+      "Other": 4,
+      "Complaint": 1,
+      "Missing parts": 1,
+      "How to use": 4,
+      "Feedback": 1,
+      "Aftersale-Service inquiry": 7,
+      "Pre-sales": 2,
+      "DTC-Presale": 1,
+      "Damaged parts": 2
+    },
+    "DEEBOT T30C BLACK EU": {
+      "Failure": 37,
+      "Product experience": 3,
+      "Express Related": 2,
+      "Missing parts": 2,
+      "Aftersale-Service inquiry": 3,
+      "How to use": 4,
+      "DTC-Aftersales": 1,
+      "DTC-Refund": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT T50 PRO OMNI BLACK EU": {
+      "Failure": 88,
+      "Aftersale-Service inquiry": 21,
+      "Damaged parts": 7,
+      "Pre-sales": 2,
+      "Complaint": 4,
+      "How to use": 10,
+      "DTC-Aftersales": 1,
+      "Product experience": 12,
+      "Express Related": 3,
+      "DTC-Presale": 2,
+      "Other": 2,
+      "Missing parts": 1,
+      "Shipping issues": 1,
+      "DTC-Refund": 1,
+      "DTC-Web page": 1
+    },
+    "DEEBOT T30 OMNI BLACK EU": {
+      "How to use": 5,
+      "Failure": 163,
+      "Aftersale-Service inquiry": 27,
+      "Complaint": 7,
+      "Damaged parts": 6,
+      "Express Related": 3,
+      "Missing parts": 3,
+      "Other": 1,
+      "DTC-Members": 1,
+      "Product experience": 6,
+      "DTC-Logistics": 2,
+      "DTC-Aftersales": 2,
+      "Pre-sales": 1
+    },
+    "WINBOT W2 PRO OMNI EU": {
+      "DTC-Logistics": 2,
+      "Failure": 42,
+      "DTC-Return Request": 2,
+      "How to use": 14,
+      "Product experience": 12,
+      "Express Related": 2,
+      "Invoice Issues": 3,
+      "DTC-Aftersales": 3,
+      "Aftersale-Service inquiry": 12,
+      "Pre-sales": 6,
+      "Complaint": 9,
+      "DTC-Refund": 1,
+      "DTC-Presale": 5,
+      "Feedback": 2,
+      "Missing parts": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT X2 OMNI WHITE EU": {
+      "Failure": 12,
+      "Aftersale-Service inquiry": 11,
+      "Damaged parts": 1,
+      "Complaint": 2,
+      "Product experience": 1
+    },
+    "WINBOT W1 PRO EU": {
+      "Failure": 73,
+      "Aftersale-Service inquiry": 10,
+      "Product experience": 17,
+      "How to use": 5,
+      "Other": 8,
+      "Pre-sales": 1,
+      "Complaint": 3,
+      "Feedback": 1,
+      "Damaged parts": 2,
+      "Missing parts": 1
+    },
+    "WINBOT W2 OMNI EU": {
+      "Failure": 58,
+      "Aftersale-Service inquiry": 13,
+      "Product experience": 6,
+      "Complaint": 4,
+      "How to use": 2,
+      "Damaged parts": 5,
+      "Other": 2,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT X2 OMNI BLACK EU": {
+      "Product experience": 7,
+      "Failure": 86,
+      "Aftersale-Service inquiry": 32,
+      "Complaint": 5,
+      "Damaged parts": 11,
+      "Other": 3,
+      "How to use": 4,
+      "Express Related": 1,
+      "Pre-sales": 2
+    },
+    "DEEBOT T50 PRO OMNI BLACK GEN 2 EU": {
+      "Failure": 260,
+      "Damaged parts": 25,
+      "Aftersale-Service inquiry": 44,
+      "How to use": 41,
+      "DTC-Return Request": 6,
+      "Invoice Issues": 17,
+      "Other": 4,
+      "DTC-Logistics": 8,
+      "Express Related": 21,
+      "DTC-Refund": 11,
+      "DTC-Aftersales": 24,
+      "Missing parts": 10,
+      "Pre-sales": 28,
+      "Complaint": 6,
+      "DTC-Presale": 8,
+      "Product experience": 10,
+      "DTC-Members": 3,
+      "Return Request": 2,
+      "Feedback": 1,
+      "Shipping issues": 4,
+      "Gift": 1,
+      "DTC-Complaints": 1,
+      "DTC-Web page": 2
+    },
+    "DEEBOT T30 PRO OMNI SILVER EU": {
+      "Failure": 197,
+      "Damaged parts": 18,
+      "Aftersale-Service inquiry": 42,
+      "Missing parts": 3,
+      "Complaint": 13,
+      "How to use": 16,
+      "Product experience": 8,
+      "Pre-sales": 1,
+      "DTC-Members": 1,
+      "Other": 2,
+      "Invoice Issues": 1
+    },
+    "DEEBOT T30 PRO OMNI ROSE EU": {
+      "Failure": 19,
+      "Pre-sales": 2,
+      "DTC-Refund": 1,
+      "Aftersale-Service inquiry": 6,
+      "Complaint": 1
+    },
+    "DEEBOT T50 MAX PRO OMNI BLACK GEN 2 EU": {
+      "Failure": 38,
+      "How to use": 7,
+      "Product experience": 3,
+      "Shipping issues": 3,
+      "Aftersale-Service inquiry": 3,
+      "Other": 1
+    },
+    "GOAT O800 RTK EU": {
+      "Failure": 21,
+      "How to use": 4,
+      "Pre-sales": 4,
+      "DTC-Logistics": 1,
+      "Complaint": 2,
+      "DTC-Aftersales": 2,
+      "DTC-Presale": 2,
+      "Aftersale-Service inquiry": 22,
+      "Product experience": 3,
+      "Other": 1,
+      "DTC-Members": 1,
+      "Feedback": 1,
+      "Express Related": 2,
+      "Missing parts": 1,
+      "DTC-Refund": 1
+    },
+    "DEEBOT X1 OMNI EU": {
+      "Failure": 75,
+      "Product experience": 5,
+      "Damaged parts": 9,
+      "Other": 4,
+      "Express Related": 3,
+      "Aftersale-Service inquiry": 15,
+      "Missing parts": 1,
+      "How to use": 4,
+      "Membership": 1,
+      "Complaint": 1,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT T30C WHITE UK": {
+      "Failure": 4,
+      "Express Related": 2,
+      "Aftersale-Service inquiry": 2,
+      "Pre-sales": 1,
+      "DTC-Presale": 2
+    },
+    "WINBOT W2S OMNI EU": {
+      "Failure": 25,
+      "Pre-sales": 20,
+      "How to use": 12,
+      "Feedback": 4,
+      "DTC-Aftersales": 12,
+      "Express Related": 7,
+      "Aftersale-Service inquiry": 18,
+      "Product experience": 11,
+      "Shipping issues": 5,
+      "DTC-Presale": 12,
+      "Invoice Issues": 3,
+      "DTC-Logistics": 4,
+      "DTC-Web page": 3,
+      "Complaint": 3,
+      "DTC-Refund": 1,
+      "Missing parts": 2,
+      "DTC-Collaboration": 1,
+      "DTC-Members": 1,
+      "Return Request": 1
+    },
+    "DEEBOT T50 OMNI WHITE GEN 2 EU": {
+      "Failure": 112,
+      "How to use": 46,
+      "Aftersale-Service inquiry": 31,
+      "Other": 9,
+      "Missing parts": 10,
+      "DTC-Aftersales": 7,
+      "DTC-Refund": 3,
+      "Complaint": 7,
+      "Damaged parts": 14,
+      "Feedback": 1,
+      "Product experience": 6,
+      "Pre-sales": 13,
+      "Membership": 1,
+      "DTC-Presale": 4,
+      "Express Related": 3,
+      "DTC-Logistics": 1,
+      "Shipping issues": 1,
+      "DTC-Web page": 1
+    },
+    "DEEBOT X2 COMBO": {
+      "Failure": 54,
+      "Aftersale-Service inquiry": 9,
+      "Other": 3,
+      "DTC-Members": 1,
+      "How to use": 5,
+      "DTC-Logistics": 1
+    },
+    "DEEBOT T20 OMNI EU": {
+      "Failure": 170,
+      "Aftersale-Service inquiry": 28,
+      "Pre-sales": 1,
+      "Damaged parts": 15,
+      "Complaint": 11,
+      "How to use": 8,
+      "Product experience": 7,
+      "DTC-Refund": 2,
+      "Express Related": 3,
+      "DTC-Presale": 3
+    },
+    "DEEBOT T50 OMNI BLACK GEN 2 EU": {
+      "Failure": 146,
+      "Aftersale-Service inquiry": 31,
+      "Pre-sales": 8,
+      "Express Related": 8,
+      "DTC-Refund": 6,
+      "How to use": 39,
+      "Feedback": 2,
+      "Product experience": 12,
+      "Complaint": 12,
+      "DTC-Aftersales": 12,
+      "Missing parts": 8,
+      "Damaged parts": 11,
+      "DTC-Presale": 1,
+      "Other": 5,
+      "DTC-Return Request": 3,
+      "DTC-Logistics": 4
+    },
+    "DEEBOT T50 PRO OMNI WHITE Gen 3 EU": {
+      "Damaged parts": 1
+    },
+    "WINBOT W2 EU": {
+      "Failure": 20,
+      "How to use": 3,
+      "Pre-sales": 3,
+      "Complaint": 2,
+      "Product experience": 2,
+      "Other": 1,
+      "Aftersale-Service inquiry": 3,
+      "DTC-Presale": 1,
+      "Feedback": 1
+    },
+    "DEEBOT N10 PLUS EU": {
+      "Failure": 17,
+      "Product experience": 1,
+      "Damaged parts": 4,
+      "Aftersale-Service inquiry": 3
+    },
+    "WINBOT MINI 2 EU": {
+      "Aftersale-Service inquiry": 1,
+      "DTC-Presale": 1
+    },
+    "DEEBOT OZMO 950 EU": {
+      "Product experience": 3,
+      "Failure": 45,
+      "Aftersale-Service inquiry": 8,
+      "Other": 2,
+      "Damaged parts": 4,
+      "DTC-Aftersales": 1,
+      "How to use": 2,
+      "Complaint": 2
+    },
+    "DEEBOT X5 OMNI BLACK EU": {
+      "Failure": 134,
+      "Product experience": 6,
+      "How to use": 7,
+      "DTC-Presale": 2,
+      "Aftersale-Service inquiry": 22,
+      "Missing parts": 2,
+      "Pre-sales": 4,
+      "Damaged parts": 8,
+      "Complaint": 7,
+      "Express Related": 1,
+      "DTC-Web page": 1,
+      "Other": 1
+    },
+    "DEEBOT T20 OMNI UK": {
+      "Failure": 19,
+      "Aftersale-Service inquiry": 1,
+      "Complaint": 2,
+      "Product experience": 3
+    },
+    "DEEBOT T30 MIX PRO": {
+      "Failure": 12,
+      "Aftersale-Service inquiry": 6,
+      "Damaged parts": 1,
+      "Product experience": 2,
+      "Other": 1,
+      "Express Related": 1,
+      "How to use": 1
+    },
+    "WINBOT W1 Pro": {
+      "Failure": 108,
+      "Aftersale-Service inquiry": 8,
+      "Pre-sales": 2,
+      "Product experience": 4,
+      "Membership": 1,
+      "Gift": 1,
+      "Complaint": 1,
+      "Other": 2,
+      "How to use": 2
+    },
+    "GOAT O500 Panorama EU": {
+      "How to use": 7,
+      "Failure": 14,
+      "Aftersale-Service inquiry": 5,
+      "Complaint": 1,
+      "Product experience": 4,
+      "DTC-Aftersales": 3,
+      "DTC-Presale": 1,
+      "Pre-sales": 1,
+      "Express Related": 1
+    },
+    "GOAT O500 Panorama": {
+      "How to use": 1,
+      "Product experience": 3
+    },
+    "DEEBOT T50 MAX PRO OMNI WHITE EU": {
+      "Failure": 46,
+      "Product experience": 4,
+      "How to use": 3,
+      "DTC-Complaints": 1,
+      "Aftersale-Service inquiry": 9,
+      "Pre-sales": 2,
+      "DTC-Aftersales": 1,
+      "Invoice Issues": 2,
+      "Damaged parts": 3,
+      "Other": 1,
+      "Gift": 1,
+      "Shipping issues": 1,
+      "Complaint": 2
+    },
+    "DEEBOT T50 OMNI BLACK EU": {
+      "Product experience": 3,
+      "Failure": 84,
+      "How to use": 16,
+      "Invoice Issues": 1,
+      "Aftersale-Service inquiry": 16,
+      "Other": 4,
+      "Damaged parts": 9,
+      "DTC-Aftersales": 2,
+      "DTC-Return Request": 1,
+      "DTC-Logistics": 1,
+      "Feedback": 2,
+      "Missing parts": 2,
+      "DTC-Presale": 1,
+      "Pre-sales": 2,
+      "Express Related": 1,
+      "Complaint": 2,
+      "DTC-Members": 1
+    },
+    "DEEBOT N50": {
+      "How to use": 18,
+      "Other": 5,
+      "Failure": 49,
+      "Aftersale-Service inquiry": 6,
+      "DTC-Presale": 1,
+      "Product experience": 5,
+      "Complaint": 1,
+      "Feedback": 1
+    },
+    "DEEBOT T30C WHITE GEN 2 EU": {
+      "How to use": 7,
+      "Failure": 43,
+      "Damaged parts": 3,
+      "DTC-Aftersales": 2,
+      "Complaint": 3,
+      "Aftersale-Service inquiry": 4,
+      "Product experience": 1,
+      "Express Related": 2,
+      "Pre-sales": 2,
+      "Other": 4
+    },
+    "DEEBOT X1 OMNI WHITE EU": {
+      "Failure": 7,
+      "Aftersale-Service inquiry": 1,
+      "Express Related": 1
+    },
+    "WINBOT W2 PRO EU": {
+      "How to use": 5,
+      "Failure": 19,
+      "Product experience": 1,
+      "Complaint": 2,
+      "DTC-Aftersales": 4,
+      "Aftersale-Service inquiry": 2,
+      "DTC-Logistics": 1,
+      "Express Related": 2,
+      "Invoice Issues": 1,
+      "Pre-sales": 4,
+      "DTC-Presale": 2,
+      "DTC-Refund": 1
+    },
+    "DEEBOT T9 UK": {
+      "Failure": 5
+    },
+    "DEEBOT N8 PRO EU": {
+      "Failure": 25,
+      "DTC-Aftersales": 1,
+      "Product experience": 4,
+      "How to use": 1,
+      "DTC-Presale": 1,
+      "Damaged parts": 2,
+      "Aftersale-Service inquiry": 2,
+      "Complaint": 1
+    },
+    "DEEBOT OZMO N8 Pro": {
+      "Failure": 7,
+      "Damaged parts": 1,
+      "Other": 2
+    },
+    "DEEBOT 605 EU": {
+      "Pre-sales": 1,
+      "Failure": 4,
+      "Aftersale-Service inquiry": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT T50 PRO OMNI White": {
+      "Failure": 11,
+      "Aftersale-Service inquiry": 2,
+      "Product experience": 4,
+      "Other": 3,
+      "Complaint": 1
+    },
+    "YEEDI Vac 2 pro": {
+      "Failure": 72,
+      "Other": 1,
+      "Damaged parts": 19,
+      "Aftersale-Service inquiry": 1,
+      "DTC-Web page": 2,
+      "Missing parts": 1
+    },
+    "DEEBOT T30S PRO BLACK EU": {
+      "Failure": 113,
+      "Aftersale-Service inquiry": 22,
+      "Damaged parts": 8,
+      "Product experience": 8,
+      "Express Related": 2,
+      "DTC-Presale": 1,
+      "How to use": 8,
+      "Feedback": 1,
+      "DTC-Aftersales": 2,
+      "Complaint": 2,
+      "Other": 1
+    },
+    "DEEBOT OZMO T8 AIVI 0021": {
+      "Failure": 3,
+      "How to use": 3
+    },
+    "YEEDI Vac station": {
+      "Failure": 20,
+      "Aftersale-Service inquiry": 9,
+      "Damaged parts": 4,
+      "How to use": 4,
+      "Missing parts": 1
+    },
+    "DEEBOT T50 PRO OMNI WHITE UK": {
+      "Damaged parts": 1,
+      "Failure": 9,
+      "DTC-Presale": 4,
+      "How to use": 1,
+      "Pre-sales": 2,
+      "Express Related": 1,
+      "Product experience": 2,
+      "Aftersale-Service inquiry": 2,
+      "Other": 3,
+      "DTC-Members": 1,
+      "DTC-Aftersales": 3,
+      "DTC-Refund": 1,
+      "Missing parts": 2
+    },
+    "DEEBOT N8+ UK": {
+      "Failure": 11,
+      "Aftersale-Service inquiry": 2,
+      "How to use": 1,
+      "Product experience": 3
+    },
+    "DEEBOT U2 EU 0069": {
+      "Aftersale-Service inquiry": 1,
+      "Other": 1
+    },
+    "GOAT A1600 RTK EU": {
+      "Failure": 24,
+      "Aftersale-Service inquiry": 21,
+      "Product experience": 1,
+      "Complaint": 2,
+      "DTC-Refund": 2,
+      "Other": 2,
+      "Pre-sales": 2,
+      "How to use": 3,
+      "DTC-Logistics": 1,
+      "Damaged parts": 4,
+      "RTK error 656": 1
+    },
+    "Yeedi M14 Plus": {
+      "Failure": 23,
+      "Aftersale-Service inquiry": 5,
+      "How to use": 4,
+      "Product experience": 2,
+      "Membership": 2
+    },
+    "Deebot 901": {
+      "How to use": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "yeedi cube": {
+      "Failure": 53,
+      "Damaged parts": 12,
+      "Product experience": 4,
+      "Aftersale-Service inquiry": 11,
+      "Complaint": 1
+    },
+    "yeedi cube (black)": {
+      "Failure": 4,
+      "How to use": 1
+    },
+    "DEEBOT T80S OMNI BLACK EU": {
+      "DTC-Members": 1,
+      "DTC-Refund": 1,
+      "How to use": 2,
+      "Pre-sales": 2,
+      "DTC-Presale": 1,
+      "Failure": 2
+    },
+    "DEEBOT X5 PRO OMNI BLACK EU": {
+      "Failure": 19,
+      "Invoice Issues": 1,
+      "How to use": 1
+    },
+    "GOAT A1-3000 LiDAR": {
+      "Failure": 7,
+      "Complaint": 1,
+      "How to use": 8
+    },
+    "DEEBOT N20 PRO PLUS WHITE EU": {
+      "Damaged parts": 4,
+      "Aftersale-Service inquiry": 7,
+      "Product experience": 4,
+      "Failure": 40,
+      "Pre-sales": 1,
+      "How to use": 8,
+      "DTC-Web page": 1,
+      "DTC-Logistics": 1
+    },
+    "DEEBOT T10 Plus": {
+      "How to use": 10,
+      "Aftersale-Service inquiry": 3,
+      "Failure": 17,
+      "Damaged parts": 1,
+      "Membership": 1
+    },
+    "Yeedi S14 Plus": {
+      "Failure": 17,
+      "Return Request": 1,
+      "DTC-Presale": 1,
+      "Feedback": 3,
+      "Damaged parts": 1,
+      "Complaint": 1,
+      "How to use": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "YEEDI S20 Infinity": {
+      "Failure": 5,
+      "Feedback": 1,
+      "Aftersale-Service inquiry": 2,
+      "Product experience": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT X8 OMNI BLACK EU": {
+      "Failure": 136,
+      "Aftersale-Service inquiry": 48,
+      "How to use": 34,
+      "DTC-Complaints": 2,
+      "Product experience": 18,
+      "Pre-sales": 6,
+      "Missing parts": 6,
+      "Complaint": 4,
+      "Express Related": 7,
+      "DTC-Presale": 3,
+      "DTC-Aftersales": 6,
+      "Invoice Issues": 2,
+      "DTC-Refund": 4,
+      "Other": 4,
+      "DTC-Web page": 1,
+      "Damaged parts": 5,
+      "Membership": 1,
+      "Gift": 1
+    },
+    "YEEDI C12": {
+      "Failure": 5,
+      "How to use": 4,
+      "Complaint": 1
+    },
+    "N10": {
+      "Failure": 30,
+      "Aftersale-Service inquiry": 10,
+      "Feedback": 1,
+      "Product experience": 2,
+      "Damaged parts": 1,
+      "Other": 1
+    },
+    "T10 TURBO": {
+      "Failure": 50,
+      "Aftersale-Service inquiry": 17,
+      "How to use": 7
+    },
+    "OZMO 950 Series": {
+      "Failure": 41,
+      "Aftersale-Service inquiry": 2,
+      "Other": 2
+    },
+    "Pallet Table Basic Version": {
+      "Other": 178,
+      "Feedback": 7,
+      "Failure": 3,
+      "Complaint": 4,
+      "DTC-Presale": 1,
+      "Aftersale-Service inquiry": 2,
+      "How to use": 2
+    },
+    "DEEBOT X11 PRO OMNI With Auto Refill And Drain": {
+      "How to use": 52,
+      "Failure": 20,
+      "Aftersale-Service inquiry": 25,
+      "Gift": 6,
+      "Product experience": 3,
+      "Pre-sales": 3,
+      "Damaged parts": 1,
+      "Other": 1,
+      "Complaint": 1
+    },
+    "DEEBOT X1 OMNI UK": {
+      "Failure": 9,
+      "Product experience": 2,
+      "Other": 2,
+      "Damaged parts": 1,
+      "Complaint": 1
+    },
+    "X1S Pro Plus": {
+      "Failure": 27,
+      "How to use": 4,
+      "Other": 1,
+      "Aftersale-Service inquiry": 5,
+      "Product experience": 3
+    },
+    "DEEBOT NEO+": {
+      "Failure": 9,
+      "Damaged parts": 1,
+      "Missing parts": 2,
+      "Aftersale-Service inquiry": 6,
+      "Pre-sales": 1,
+      "How to use": 3,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT Y1 Pro": {
+      "Aftersale-Service inquiry": 16,
+      "Failure": 24,
+      "How to use": 8,
+      "Pre-sales": 1,
+      "Product experience": 1
+    },
+    "DEEBOT mini PRO": {
+      "Failure": 5,
+      "How to use": 2,
+      "Other": 1
+    },
+    "N8 PRO+": {
+      "Failure": 114,
+      "Aftersale-Service inquiry": 14,
+      "How to use": 5,
+      "Damaged parts": 2,
+      "Pre-sales": 2,
+      "Complaint": 2
+    },
+    "WINBOT W2S": {
+      "Aftersale-Service inquiry": 24,
+      "How to use": 6,
+      "Return Request": 1,
+      "Shipping issues": 4,
+      "Express Related": 1,
+      "Pre-sales": 1,
+      "DTC-Refund": 1,
+      "DTC-Return Request": 2,
+      "Failure": 4,
+      "DTC-Aftersales": 2,
+      "Feedback": 2
+    },
+    "T9": {
+      "Aftersale-Service inquiry": 14,
+      "Failure": 68,
+      "Damaged parts": 4,
+      "Product experience": 4,
+      "How to use": 6,
+      "Other": 1
+    },
+    "T8": {
+      "Failure": 58,
+      "How to use": 6,
+      "Aftersale-Service inquiry": 7
+    },
+    "AIRBOT Z1 EU": {
+      "DTC-Presale": 2,
+      "Complaint": 2,
+      "Aftersale-Service inquiry": 10,
+      "Failure": 2
+    },
+    "DEEBOT N8 UK": {
+      "Complaint": 2,
+      "Aftersale-Service inquiry": 2,
+      "Failure": 1,
+      "How to use": 1
+    },
+    "S9 Artist Pro": {
+      "Other": 8,
+      "How to use": 1
+    },
+    "GOAT A1-2500 RTK": {
+      "How to use": 6,
+      "Failure": 11,
+      "Product experience": 1,
+      "Other": 5,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT X2 PRO OMNI": {
+      "How to use": 14,
+      "Failure": 25,
+      "Aftersale-Service inquiry": 9,
+      "Damaged parts": 2,
+      "Express Related": 1,
+      "Other": 2
+    },
+    "DEEBOT N20 PRO": {
+      "Failure": 19,
+      "How to use": 9,
+      "Aftersale-Service inquiry": 17,
+      "Pre-sales": 1,
+      "Damaged parts": 3,
+      "Express Related": 1
+    },
+    "DEEBOT OZMO 960": {
+      "Failure": 2
+    },
+    "AVA": {
+      "Failure": 2,
+      "Pre-sales": 1,
+      "Aftersale-Service inquiry": 3,
+      "How to use": 1
+    },
+    "WINBOT W2S OMNI": {
+      "Shipping issues": 15,
+      "Aftersale-Service inquiry": 35,
+      "How to use": 9,
+      "Express Related": 6,
+      "DTC-Aftersales": 2,
+      "Pre-sales": 4,
+      "DTC-Refund": 1,
+      "Missing parts": 1
+    },
+    "DEEBOT OZMO 610 Series": {
+      "Product experience": 1,
+      "How to use": 1,
+      "Failure": 6,
+      "DTC-Return Request": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T30C PRO WHITE EU": {
+      "Damaged parts": 3,
+      "Failure": 28,
+      "DTC-Return Request": 1,
+      "Aftersale-Service inquiry": 6,
+      "Pre-sales": 1,
+      "Product experience": 1,
+      "Complaint": 2,
+      "Missing parts": 1,
+      "How to use": 1
+    },
+    "DEEBOT N20e": {
+      "Aftersale-Service inquiry": 1,
+      "Failure": 11,
+      "How to use": 12,
+      "Pre-sales": 1,
+      "Express Related": 1,
+      "Missing parts": 1,
+      "Product experience": 2
+    },
+    "DEEBOT T9 AIVI EU": {
+      "Failure": 21,
+      "How to use": 1,
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 1,
+      "Other": 1
+    },
+    "DEEBOT T30S WHITE EU": {
+      "Failure": 29,
+      "Aftersale-Service inquiry": 4,
+      "DTC-Refund": 1,
+      "Complaint": 1,
+      "How to use": 2,
+      "Damaged parts": 1,
+      "Product experience": 1
+    },
+    "WINBOT W2S EU": {
+      "DTC-Presale": 2,
+      "Failure": 19,
+      "DTC-Web page": 1,
+      "Pre-sales": 3,
+      "Express Related": 1,
+      "Aftersale-Service inquiry": 9,
+      "Invoice Issues": 1,
+      "Complaint": 2,
+      "How to use": 1
+    },
+    "DEEBOT N30 PRO OMNI BLACK EU": {
+      "Damaged parts": 1,
+      "Failure": 22,
+      "Product experience": 3,
+      "Other": 2,
+      "Aftersale-Service inquiry": 4,
+      "Complaint": 1,
+      "Shipping issues": 1
+    },
+    "DEEBOT OZMO 930 EU": {
+      "Damaged parts": 1,
+      "Failure": 3,
+      "Aftersale-Service inquiry": 1,
+      "How to use": 1
+    },
+    "DEEBOT N30 PRO OMNI WHITE EU": {
+      "Aftersale-Service inquiry": 30,
+      "Failure": 135,
+      "How to use": 12,
+      "Complaint": 5,
+      "Feedback": 2,
+      "Other": 4,
+      "Damaged parts": 7,
+      "Express Related": 4,
+      "Pre-sales": 1,
+      "DTC-Complaints": 1,
+      "Product experience": 4,
+      "DTC-Refund": 1,
+      "Shipping issues": 1
+    },
+    "DEEBOT T30S COMBO COMPLETE BLACK EU": {
+      "Failure": 68,
+      "Damaged parts": 5,
+      "Aftersale-Service inquiry": 13,
+      "How to use": 2,
+      "Complaint": 9,
+      "DTC-Refund": 1,
+      "Pre-sales": 1,
+      "Product experience": 2,
+      "Other": 1,
+      "Express Related": 2,
+      "Missing parts": 1
+    },
+    "X1 PLUS": {
+      "Failure": 41,
+      "Product experience": 3,
+      "Aftersale-Service inquiry": 11,
+      "Damaged parts": 2,
+      "Shipping issues": 1,
+      "Return Request": 1,
+      "Feedback": 1
+    },
+    "DEEBOT T10 TURBO EU": {
+      "Failure": 11,
+      "Product experience": 1,
+      "How to use": 2,
+      "Aftersale-Service inquiry": 2,
+      "Complaint": 1
+    },
+    "DEEBOT N20 WHITE EU": {
+      "Aftersale-Service inquiry": 7,
+      "How to use": 6,
+      "Other": 2,
+      "Failure": 15,
+      "Damaged parts": 2,
+      "Pre-sales": 1
+    },
+    "DEEBOT X8 PRO OMNI with Auto Refill and Drain BLACK EU": {
+      "Product experience": 1,
+      "Complaint": 1
+    },
+    "YEEDI Mop station": {
+      "How to use": 1,
+      "Failure": 17,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N8 PRO+ EU": {
+      "Product experience": 2,
+      "Failure": 20,
+      "Aftersale-Service inquiry": 5,
+      "How to use": 1,
+      "Invoice Issues": 1,
+      "DTC-Return Request": 1
+    },
+    "DEEBOT T30S COMBO WHITE EU": {
+      "Damaged parts": 1,
+      "Failure": 13,
+      "DTC-Return Request": 1,
+      "How to use": 3,
+      "Aftersale-Service inquiry": 5,
+      "Pre-sales": 1,
+      "Invoice Issues": 1,
+      "Complaint": 1,
+      "Express Related": 1
+    },
+    "DEEBOT T50 MAX PRO OMNI WHITE GEN 2 EU": {
+      "Failure": 18,
+      "DTC-Presale": 1,
+      "Invoice Issues": 1,
+      "Aftersale-Service inquiry": 2,
+      "Express Related": 1,
+      "Product experience": 1,
+      "Missing parts": 2,
+      "How to use": 1,
+      "DTC-Return Request": 1,
+      "Complaint": 1
+    },
+    "DEEBOT N10 EU": {
+      "Damaged parts": 1,
+      "How to use": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T30C BLACK GEN 2 EU": {
+      "Failure": 47,
+      "How to use": 9,
+      "Aftersale-Service inquiry": 7,
+      "Damaged parts": 3,
+      "DTC-Refund": 1,
+      "Product experience": 4,
+      "Pre-sales": 1,
+      "Complaint": 1
+    },
+    "DEEBOT OZMO T8 AIVI+": {
+      "Other": 1,
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 1,
+      "Failure": 1,
+      "Complaint": 2,
+      "How to use": 1
+    },
+    "DEEBOT T10 PLUS EU": {
+      "Failure": 11,
+      "Other": 4,
+      "Aftersale-Service inquiry": 4,
+      "Product experience": 1,
+      "How to use": 3,
+      "Complaint": 1,
+      "Damaged parts": 1
+    },
+    "N/A": {
+      "Express Related": 213,
+      "Failure": 573,
+      "DTC-Web page": 59,
+      "Product experience": 42,
+      "How to use": 192,
+      "Pre-sales": 138,
+      "Complaint": 474,
+      "DTC-Refund": 155,
+      "DTC-Aftersales": 125,
+      "Aftersale-Service inquiry": 368,
+      "Missing parts": 8,
+      "Other": 818,
+      "DTC-Members": 55,
+      "DTC-Logistics": 193,
+      "DTC-Collaboration": 34,
+      "DTC-Presale": 111,
+      "Shipping issues": 26,
+      "Feedback": 26,
+      "DTC-Return Request": 26,
+      "Damaged parts": 34,
+      "DTC-Complaints": 16,
+      "Invoice Issues": 27,
+      "Gift": 1,
+      "Return Request": 3,
+      "Membership": 17,
+      "DTC-Payment": 2,
+      "其他": 12
+    },
+    "DEEBOT OZMO 920 EU 2789": {
+      "Failure": 23,
+      "Aftersale-Service inquiry": 7,
+      "How to use": 5,
+      "DTC-Web page": 2,
+      "Other": 1
+    },
+    "DEEBOT T50 PRO OMNI WITH AUTO REFILL AND DRAIN WHITE EU": {
+      "Failure": 6,
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 2,
+      "DTC-Logistics": 1,
+      "DTC-Refund": 1,
+      "DTC-Return Request": 1,
+      "How to use": 1
+    },
+    "DEEBOT T50 MAX PRO OMNI BLACK EU": {
+      "Failure": 37,
+      "Aftersale-Service inquiry": 5,
+      "Product experience": 2,
+      "Damaged parts": 3,
+      "How to use": 2,
+      "Pre-sales": 2,
+      "DTC-Aftersales": 1,
+      "Complaint": 1,
+      "Express Related": 1
+    },
+    "DEEBOT N20 PRO PLUS BLACK EU": {
+      "Failure": 10,
+      "How to use": 2,
+      "Missing parts": 1,
+      "Complaint": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T9+ EU": {
+      "Aftersale-Service inquiry": 8,
+      "Failure": 36,
+      "How to use": 6,
+      "Damaged parts": 2,
+      "Product experience": 1,
+      "Other": 2
+    },
+    "DEEBOT OZMO T8 AIVI UK": {
+      "Failure": 12,
+      "Product experience": 1,
+      "Complaint": 1
+    },
+    "GOAT A3000 LiDAR EU": {
+      "Aftersale-Service inquiry": 10,
+      "How to use": 3,
+      "Damaged parts": 2,
+      "Failure": 8,
+      "Missing parts": 1,
+      "Express Related": 1,
+      "Complaint": 5,
+      "DTC-Presale": 1
+    },
+    "WINBOT MINI Beige EU": {
+      "How to use": 3,
+      "Failure": 13,
+      "DTC-Aftersales": 2,
+      "Aftersale-Service inquiry": 4,
+      "Complaint": 1,
+      "Product experience": 1
+    },
+    "DEEBOT OZMO T8+": {
+      "Damaged parts": 3,
+      "Complaint": 1,
+      "Failure": 32,
+      "Aftersale-Service inquiry": 1,
+      "How to use": 1,
+      "Other": 2
+    },
+    "Deebot OZMO T8 AIVI Robot": {
+      "Failure": 18,
+      "How to use": 2,
+      "Product experience": 1,
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT TEO+": {
+      "How to use": 3,
+      "Aftersale-Service inquiry": 1,
+      "DTC-Presale": 1,
+      "Pre-sales": 1,
+      "DTC-Aftersales": 1,
+      "Failure": 4
+    },
+    "DEEBOT N30 PRO OMNI White": {
+      "DTC-Presale": 1,
+      "Aftersale-Service inquiry": 3,
+      "Failure": 6,
+      "Other": 1,
+      "Express Related": 1,
+      "Damaged parts": 1,
+      "Invoice Issues": 1,
+      "How to use": 1
+    },
+    "DEEBOT U2 SE": {
+      "Failure": 8,
+      "How to use": 1
+    },
+    "OZMOT8 AIVI Refurbished": {
+      "Failure": 8,
+      "How to use": 1
+    },
+    "GOAT O1200 LiDAR PRO EU": {
+      "Pre-sales": 2,
+      "DTC-Presale": 1,
+      "Other": 2,
+      "Aftersale-Service inquiry": 2,
+      "Product experience": 1
+    },
+    "GOAT O1200 RTK EU": {
+      "Failure": 4,
+      "How to use": 6,
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT T30S CARE": {
+      "Aftersale-Service inquiry": 2,
+      "Failure": 13,
+      "Complaint": 1,
+      "Damaged parts": 1,
+      "How to use": 1
+    },
+    "YEEDI K60 2G": {
+      "Failure": 2,
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "GOAT A1600 LiDAR PRO EU": {
+      "Aftersale-Service inquiry": 2,
+      "Failure": 2,
+      "DTC-Presale": 1,
+      "Pre-sales": 3,
+      "DTC-Members": 1,
+      "Express Related": 1,
+      "DTC-Web page": 1
+    },
+    "DEEBOT U2 UK": {
+      "Complaint": 1,
+      "Failure": 1
+    },
+    "DEEBOT X1e OMNI EU": {
+      "Aftersale-Service inquiry": 4,
+      "Failure": 20,
+      "Product experience": 4
+    },
+    "DEEBOT T30 OMNI BLACK UK": {
+      "Aftersale-Service inquiry": 2,
+      "Failure": 18,
+      "Product experience": 1,
+      "Other": 1,
+      "Damaged parts": 1
+    },
+    "DEEBOT OZMO 905 EU": {
+      "Failure": 2,
+      "Aftersale-Service inquiry": 2,
+      "DTC-Presale": 1,
+      "Pre-sales": 1,
+      "How to use": 1
+    },
+    "DEEBOT N10 PLUS UK": {
+      "Failure": 5
+    },
+    "DEEBOT X1 Plus": {
+      "Aftersale-Service inquiry": 3,
+      "DTC-Presale": 2,
+      "DTC-Return Request": 3,
+      "Failure": 10,
+      "How to use": 2,
+      "Pre-sales": 1
+    },
+    "DEEBOT N30 PRO OMNI WHITE UK": {
+      "Failure": 7,
+      "Complaint": 1,
+      "Other": 1,
+      "Aftersale-Service inquiry": 1,
+      "Missing parts": 1
+    },
+    "YEEDI K70 2G": {
+      "Failure": 1
+    },
+    "DEEBOT X9S PRO OMNI": {
+      "How to use": 2
+    },
+    "GOAT A1600 RTK": {
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 1,
+      "Pre-sales": 1
+    },
+    "T8+": {
+      "How to use": 2,
+      "Failure": 30,
+      "Aftersale-Service inquiry": 1
+    },
+    "YEEDI C12 Combo": {
+      "Failure": 9,
+      "Aftersale-Service inquiry": 2,
+      "Complaint": 2,
+      "DTC-Web page": 1,
+      "Product experience": 1
+    },
+    "DEEBOT T30S AI CARE": {
+      "Failure": 12,
+      "Product experience": 1
+    },
+    "T10 PLUS": {
+      "Aftersale-Service inquiry": 9,
+      "Other": 2,
+      "How to use": 3,
+      "Failure": 26,
+      "Product experience": 2,
+      "Damaged parts": 1,
+      "Express Related": 3
+    },
+    "New DEEBOT MINI": {
+      "Failure": 32,
+      "How to use": 15,
+      "Aftersale-Service inquiry": 13,
+      "Other": 2,
+      "Damaged parts": 1,
+      "Feedback": 1,
+      "Missing parts": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT OZMO 905 UK": {
+      "How to use": 2,
+      "Failure": 4
+    },
+    "DEEBOT T9 EU": {
+      "Failure": 16,
+      "Aftersale-Service inquiry": 3,
+      "Damaged parts": 2,
+      "Other": 1,
+      "Product experience": 1
+    },
+    "OZMO 950 Robotic Vaccum": {
+      "Other": 1,
+      "Aftersale-Service inquiry": 1,
+      "Failure": 6,
+      "Membership": 1
+    },
+    "DEEBOT X1e OMNI UK": {
+      "Failure": 1,
+      "Product experience": 1
+    },
+    "DEEBOT OZMO SLIM10 EU": {
+      "Product experience": 1,
+      "Failure": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N20 WHITE UK": {
+      "Product experience": 2,
+      "Other": 1,
+      "DTC-Refund": 2,
+      "Aftersale-Service inquiry": 2,
+      "Failure": 8
+    },
+    "WINBOT MINI Grey UK": {
+      "Aftersale-Service inquiry": 5,
+      "DTC-Aftersales": 4,
+      "DTC-Refund": 7,
+      "How to use": 2,
+      "Damaged parts": 1,
+      "Complaint": 1,
+      "Failure": 2,
+      "Product experience": 2,
+      "DTC-Members": 2
+    },
+    "YEEDI K65 2G": {
+      "Failure": 4,
+      "How to use": 1,
+      "Other": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DM80PRO Deebot": {
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 1,
+      "Failure": 1
+    },
+    "GOAT O800 RTK UK": {
+      "DTC-Aftersales": 1,
+      "Pre-sales": 1,
+      "DTC-Logistics": 1
+    },
+    "DEEBOT X2 COMBO Pro (DEEBOT X2 COMBO STICK VAC)": {
+      "Failure": 2
+    },
+    "DEEBOT X2 OMNI White": {
+      "Failure": 12
+    },
+    "YEEDI C12 PRO PLUS": {
+      "Failure": 19,
+      "Damaged parts": 3,
+      "Missing parts": 1,
+      "How to use": 2,
+      "Complaint": 3,
+      "Feedback": 1
+    },
+    "Deebot900": {
+      "How to use": 3,
+      "Failure": 3
+    },
+    "OZMO601": {
+      "Failure": 3,
+      "Missing parts": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "WINBOT mini 2": {
+      "Failure": 5
+    },
+    "DEEBOT T9+ (T9 with Auto-Empty Station), White": {
+      "DTC-Return Request": 1,
+      "Aftersale-Service inquiry": 5,
+      "Pre-sales": 2,
+      "Failure": 10,
+      "Complaint": 1,
+      "How to use": 3,
+      "Damaged parts": 1,
+      "Express Related": 1
+    },
+    "DEEBOT X1 Plus Renewed": {
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT Y1": {
+      "Damaged parts": 2,
+      "Failure": 26,
+      "How to use": 4,
+      "Other": 3,
+      "Aftersale-Service inquiry": 4,
+      "Pre-sales": 2,
+      "Return Request": 1
+    },
+    "Neo": {
+      "Failure": 6,
+      "Pre-sales": 2,
+      "How to use": 4,
+      "Other": 1,
+      "Product experience": 1
+    },
+    "DEEBOT OZMO 900 Series": {
+      "How to use": 1,
+      "Failure": 17,
+      "Aftersale-Service inquiry": 5
+    },
+    "WINBOT W3 OMNI EU": {
+      "Pre-sales": 8,
+      "How to use": 1,
+      "DTC-Web page": 3,
+      "Failure": 1
+    },
+    "DEEBOT X11 PRO OMNI EU": {
+      "Failure": 31,
+      "How to use": 7,
+      "Aftersale-Service inquiry": 3,
+      "Damaged parts": 5,
+      "Product experience": 3,
+      "DTC-Aftersales": 1,
+      "Complaint": 7,
+      "Shipping issues": 1,
+      "DTC-Logistics": 3,
+      "DTC-Presale": 1,
+      "Invoice Issues": 1,
+      "Pre-sales": 1,
+      "DTC-Refund": 2,
+      "Membership": 1
+    },
+    "FM2212A (MNB010001)": {
+      "Failure": 1
+    },
+    "DEEBOT EULER": {
+      "Failure": 4,
+      "Aftersale-Service inquiry": 1
+    },
+    "WINBOT 950": {
+      "Failure": 6
+    },
+    "DEEBOT X8 PRO OMNI CARE": {
+      "Other": 1,
+      "Failure": 5,
+      "How to use": 3,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T30S PRO BLACK GEN 2 EU": {
+      "Failure": 26,
+      "Aftersale-Service inquiry": 3,
+      "DTC-Aftersales": 1,
+      "Other": 2,
+      "How to use": 2,
+      "Missing parts": 1
+    },
+    "DEEBOT N8 BLACK EU": {
+      "Failure": 8,
+      "How to use": 1
+    },
+    "YEEDI Vac max": {
+      "Failure": 10,
+      "Aftersale-Service inquiry": 3,
+      "DTC-Web page": 2
+    },
+    "DEEBOT M82": {
+      "Aftersale-Service inquiry": 3,
+      "Failure": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT MINI VIOLET EU": {
+      "Damaged parts": 2,
+      "Aftersale-Service inquiry": 2,
+      "How to use": 2,
+      "Failure": 1
+    },
+    "yeedi vac": {
+      "Aftersale-Service inquiry": 1,
+      "Failure": 3
+    },
+    "X11S OmniCyclone": {
+      "Failure": 2
+    },
+    "DEEBOT N10 UK": {
+      "Failure": 3,
+      "Other": 1,
+      "Damaged parts": 1
+    },
+    "WINBOT-X-DISPLAY_DE": {
+      "Express Related": 1
+    },
+    "WINBOT W1": {
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT X8 PRO OMNI with Auto Refill and Drain": {
+      "Failure": 38,
+      "How to use": 19,
+      "Aftersale-Service inquiry": 19,
+      "Other": 1,
+      "Pre-sales": 2,
+      "Product experience": 4,
+      "Damaged parts": 1,
+      "Return Request": 1,
+      "Membership": 1,
+      "Gift": 1
+    },
+    "DEEBOT T50 PRO OMNI With Auto Refill And Drain": {
+      "Failure": 2,
+      "How to use": 3,
+      "Product experience": 1
+    },
+    "DEEBOT N30 PLUS": {
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T80 OMNI BLACK UK": {
+      "Failure": 1
+    },
+    "DEEBOT M88": {
+      "How to use": 3,
+      "Aftersale-Service inquiry": 2,
+      "Failure": 1
+    },
+    "GOAT G1": {
+      "Damaged parts": 3,
+      "Aftersale-Service inquiry": 4,
+      "Missing parts": 1,
+      "Failure": 20,
+      "How to use": 2,
+      "Complaint": 3,
+      "DTC-Presale": 1,
+      "Other": 1
+    },
+    "WINBOT 830": {
+      "Failure": 1
+    },
+    "Null-Tineco": {
+      "Other": 8,
+      "Failure": 3,
+      "Aftersale-Service inquiry": 4
+    },
+    "DEEBOT 900 Series": {
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT M86": {
+      "How to use": 2,
+      "Failure": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "W2": {
+      "Aftersale-Service inquiry": 6,
+      "Failure": 12,
+      "How to use": 3,
+      "Product experience": 4,
+      "Other": 1
+    },
+    "DEEBOT N79": {
+      "How to use": 1
+    },
+    "T8 AIVI +": {
+      "How to use": 1,
+      "Failure": 14,
+      "Aftersale-Service inquiry": 5,
+      "Other": 2
+    },
+    "DEEBOT N20 COMBO WHITE EU": {
+      "Failure": 7,
+      "Aftersale-Service inquiry": 2
+    },
+    "Stretch S6 Pro": {
+      "Other": 1
+    },
+    "DEEBOT T10 EU": {
+      "Failure": 18,
+      "How to use": 4,
+      "DTC-Web page": 2,
+      "Aftersale-Service inquiry": 2,
+      "Express Related": 1,
+      "Product experience": 6
+    },
+    "DEEBOT OZMO 920 UK": {
+      "Product experience": 1,
+      "Aftersale-Service inquiry": 2,
+      "Failure": 3
+    },
+    "DEEBOT OZMO 900 EU": {
+      "Failure": 5,
+      "How to use": 1,
+      "Other": 1
+    },
+    "DEEBOT T50 OMNI BLACK Gen 3 UK": {
+      "Failure": 1
+    },
+    "DEEBOT X1 PLUS EU": {
+      "Failure": 20,
+      "Aftersale-Service inquiry": 5,
+      "Express Related": 1,
+      "Pre-sales": 1,
+      "Damaged parts": 1,
+      "How to use": 4,
+      "Complaint": 1
+    },
+    "DEEBOT T90 PRO OMNI BLACK EU": {
+      "Pre-sales": 1,
+      "DTC-Logistics": 2
+    },
+    "GOAT G1-2000 WHITE EU": {
+      "Failure": 2
+    },
+    "DEEBOT X8S PRO": {
+      "Failure": 3,
+      "Damaged parts": 2,
+      "How to use": 3,
+      "Aftersale-Service inquiry": 1,
+      "Product experience": 1,
+      "DTC-Complaints": 1
+    },
+    "DEEBOT 710 EU": {
+      "Damaged parts": 1,
+      "Failure": 2
+    },
+    "WINBOT W2 OMNI UK": {
+      "Aftersale-Service inquiry": 1,
+      "Pre-sales": 1,
+      "Failure": 1,
+      "DTC-Members": 1
+    },
+    "DEEBOT N20e PLUS WHITE EU": {
+      "Aftersale-Service inquiry": 3,
+      "Complaint": 1,
+      "Pre-sales": 1,
+      "Damaged parts": 1,
+      "Failure": 5,
+      "DTC-Return Request": 1
+    },
+    "WINBOT W3 OMNI": {
+      "Failure": 1,
+      "Other": 1
+    },
+    "DEEBOT N79S UK": {
+      "Aftersale-Service inquiry": 1,
+      "Failure": 1
+    },
+    "GOAT G1-800 WHITE EU": {
+      "How to use": 1,
+      "Failure": 1,
+      "Aftersale-Service inquiry": 2,
+      "Product experience": 1
+    },
+    "N79SE Robotic Vacuum": {
+      "Aftersale-Service inquiry": 2,
+      "How to use": 1
+    },
+    "DM80": {
+      "Aftersale-Service inquiry": 2,
+      "Failure": 1
+    },
+    "DEEBOT N8 Neo": {
+      "Failure": 2,
+      "How to use": 1
+    },
+    "YEEDI Vac 2": {
+      "Failure": 2
+    },
+    "DEEBOT N78": {
+      "Failure": 2,
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT U2 PRO UK": {
+      "Feedback": 1
+    },
+    "DEEBOT OZMO Slim11 Series": {
+      "Failure": 6,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT OZMO 750": {
+      "Failure": 10,
+      "Aftersale-Service inquiry": 2
+    },
+    "OZMO 600 Series": {
+      "Failure": 2,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT OZMO 950 CARE": {
+      "Failure": 8,
+      "Product experience": 1
+    },
+    "GOAT A3000 LiDAR PRO EU": {
+      "Aftersale-Service inquiry": 1,
+      "Complaint": 1,
+      "Pre-sales": 1
+    },
+    "GOAT GX-600 EU": {
+      "Failure": 2
+    },
+    "YEEDI 2 hybrid": {
+      "Damaged parts": 2,
+      "Failure": 7
+    },
+    "DEEBOT N20e WHITE UK": {
+      "Aftersale-Service inquiry": 2,
+      "Pre-sales": 1,
+      "Failure": 7
+    },
+    "DEEBOT U2 PRO EU": {
+      "Failure": 4,
+      "Product experience": 1,
+      "Other": 1,
+      "Aftersale-Service inquiry": 4
+    },
+    "GOAT O600 RTK EU": {
+      "Express Related": 1,
+      "DTC-Aftersales": 1,
+      "DTC-Complaints": 1,
+      "How to use": 1
+    },
+    "T10": {
+      "Failure": 8,
+      "How to use": 2,
+      "Aftersale-Service inquiry": 1,
+      "Pre-sales": 1
+    },
+    "DEEBOT U3": {
+      "Aftersale-Service inquiry": 3,
+      "Pre-sales": 1,
+      "How to use": 1,
+      "Failure": 3,
+      "Other": 3
+    },
+    "WINBOT 850": {
+      "Failure": 1
+    },
+    "DEEBOT T30C PRO": {
+      "Failure": 3
+    },
+    "DEEBOT Slim Series": {
+      "How to use": 2,
+      "Aftersale-Service inquiry": 1,
+      "Failure": 1
+    },
+    "DEEBOT X2 OMNI WHITE UK": {
+      "Complaint": 2,
+      "Failure": 3,
+      "Damaged parts": 1
+    },
+    "DEEBOT N20 PLUS WHITE UK": {
+      "Damaged parts": 2,
+      "How to use": 1,
+      "Complaint": 2,
+      "Failure": 7,
+      "Product experience": 1
+    },
+    "DEEBOT OZMO T8 PURE EU": {
+      "Failure": 3,
+      "Membership": 1
+    },
+    "X12 OMNI": {
+      "Failure": 1
+    },
+    "OZMO920 Refurbished": {
+      "Failure": 2,
+      "Aftersale-Service inquiry": 1
+    },
+    "GOAT O1200 LiDAR PRO Accessory Pack EU": {
+      "DTC-Refund": 1
+    },
+    "WINBOT NEO": {
+      "Failure": 12,
+      "Pre-sales": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N-α": {
+      "Failure": 7,
+      "Aftersale-Service inquiry": 2,
+      "Pre-sales": 1
+    },
+    "DEEBOT 715 EU": {
+      "Missing parts": 1
+    },
+    "DEEBOT M81": {
+      "Failure": 1,
+      "Aftersale-Service inquiry": 2
+    },
+    "Tineco Switch S6": {
+      "Other": 3
+    },
+    "DEEBOT T90 OMNI WHITE EU": {
+      "Pre-sales": 2,
+      "DTC-Aftersales": 1,
+      "Express Related": 1,
+      "How to use": 1
+    },
+    "DEEBOT T30 OMNI CARE BLACK EU": {
+      "Failure": 2
+    },
+    "T50S OMNI": {
+      "Express Related": 1
+    },
+    "DEEBOT X1 Turbo": {
+      "Aftersale-Service inquiry": 2,
+      "Damaged parts": 1,
+      "Failure": 6,
+      "DTC-Presale": 1,
+      "Other": 2
+    },
+    "DEEBOT X12 OmniCyclone EU": {
+      "Pre-sales": 2,
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT OZMO/PRO 930 Series": {
+      "Failure": 1
+    },
+    "DEEBOT 900": {
+      "Failure": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT T90 PRO OMNI": {
+      "Failure": 5,
+      "Pre-sales": 2,
+      "How to use": 2,
+      "Product experience": 1
+    },
+    "DEEBOT 83": {
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT SLIM 2": {
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT T30S COMBO WHITE UK": {
+      "Failure": 1
+    },
+    "WINBOT MINI 2 UK": {
+      "Failure": 2
+    },
+    "YEEDI M12 Ultra Plus": {
+      "Failure": 4,
+      "Complaint": 1
+    },
+    "GOAT A3000 LiDAR PRO": {
+      "Damaged parts": 1,
+      "Aftersale-Service inquiry": 2,
+      "How to use": 2,
+      "Pre-sales": 2
+    },
+    "DEEBOT T50 MAX PRO OMNI BLACK UK": {
+      "Failure": 3,
+      "DTC-Refund": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT X5 PRO OMNI WHITE EU": {
+      "Failure": 3
+    },
+    "Deebot 665": {
+      "Failure": 3,
+      "Damaged parts": 1,
+      "How to use": 1
+    },
+    "DEEBOT MINI GREEN EU": {
+      "Failure": 5,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT 300": {
+      "Aftersale-Service inquiry": 1
+    },
+    "YEEDI Vac hybrid": {
+      "Failure": 4,
+      "Aftersale-Service inquiry": 3
+    },
+    "ULTRAMARINE P1 EU": {
+      "DTC-Complaints": 1,
+      "Product experience": 1
+    },
+    "GOAT O600 RTK UK": {
+      "Gift": 1
+    },
+    "GOAT G1 EU": {
+      "Failure": 3,
+      "Complaint": 1,
+      "Aftersale-Service inquiry": 2,
+      "How to use": 1
+    },
+    "DEEBOT X1 OMNI White": {
+      "Aftersale-Service inquiry": 2
+    },
+    "T90 PRO OMNI": {
+      "Pre-sales": 1,
+      "Aftersale-Service inquiry": 1,
+      "Failure": 1
+    },
+    "N78": {
+      "Missing parts": 2,
+      "Membership": 1,
+      "Aftersale-Service inquiry": 2
+    },
+    "OZMO937": {
+      "How to use": 1
+    },
+    "N30 PLUS": {
+      "Other": 1,
+      "How to use": 2
+    },
+    "Tineco Stretch S6": {
+      "Other": 3
+    },
+    "DEEBOT T50 MAX OMNI": {
+      "Damaged parts": 1
+    },
+    "DEEBOT N8 PRO CARE EU": {
+      "Failure": 8,
+      "Damaged parts": 1
+    },
+    "DEEBOT OZMO 610 EU": {
+      "Complaint": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT X5 HYBRID WHITE EU": {
+      "Failure": 1
+    },
+    "DEEBOT OZMO N8+ White (N8 with Auto-Empty Station)": {
+      "Failure": 3
+    },
+    "DM81PRO": {
+      "Aftersale-Service inquiry": 1,
+      "How to use": 1
+    },
+    "OZMO610": {
+      "Failure": 3,
+      "Aftersale-Service inquiry": 1
+    },
+    "WINBOT 920": {
+      "Failure": 2,
+      "Other": 1
+    },
+    "GOAT O1200 LiDAR PRO Care Kit EU": {
+      "DTC-Presale": 1,
+      "Express Related": 1
+    },
+    "ROBOTIC VACUUM CLEANER DEEBOT M88": {
+      "Complaint": 1
+    },
+    "WINBOT W2S OMNI UK": {
+      "DTC-Aftersales": 1
+    },
+    "DEEBOT T30e OMNI WHITE EU": {
+      "Damaged parts": 1
+    },
+    "DEEBOT OZMO T8 AIVI Robot, Auto-Empty Station Bundle (Hard Bundle)": {
+      "How to use": 1,
+      "Other": 1,
+      "Failure": 1
+    },
+    "DEEBOT X12 OmniCyclone": {
+      "Pre-sales": 1
+    },
+    "DEEBOT T50 OMNI WHITE Gen 3 EU": {
+      "Failure": 1
+    },
+    "SLIM2/DA5G": {
+      "Failure": 1
+    },
+    "WINBOT X 0453": {
+      "Failure": 1
+    },
+    "GOAT A1600 RTK UK": {
+      "Failure": 1
+    },
+    "YEEDI K650": {
+      "How to use": 4,
+      "Failure": 2,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N20 MAX PLUS": {
+      "Failure": 1
+    },
+    "DEEBOT M85+": {
+      "Aftersale-Service inquiry": 2
+    },
+    "WINBOT W1 PRO UK": {
+      "How to use": 1
+    },
+    "DEEBOT OZMO Slim10 Series": {
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT M81 Pro": {
+      "Aftersale-Service inquiry": 2
+    },
+    "DEEBOT OZMO 920 EU 3861": {
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT N79S EU": {
+      "Failure": 2
+    },
+    "DEEBOT 501 EU": {
+      "How to use": 1
+    },
+    "DEEBOT 600 EU": {
+      "Failure": 1
+    },
+    "DEEBOT T9 AIVI": {
+      "Damaged parts": 1
+    },
+    "DEEBOT T20e OMNI UK": {
+      "Other": 7,
+      "Damaged parts": 1,
+      "Failure": 1
+    },
+    "DEEBOT OZMO T8 AIVI 4004": {
+      "Failure": 2
+    },
+    "DEEBOT 35": {
+      "DTC-Collaboration": 2
+    },
+    "DEEBOT X5 PRO OMNI BLACK UK": {
+      "Express Related": 1,
+      "Failure": 2
+    },
+    "DEEBOT T30S COMBO COMPLETE": {
+      "Failure": 1
+    },
+    "DEEBOT U2 PRO": {
+      "Failure": 5,
+      "How to use": 1,
+      "Pre-sales": 1
+    },
+    "Tineco IFloor 5": {
+      "Other": 1
+    },
+    "yeedi Floor 3+": {
+      "Failure": 1
+    },
+    "DEEBOT T50 PRO OMNI WHITE Gen 3 UK": {
+      "Invoice Issues": 1
+    },
+    "GOAT O1000 RTK Care Kit": {
+      "Failure": 2,
+      "How to use": 2
+    },
+    "Deebot N79S Refurbished": {
+      "Aftersale-Service inquiry": 1
+    },
+    "GOAT A3000 RTK": {
+      "Pre-sales": 1
+    },
+    "DEEBOT OZMO 601": {
+      "Failure": 1,
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT X8 PRO SUCCESSOR EU": {
+      "Failure": 1
+    },
+    "DEEBOT N30 OMNI Care": {
+      "Failure": 1
+    },
+    "WINBOT 730": {
+      "Failure": 1
+    },
+    "Winbot Display Glas Basic D": {
+      "DTC-Complaints": 1
+    },
+    "DEEBOT T20 OMNI": {
+      "Failure": 1
+    },
+    "DEEBOT 505": {
+      "Damaged parts": 2
+    },
+    "DEEBOT X12 PRO": {
+      "Aftersale-Service inquiry": 1
+    },
+    "DEEBOT 900 WHITE EU": {
+      "Failure": 3
+    },
+    "GOAT O1200 RTK": {
+      "Failure": 1
+    },
+    "DEEBOT T50 OMNI BLACK Gen 3 EU": {
+      "How to use": 1
+    },
+    "DEEBOT T50 PRO OMNI WHITE GEN 2 UK": {
+      "Failure": 1
+    },
+    "Andy Pro": {
+      "Feedback": 1
+    },
+    "DEEBOT X2 COMBO UK": {
+      "Failure": 1
+    },
+    "GOAT G1-800 GREY UK": {
+      "Failure": 1
+    },
+    "GOAT G1-800": {
+      "Failure": 1
+    },
+    "no launch DEEBOT T50 MAX PRO OMNI WHITE EU": {
+      "Damaged parts": 1
+    },
+    "DEEBOT SLIM 2 BLACK EU": {
+      "How to use": 1
+    },
+    "YEEDI K600": {
+      "Failure": 1
+    },
+    "GOAT A2000 LiDAR PRO": {
+      "How to use": 1,
+      "Failure": 1
+    },
+    "DEEBOT SLIM Neo": {
+      "Aftersale-Service inquiry": 1
+    },
+    "Deebot 907": {
+      "Aftersale-Service inquiry": 1
+    },
+    "WINBOT X": {
+      "Failure": 1,
+      "How to use": 1
+    },
+    "DEEBOT U2 EU 4806": {
+      "Aftersale-Service inquiry": 1
+    }
+  }
+}

@@ -8,6 +8,7 @@ import pytest
 from agent.title_generator import (
     generate_title,
     auto_title_session,
+    fallback_title,
     maybe_auto_title,
 )
 
@@ -136,13 +137,21 @@ class TestAutoTitleSession:
             auto_title_session(db, "sess-1", "hi", "hello")
             db.set_session_title.assert_called_once_with("sess-1", "New Title")
 
-    def test_skips_if_generation_fails(self):
+    def test_uses_fallback_if_generation_fails(self):
         db = MagicMock()
         db.get_session_title.return_value = None
 
         with patch("agent.title_generator.generate_title", return_value=None):
             auto_title_session(db, "sess-1", "hi", "hello")
-            db.set_session_title.assert_not_called()
+            db.set_session_title.assert_called_once_with("sess-1", "hi")
+
+    def test_fallback_strips_feishu_reply_and_speaker(self):
+        title = fallback_title(
+            '[Replying to: "⚠ Auxiliary title generation failed: Connection error."]\n\n'
+            "[杨子枫] 这个我看一下，是一个标题生成的链接问题"
+        )
+
+        assert title == "这个我看一下，是一个标题生成的链接问题"
 
 
 class TestMaybeAutoTitle:

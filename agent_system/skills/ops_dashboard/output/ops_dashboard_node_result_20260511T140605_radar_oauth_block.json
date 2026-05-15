@@ -1,0 +1,49 @@
+{
+  "task_id": "dashboard_flow:ops_dashboard",
+  "flow_id": "dashboard_flow",
+  "node_id": "ops_dashboard",
+  "expert_id": "ops_expert",
+  "skill_id": "ops_dashboard",
+  "status": "completed_with_permission_gap",
+  "generated_at": "2026-05-11T14:05:55+08:00",
+  "window": {
+    "start": "2026-05-11 09:45:26 CST",
+    "end": "2026-05-11 14:00:31 CST"
+  },
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "user_access_token_status": "missing",
+    "has_token": false,
+    "app_bot_fallback_used": false,
+    "private_history_read": false
+  },
+  "metrics": {
+    "readable_sources": 0,
+    "configured_sources": 14,
+    "message_count": 0,
+    "new_message_count": 0,
+    "high_priority_candidates": 0
+  },
+  "dashboard_structure": [
+    "授权状态卡",
+    "重要沟通队列",
+    "来源覆盖看板",
+    "事项闭环表",
+    "运营风险区",
+    "例会输入区"
+  ],
+  "user_visible_output": "当前未找到张欢本人 Feishu user_access_token，私域历史读取已停止；请张欢打开 OAuth 授权链接完成本人授权后，下轮雷达再恢复读取：https://open.feishu.cn/open-apis/authen/v1/index?app_id=cli_a9f04f3ad279dbcc&redirect_uri=https%3A%2F%2Fopen.feishu.cn&state=ZDRG1Zh64PzbWiIf9MIoycjnRudsr9WU",
+  "files": {
+    "markdown": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/ops_dashboard_node_result_20260511T140605_radar_oauth_block.md",
+    "json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/ops_dashboard_node_result_20260511T140605_radar_oauth_block.json"
+  },
+  "audit_checks": {
+    "ops_dashboard_skill_loaded": true,
+    "oauth_status_checked": true,
+    "no_private_history_without_uat": true,
+    "no_app_bot_fallback": true,
+    "no_token_secret_code_output": true,
+    "unreadable_sources_not_expanded": true,
+    "dashboard_structure_present": true
+  }
+}

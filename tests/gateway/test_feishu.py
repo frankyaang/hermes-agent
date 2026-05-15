@@ -108,6 +108,26 @@ class TestFeishuMessageNormalization(unittest.TestCase):
             "Sprint recap\n- Alice: Please review PR-128\n- Bob: Ship it",
         )
 
+    def test_normalize_merge_forward_preserves_all_summary_lines(self):
+        from gateway.platforms.feishu import normalize_feishu_message
+
+        normalized = normalize_feishu_message(
+            message_type="merge_forward",
+            raw_content=json.dumps(
+                {
+                    "title": "Long forward",
+                    "messages": [
+                        {"sender_name": f"User {idx}", "text": f"Update {idx}"}
+                        for idx in range(1, 11)
+                    ],
+                }
+            ),
+        )
+
+        self.assertIn("- User 1: Update 1", normalized.text_content)
+        self.assertIn("- User 10: Update 10", normalized.text_content)
+        self.assertEqual(normalized.metadata["entry_count"], 10)
+
     def test_normalize_share_chat_exposes_summary_and_metadata(self):
         from gateway.platforms.feishu import normalize_feishu_message
 
@@ -1267,6 +1287,78 @@ class TestAdapterBehavior(unittest.TestCase):
         self.assertEqual(
             text,
             "Forwarded updates\n- Alice: Investigating the incident\n- Bob: ETA 10 minutes",
+        )
+        self.assertEqual(msg_type.value, "text")
+        self.assertEqual(media_urls, [])
+        self.assertEqual(media_types, [])
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_extract_merge_forward_expands_message_get_children(self):
+        from gateway.config import PlatformConfig
+        from gateway.platforms.feishu import FeishuAdapter
+
+        adapter = FeishuAdapter(PlatformConfig())
+        adapter._resolve_sender_name_from_api = AsyncMock(side_effect=["Alice", "Bob"])
+
+        class _MessageAPI:
+            def get(self, request):
+                return SimpleNamespace(
+                    success=lambda: True,
+                    data=SimpleNamespace(
+                        items=[
+                            SimpleNamespace(
+                                message_id="om_merge_forward",
+                                msg_type="merge_forward",
+                                body=SimpleNamespace(content="Merged and Forwarded Message"),
+                                mentions=None,
+                                sender=None,
+                            ),
+                            SimpleNamespace(
+                                message_id="om_child_1",
+                                msg_type="text",
+                                body=SimpleNamespace(content=json.dumps({"text": "first child"})),
+                                mentions=None,
+                                sender=SimpleNamespace(id="ou_alice"),
+                            ),
+                            SimpleNamespace(
+                                message_id="om_child_2",
+                                msg_type="post",
+                                body=SimpleNamespace(
+                                    content=json.dumps(
+                                        {
+                                            "zh_cn": {
+                                                "title": "标题",
+                                                "content": [[{"tag": "text", "text": "第二条"}]],
+                                            }
+                                        }
+                                    )
+                                ),
+                                mentions=None,
+                                sender=SimpleNamespace(id="ou_bob"),
+                            ),
+                        ]
+                    ),
+                )
+
+        adapter._client = SimpleNamespace(im=SimpleNamespace(v1=SimpleNamespace(message=_MessageAPI())))
+        message = SimpleNamespace(
+            message_type="merge_forward",
+            content="Merged and Forwarded Message",
+            message_id="om_merge_forward",
+        )
+
+        async def _direct(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        with patch("gateway.platforms.feishu.asyncio.to_thread", side_effect=_direct):
+            text, msg_type, media_urls, media_types, _mentions = asyncio.run(adapter._extract_message_content(message))
+
+        self.assertEqual(
+            text,
+            "[Merged forward message — 2 forwarded messages]\n"
+            "1. Alice: first child\n"
+            "2. Bob: 标题\n"
+            "        第二条",
         )
         self.assertEqual(msg_type.value, "text")
         self.assertEqual(media_urls, [])
@@ -4393,6 +4485,48 @@ class TestFeishuFetchMessageText(unittest.TestCase):
         self.assertEqual(result, "@Alice hi")
         # No [Mentioned:] wrapper — reply-context path intentionally skips the hint.
         self.assertNotIn("[Mentioned:", result)
+
+    def test_fetch_message_text_expands_merge_forward_children(self):
+        adapter = self._build_adapter()
+        adapter._resolve_sender_name_from_api = AsyncMock(return_value=None)
+        response = Mock()
+        response.success = Mock(return_value=True)
+        response.data = SimpleNamespace(
+            items=[
+                SimpleNamespace(
+                    message_id="om_forward",
+                    msg_type="merge_forward",
+                    body=SimpleNamespace(content="Merged and Forwarded Message"),
+                    mentions=None,
+                    sender=None,
+                ),
+                SimpleNamespace(
+                    message_id="om_child_1",
+                    msg_type="text",
+                    body=SimpleNamespace(content=json.dumps({"text": "first child"})),
+                    mentions=None,
+                    sender=None,
+                ),
+                SimpleNamespace(
+                    message_id="om_child_2",
+                    msg_type="text",
+                    body=SimpleNamespace(content=json.dumps({"text": "second child"})),
+                    mentions=None,
+                    sender=None,
+                ),
+            ]
+        )
+        adapter._client.im.v1.message.get = Mock(return_value=response)
+
+        result = asyncio.run(adapter._fetch_message_text("om_forward"))
+
+        self.assertEqual(
+            result,
+            "[Merged forward message — 2 forwarded messages]\n"
+            "1. first child\n"
+            "2. second child",
+        )
+        self.assertNotEqual(result, "[Merged forward message]")
 
     def test_extract_text_from_raw_content_accepts_mentions_kwarg(self):
         from gateway.platforms.feishu import FeishuAdapter

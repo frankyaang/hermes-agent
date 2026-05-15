@@ -1,194 +1,475 @@
-# Knowledge System — Dev 验证与发布计划
+# Builder Intent Layer And Context Prefill
 
 ## Goal
 
-在 dev 仓库（`hermes-agent-dev`）中完成知识系统 PoC 的全链路验证，确认 `knowledge_query` / `knowledge_write` 工具可在 Hermes 中使用 gbrain 作为后端，ACL 和财务隔离生效，审计日志可查；随后给出最小发布步骤，将代码同步到 official 仓库。
+在 `agent_system/experts/builder_expert/builder.py` 中为深度养马 9 阶段流程增加规则意图识别、非推进问答、回退/修订和基于对话历史的预填。成功标准是普通 `answer_current_question` / `continue` 路径保持现有 9 阶段推进；信息类意图不写字段、不推进 stage；预填内容可被后续回答或修订覆盖；`scripts/run_tests.sh tests/agent_system/` 通过。
 
 ## Scope
 
-- `agent/knowledge_acl.py` — 双层 ACL 校验（pre-query + post-filter）
-- `agent/knowledge_audit.py` — append-only JSONL 审计日志
-- `agent/knowledge_manager.py` — 编排 ACL + 审计 + provider
-- `agent/knowledge_models.py` — 数据模型（UserContext / Doc / AccessDecision / AuditEvent）
-- `agent/knowledge_provider.py` — KnowledgeProvider ABC
-- `agent/knowledge_user_registry.py` — YAML 用户注册表（`~/.hermes/knowledge/users.yaml`）
-- `plugins/knowledge/gbrain/provider.py` — gbrain CLI subprocess 适配器（PGLite 串行锁）
-- `tools/knowledge_tool.py` — knowledge_query / knowledge_write 工具注册
-- `toolsets.py` — "knowledge" toolset 定义（已添加）
-- `~/.hermes/knowledge/users.yaml` — 本地用户配置（**不提交**）
-- `~/.hermes/knowledge/audit/` — 审计日志目录（**不提交**）
+- `builder.py`：新增纯规则 `recognize_intent`，返回固定 8 个标签；在每轮 `handle()` 保存状态前完成意图分流。
+- `builder.py`：新增 ask_definition / ask_advice / confirm_understanding / show_current / revise_previous / go_back 处理器。
+- `builder.py`：新增规则上下文提取与首轮 copy 渲染，预填字段写入 state 但不破坏 session/draft 隔离。
+- `builder_dispatcher.py`：仅在进入模式时调用 builder 的初始化/首轮渲染能力，保持状态文件路径策略不变。
+- `tests/agent_system/`：补充 6 个指定场景，避免真实 LLM/API。
 
 ## Non-goals
 
-- 不改动 official gateway 运行进程（需确认后再切换）
-- 不实现 gbrain MCP sidecar 模式（PoC 用 CLI subprocess）
-- 不实现多产品线动态注册 UI
+- 不引入 LLM、网络或外部 API 调用。
+- 不删除已有 state/draft/audit/output 文件。
+- 不重构 ARCHITECT/DRAFT/VALIDATE/DRY_RUN/TRIAL_RUN/COMMIT 主流程。
+- 不回撤当前工作区已有的无关改动。
 
-## Risks
+## Context
 
-| 风险 | 影响 | 缓解措施 |
-|---|---|---|
-| PGLite 不支持并发进程 | 高并发时 gbrain 写入失败 | `_GBRAIN_LOCK` 串行化全部 subprocess 调用 |
-| gbrain 无 RLS，ACL 全靠 Hermes | 代码 bug 可能跨产品线泄露 | 双层过滤：check_read 前置 + filter_results 后置 |
-| users.yaml 本地维护 | 用户增删需手动更新 | PoC 阶段可接受；生产建议迁移到 Supabase |
-| official 无知识代码 | 切换前 official 无法使用知识工具 | 见"发布步骤"，patch 模式同步，不中断当前 gateway |
+- dispatcher 负责进入/退出模式与 session 级 state 文件路径；`builder.handle()` 当前每轮 `load_state -> handler -> save_state`。
+- `write_drafts()` 已按 `state_identity` 写入 `agent_system/temp/builder_sessions/<state_identity>/`，`handle_commit()` 已读取 `session_draft_root`。
+- run_agent 目前调用 agent-system bridge 时没有显式传入 `conversation_history`；预填需要从 `parent_agent.conversation_history`、`parent_agent.messages`、`parent_agent._session_db` 等可用对象中做 best-effort 规则读取。
 
-## Validation（已验证，2026-05-10）
+## Milestones
 
-```
-scripts/run_tests.sh tests/agent/test_knowledge_manager.py   → 12 passed
-```
+- [x] M1：新增并导出 8 类意图识别函数，覆盖关键词/模式匹配。
+- [x] M2：在 `handle()` 中统一识别并路由，非推进意图用状态快照保证不变更。
+- [x] M3：实现信息类 handler 的静态模板响应。
+- [x] M4：实现 revise_previous / go_back 的字段定位、原值展示、待覆盖态和回退态。
+- [x] M5：进入模式时生成 prefill 和首轮 copy，普通无上下文入口保持可用。
+- [x] M6：新增测试并跑 `scripts/run_tests.sh tests/agent_system/`。
 
-集成场景（Python 直接调用）：
+## Parallel Workstreams
 
-| 场景 | 用户 | 结果 |
-|---|---|---|
-| frank 查询 test_product_a 普通知识 | cli:frank:default | ✓ 2 条，无财务泄露 |
-| frank 查询 test_product_a 财务知识 | cli:frank:default | ✓ 1 条财务结果 |
-| restricted 用户查财务被拒 | feishu:ou_restricted_test | ✓ 拒绝，0 条 |
-| 普通查询不泄露财务内容 | cli:frank:default | ✓ finance doc 被过滤 |
-| 未授权产品线查询被拒 | cli:frank:default | ✓ test_product_b 拒绝 |
-| knowledge_write 工具写入 | cli:frank:default | ✓ slug 正确 |
+- 代码实现集中在 builder 入口和 dispatcher 初始化，需串行避免状态协议错配。
+- 测试可与实现分离，但会依赖新增 public helper 和首轮返回文案。
 
-审计日志：`~/.hermes/knowledge/audit/YYYY-MM/audit.jsonl` 记录 13 条，含允许/拒绝记录。
+## Risks / Unknowns
+
+- 会话历史来源在真实运行时并非固定属性，需要容错读取并在不可用时回退空 INTAKE。
+- revise/go_back 如果直接改 `_current_question` 容易误写字段；需要用 `_pending_revision_field` 明确下一轮覆盖目标。
+- 现有工作树已有大量改动，必须避免格式化或重写无关文件。
+
+## Validation
+
+- `scripts/run_tests.sh tests/agent_system/`
+- 手工检查 `git diff -- agent_system/experts/builder_expert/builder.py agent_system/builder_dispatcher.py tests/agent_system/...`
+- 确认没有新增删除 draft/output/audit 文件的逻辑。
 
 ## Progress
 
-- [x] 数据模型 (knowledge_models.py)
-- [x] ACL Guard (knowledge_acl.py) — 含 16 个测试
-- [x] 用户注册表 (knowledge_user_registry.py)
-- [x] 审计日志 (knowledge_audit.py)
-- [x] KnowledgeProvider ABC + KnowledgeManager
-- [x] gbrain CLI 输出格式探查
-- [x] GBrainCLIKnowledgeProvider (PGLite 锁 + slug 命名)
-- [x] 工具注册 (knowledge_tool.py + toolsets.py)
-- [x] 测试数据初始化 (gbrain put)
-- [x] 集成验证：全部 6 个场景通过，审计日志确认
+- [x] 完成只读审查：确认 9 阶段 handler、state 保存点、draft/session 隔离和 dispatcher 入口。
+- [x] 2026-05-14 本轮复核完成 Task 1 侦察，并新增 `BUILDER_RECON.md` 记录真实路径、字段、历史入口和隔离约定。
+- [x] 2026-05-14 Task 2 基线已跑：`scripts/run_tests.sh tests/agent_system/` → `75 passed`，无需环境修复。
+- [x] 实现意图识别和路由。
+- [x] 2026-05-14 Task 3-7 静态复核通过：当前实现已满足 8 类规则意图、非推进分支、修订/回退、上下文预填和首轮文案要求，无需额外核心改动。
+- [x] 实现预填和首轮 copy。
+- [x] 2026-05-14 Task 8 聚焦测试复核：`scripts/run_tests.sh tests/agent_system/test_builder_intents.py -q` → `8 passed`。
+- [x] 2026-05-14 为满足最终数量验收，额外补充 6 个 builder intent / prefill 边界测试；聚焦回归更新为 `14 passed`。
+- [x] 补测试并验证：新增测试 `8 passed`，全量 `tests/agent_system/` 为 `75 passed`。
+- [x] 2026-05-14 Task 9 最终验证：`scripts/run_tests.sh tests/agent_system/` → `81 passed`，0 失败。
+- [x] 2026-05-14 本轮补强：`recognize_intent` 改为字符串兼容的 `IntentResult`，为 `revise_previous` / `go_back` 携带目标字段或阶段；首轮文案改为以任务指定中文 copy 开头。
+- [x] 2026-05-14 本轮最终验证：`scripts/run_tests.sh tests/agent_system/test_builder_intents.py -q` → `14 passed in 0.25s`；`scripts/run_tests.sh tests/agent_system/` → `81 passed in 1.65s`。
 
-## 自动业务事实沉淀优化（2026-05-11）
+## Decision Log
 
-### Goal
+- 意图层放在 `builder.handle()`，因为这是所有 in-mode 用户轮次的统一状态保存边界。
+- 进入模式的首轮预填需要 dispatcher 配合调用 builder 初始化函数，但不改变 state 文件命名和退出清理策略。
+- 非推进意图采用 `copy.deepcopy(state)` 快照恢复，避免底层 handler 意外污染状态。
+- 预填只把 5 个现有必填问题映射进 `state.intake`，其余目标字段保留在 `state.prefill`，避免改变下游 draft_writer 契约。
+- dispatcher 只在进入模式时调用 `render_initial_reply()`，不改变 state 文件路径、退出清理或 draft/session 隔离策略。
+- `recognize_intent` 保持 `str` 兼容，避免破坏既有 `intent in BUILDER_INTENTS` 与 `handle()` 分支，同时通过 `.target` / `.target_type` 暴露可验证目标。
 
-让知识沉淀不依赖用户显式说“写入知识库”：当 CLI / Feishu 会话中已经启用 `knowledge_write`，模型需要在业务分析、产品线讨论、会议结论、客户反馈整理等场景结束前，自主判断是否产生了稳定、可复用、可归属产品线的业务事实，并在满足来源、权限和置信度条件时主动写入知识系统。
+## Recovery
 
-### Scope
-
-- `toolsets.py`：将 `knowledge_query` / `knowledge_write` 纳入默认 Hermes 核心工具面，使默认 CLI / Feishu 能解析出 `knowledge` toolset。
-- `hermes_cli/tools_config.py`：让 `knowledge` 出现在可配置工具列表，避免默认启用后在工具 UI 中不可见。
-- `agent/prompt_builder.py` + `run_agent.py`：当 `knowledge_write` 可用时注入自动业务事实沉淀协议。
-- `KNOWLEDGE_SYSTEM_PLAN.md`：澄清禁止的是原始聊天记录自动入库，不是禁止结构化业务事实自动沉淀。
-- `tests/hermes_cli/test_tools_config.py`、`tests/agent/test_prompt_builder.py`、新增 agent prompt 测试：覆盖默认可用、显式禁用、协议注入与不可用时不注入。
-
-### Non-goals
-
-- 不把整段聊天记录自动写入知识库。
-- 不绕过 `KnowledgeACLGuard`、`source_uri_required` 或用户注册表。
-- 不为未知真实飞书用户或未知真实产品线伪造 ACL 配置。
-- 不实现新的后台异步抽取 worker；本轮使用模型运行时自主判断 + 工具调用协议。
-
-### Risks / Unknowns
-
-- 若真实 Feishu 用户未写入 `~/.hermes/knowledge/users.yaml`，`knowledge_write` 会 fail closed；这是预期安全行为。
-- 当前 `~/.hermes/config.yaml` 顶层 `toolsets: [hermes-cli, knowledge]` 不等于平台工具集配置；需要通过默认 toolset 与可配置列表修正运行时可见性。
-- 自动沉淀依赖模型遵循协议；后续若要更强保证，可增加会话后置审稿 agent，但那会改变执行链路和成本。
-
-### Validation
+恢复时进入：
 
 ```bash
-scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py -q
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '1,220p' agent_system/experts/builder_expert/builder.py
+sed -n '180,340p' agent_system/builder_dispatcher.py
+scripts/run_tests.sh tests/agent_system/
+```
+
+---
+
+# Gateway Progress UI Single-Channel Repair
+
+## Goal
+
+修复飞书进度模块双轨显示：assistant 中间消息 / 最终回复中的 `🧭 任务规划`、`🛠 执行记录` 不再作为普通消息发送或污染新增历史，统一进入 Gateway 可编辑进度模块。
+
+## Scope
+
+- 新增共享进度 UI 解析 helper，供 Gateway 展示链路和 AIAgent 历史清理复用。
+- `gateway/run.py`：interim assistant 与 final response 先抽取进度 UI；进度进入 progress queue，剩余正文继续走 commentary/final。
+- `run_agent.py`：assistant 可见 `content` 写入消息历史前剥离 leading progress UI，保留 tool calls、reasoning、Codex opaque state。
+- 聚焦测试覆盖裸 `🧭 任务规划` + `🛠 执行记录`、旧 `# 专家层调度`、final response stripping 和 history sanitize。
+
+## Non-goals
+
+- 不批量清洗旧 `state.db` 或历史 JSONL。
+- 不改变普通 commentary、工具进度事件和 `tool_progress=off` 的显示策略。
+
+## Validation
+
+- `scripts/run_tests.sh tests/gateway/test_run_progress_topics.py tests/run_agent/test_run_agent_codex_responses.py`
+- `scripts/run_tests.sh tests/gateway/test_stream_consumer.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 新增 `agent/progress_ui.py` 共享解析器。
+- [x] Gateway interim/final 进度 UI 改走 progress queue。
+- [x] AIAgent 新增历史清理，避免新增可见历史污染。
+- [x] 聚焦回归通过：`92 passed`；stream consumer 回归通过：`75 passed`。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+scripts/run_tests.sh tests/gateway/test_run_progress_topics.py tests/run_agent/test_run_agent_codex_responses.py
+scripts/run_tests.sh tests/gateway/test_stream_consumer.py
+```
+
+---
+
+# Hermes Model Traffic Optimization
+
+## Goal
+
+将当前 Hermes official 环境从“Opus 作为隐性默认运行模型”调整为“GPT 5.5 默认执行，Opus 仅保留为显式规划备用”。成功标准是：普通 Feishu turn、auxiliary 任务、agent-system execution/audit、cron job 默认不再消耗 Opus；agent-system 命中时不会在进入 bridge 前触发主模型压缩；路由日志不再把 planning 误写成父模型。
+
+## Scope
+
+- `/Users/frank/.hermes/config.yaml`：默认模型和 auxiliary 任务切到 `openai-codex / gpt-5.5`，增加默认关闭的 `agent_system.planning_llm` 配置。
+- `/Users/frank/.hermes/cron/jobs.json`：两个 Hermes cron job 模型切到 `openai-codex / gpt-5.5`，保留原 enabled/state。
+- `run_agent.py`：agent-system pre-LLM short-circuit 提前到系统提示构建和 preflight compression 之前。
+- `agent_system/cli_bridge.py`：路由日志改为 `planning=local planner`，避免误导。
+- `hermes_cli/config.py`：补充 `agent_system.planning_llm` 默认配置，默认关闭。
+- 聚焦测试覆盖 agent-system 命中时不会触发 preflight compression。
+
+## Non-goals
+
+- 不改变 agent-system execution/audit 的 GPT 5.5 目标模型。
+- 不启用真实 Opus planning LLM；本轮只落默认关闭的配置入口。
+- 不回撤当前工作区已有的无关改动。
+
+## Validation
+
+- `rg "claude-opus-4-7|auto|gpt-5.5" ~/.hermes/config.yaml ~/.hermes/cron/jobs.json`
+- `scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_model_routing.py`
+- `git diff --check`
+- 重启 Gateway 后确认进程仍在运行。
+
+## Progress
+
+- [x] 只读确认当前 Opus 消耗来源：顶层默认模型、auxiliary auto、cron、agent-system bridge 位置。
+- [x] 更新本地配置和 cron job。
+- [x] 调整代码路由和日志。
+- [x] 补充并运行测试：第一轮聚焦回归 `29 passed`，修正 planning/react 后聚焦回归 `45 passed`，`git diff --check` 通过。
+- [x] 重启 Gateway 并确认状态：新 PID 97146，Feishu connected，active_agents=0。
+
+## Decision Log
+
+- 默认运行模型切到 `openai-codex / gpt-5.5`，优先降 Opus 消耗。
+- `title_generation` 继续走 Kimi，不切 GPT 5.5。
+- `planning_llm` 在当前 Hermes 环境启用，但只服务 agent-system 规划阶段；仓库默认配置仍保持关闭，避免新安装环境隐性消耗 Opus。
+- 修正：用户明确要求规划阶段保留 Opus，且规划包括 initial plan 与 audit 之后的 react/re-plan。所谓“受限”应限制 Opus 的职责边界、上下文输入和触发阶段，而不是把规划关掉或只允许首次调用。
+- 当前实现：`initial_plan` 与 `post_audit_react` 走 `agent_system.planning_llm`；execution/audit 子节点继续按 phase routing 使用 GPT 5.5。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+git status --short
+sed -n '1,160p' /Users/frank/.hermes/config.yaml
+jq -r '.jobs[] | [.id,.name,.enabled,.state,.model,.provider] | @tsv' /Users/frank/.hermes/cron/jobs.json
+scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_model_routing.py
+```
+
+---
+
+# Real Feishu Knowledge Capture Landing
+
+## Goal
+
+将已在 dev 验证的“模型自主判断写入业务知识”能力同步到 official，并在真实 Feishu 身份上下文下完成首条 `yang_ma` 产品线知识沉淀。成功标准是：Feishu 张嫄 open_id 可通过 ACL，`knowledge_write` 在 `hermes-feishu` 默认可见，阿基米德 Charter 核心事实可 upsert 到 gbrain，并产生授权审计记录。
+
+## Scope
+
+- `toolsets.py`：默认 `hermes-cli` / `hermes-feishu` 启用 `knowledge_query` 和 `knowledge_write`。
+- `hermes_cli/tools_config.py`：工具配置页展示 `knowledge`，并修复显式空 toolset 不应被插件默认补回的边界。
+- `agent/prompt_builder.py` + `run_agent.py`：仅当 `knowledge_write` 可用时注入自动业务事实沉淀协议。
+- `tools/knowledge_tool.py`：Gateway Feishu `ou_xxx` 规范化为 `feishu:ou_xxx`，保留 raw fallback。
+- `tests/...`：覆盖默认可见性、提示词注入和 Feishu 身份解析。
+- `/Users/frank/.hermes/knowledge/users.yaml`：新增张嫄 `yang_ma` 普通知识权限（不提交）。
+
+## Non-goals
+
+- 不把整段飞书聊天或完整 Charter 原文入库。
+- 不开放张嫄财务知识权限。
+- 不绕过 `source_uri`、ACL 或审计。
+- 不回撤 official 中已有的无关脏改。
+
+## Validation
+
+- `scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py tests/tools/test_knowledge_tool.py tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q`
+- Feishu session 模拟：`platform=feishu`、`user_id=ou_92e78aea6cb26fd9f159aa5b367e4e84`、`chat_id=oc_fbcdc70ecae72e4b87bbb82c1fd6e364` 调用 `knowledge_write`。
+- 查询 `yang_ma` + `阿基米德 核心升级点` 命中 `pl-yang_ma-general-archimedes-charter-core-upgrades-20260511`。
+- 审计日志包含 `action=write`、`granted=true`、`product_line_id=yang_ma`、Charter `source_uri`。
+- `hermes gateway restart` 后 Gateway `running`，Feishu `connected`。
+
+## Progress
+
+- [x] official 同步运行时必需改动。
+- [x] official 回归测试通过：`211 passed, 1 skipped`。
+- [x] 张嫄 ACL 已写入真实 users registry。
+- [x] 首条阿基米德 Charter 知识写入成功，查询命中预期 slug。
+- [x] 审计记录确认授权写入。
+- [x] Gateway 已重启，实际进程为 `/Users/frank/.hermes/hermes-agent-official/venv/bin/python -m hermes_cli.main gateway run --replace`，Feishu connected。
+
+## Decision Log
+
+- 张嫄只授权 `yang_ma` 普通知识，`finance_product_line_ids` 保持空。
+- 首条知识 `confidence=draft`，因为 Charter 属于草稿/立项阶段材料。
+- 使用确定性 `doc_slug=archimedes-charter-core-upgrades-20260511`，重复执行按 gbrain `put` upsert。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py tests/tools/test_knowledge_tool.py tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q
 python - <<'PY'
-from hermes_cli.config import load_config
-from hermes_cli.tools_config import _get_platform_tools
-from model_tools import get_tool_definitions
-cfg = load_config()
-for platform in ["cli", "feishu"]:
-    toolsets = sorted(_get_platform_tools(cfg, platform))
-    names = [
-        (t.get("function") or {}).get("name") or t.get("name")
-        for t in get_tool_definitions(enabled_toolsets=toolsets, quiet_mode=True)
-    ]
-    print(platform, "knowledge" in toolsets, "knowledge_write" in names)
+from pathlib import Path
+print(Path('/Users/frank/.hermes/knowledge/users.yaml').read_text())
 PY
+cat /Users/frank/.hermes/gateway_state.json
 ```
 
-2026-05-11 验证结果：
+---
 
-- `scripts/run_tests.sh tests/hermes_cli/test_tools_config.py tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py -q` → 174 passed, 1 skipped
-- `scripts/run_tests.sh tests/agent/test_knowledge_acl.py tests/agent/test_knowledge_manager.py tests/agent/test_knowledge_audit.py -q` → 32 passed
-- 本地运行时检查：`cli` / `feishu` 均解析出 `knowledge` toolset，且可用工具名包含 `knowledge_write`
+# Agent-System Dynamic Planner Sync
 
-### Progress
+## Goal
 
-- [x] 现状确认：`knowledge` 工具存在，但默认 CLI / Feishu 未解析出 `knowledge_write`
-- [x] 默认工具集与工具 UI 接入
-- [x] 自动业务事实沉淀协议注入
-- [x] 测试覆盖
-- [x] 运行验证并记录结果
+将 dev 环境中已验证的动态 Planner 修复同步到 official：普通任务仍可进入 agent_system，但由主专家动态生成 TaskSpec / Pipeline，避免非 VOC 任务误进 `voc_insight`，并拆分飞书 reply 引用上下文，避免引用内容污染当前意图。
 
-### Recovery
+## Scope
 
-如中断，从 `git diff toolsets.py hermes_cli/tools_config.py agent/prompt_builder.py run_agent.py tests/...` 查看增量；先跑 `tests/hermes_cli/test_tools_config.py` 确认工具面，再跑 agent prompt 测试确认协议注入。
+- official 中新增 `agent_system/planner.py` 和 artifact/doc/report 相关技能。
+- 合并 `cli_bridge.py` 的 PlannerEngine 入口，保留 builder 模式、progress callback、模型路由和输出选择器。
+- 合并 `runtime.py` 的 `run_dynamic_pipeline`、planning audit 元数据和 ephemeral expert 支持，保留心跳与任务规划进度事件。
+- 只追加 routes 新流程，不改旧流程的线上配置。
+- 合并聚焦测试，保留 official 的 Codex auth fail-closed 与 progress 测试。
 
-## 发布步骤（切换到 official 前需确认）
+## Validation
 
-> **下列操作会影响正在运行的 official gateway，需在低峰期或重启前执行。确认前不执行。**
+- `python -m py_compile agent_system/planner.py agent_system/cli_bridge.py agent_system/runtime.py`
+- `scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py`
+- `git diff --check`
+- 手工探针验证：转云文档/状态查询/交付结果/飞书 reply 转文档不进 `voc_insight`；真实 VOC 分析才进 `voc_insight`；普通问候不进 agent_system。
 
-### 1. 将 dev 知识系统代码同步到 official（patch 模式，不破坏现有功能）
+## Progress
 
-```bash
-# 确保 official 是干净的
-cd /Users/frank/.hermes/hermes-agent-official
-git status
+- [x] 只读确认 dev 已有 Planner，official 缺 planner/new skills 且仍使用 `_IMPLICIT_PIPELINE_MAP`
+- [x] 新增 planner 与五个非 VOC 产物/文档技能目录
+- [x] 合并 cli_bridge 动态 Planner 入口和飞书 reply 拆分
+- [x] 合并 runtime 动态 pipeline、planning_meta 审计、ephemeral expert 支持
+- [x] routes 只追加 artifact/doc/report/dashboard_from_artifact flows
+- [x] 运行验证并记录结果：py_compile 通过，聚焦测试 `42 passed`，`git diff --check` 通过，手工探针符合预期
 
-# 从 dev 提取知识系统相关 commits（cherry-pick）
-# dev 的知识系统 commits：
-#   86bb6cb  feat(knowledge): add data models
-#   fbc0e6d  feat(knowledge): add KnowledgeACLGuard
-#   71e442e  feat(knowledge): add KnowledgeUserRegistry
-#   d0b709e  feat(knowledge): add KnowledgeAuditLogger
-#   09ef7fe  feat(knowledge): add KnowledgeProvider ABC + KnowledgeManager
-#   66971778 feat(knowledge): add GBrainCLIKnowledgeProvider
-#   bdeedb3  feat(knowledge): register knowledge_query and knowledge_write tools
-git -C /Users/frank/.hermes/hermes-agent-dev log --oneline -- agent/knowledge*.py tools/knowledge_tool.py toolsets.py plugins/knowledge/
-```
+## Recovery
 
-```bash
-# 方案 A：cherry-pick（推荐，保留 commit 历史）
-cd /Users/frank/.hermes/hermes-agent-official
-git remote add dev /Users/frank/.hermes/hermes-agent-dev 2>/dev/null || true
-git fetch dev
-git cherry-pick 86bb6cb fbc0e6d 71e442e d0b709e 09ef7fe 66971778 bdeedb3
-```
-
-### 2. 复制本地配置（不提交）
-
-```bash
-# users.yaml 已存在于 ~/.hermes/knowledge/users.yaml，official gateway 会自动读取
-# 确认路径
-ls ~/.hermes/knowledge/users.yaml
-```
-
-### 3. 验证 official 环境
+恢复时进入：
 
 ```bash
 cd /Users/frank/.hermes/hermes-agent-official
-scripts/run_tests.sh tests/agent/test_knowledge_manager.py
-python3 -c "
-import sys; sys.path.insert(0,'.')
-from model_tools import discover_builtin_tools
-discover_builtin_tools()
-from tools.registry import registry
-print([t for t in registry._tools if 'knowledge' in t])
-"
+git status --short
+rg -n "PlannerEngine|run_dynamic_pipeline|artifact_status_flow" agent_system/cli_bridge.py agent_system/runtime.py agent_system/scheduler/main_scheduler/routes.json
+scripts/run_tests.sh tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py
 ```
 
-### 4. 重启 gateway（若需要）
+---
+
+# Agent-System Model Routing Fix
+
+## Goal
+
+修复 Hermes agent-system 的模型路由问题：insight_flow / dashboard_flow 中的执行节点（voc_insight、ops_dashboard、briefing）通过 delegate_task 静默继承父代理 claude-opus-4-7。目标是执行/audit 节点改用 kimi-for-coding (via kimi-coding provider)，规划/DAG 路由保持 claude-opus-4-7。同时修复 `_format_final_response` 捞历史旧报告的 bug。
+
+## Root Cause
+
+1. `config.yaml` 中 `delegation.model/provider` 均为空字符串
+2. `_resolve_delegation_credentials` 返回全 None → `_build_child_agent` 执行 `effective_model = model or parent_agent.model` = `claude-opus-4-7`
+3. kimi-coding provider 已在 `auth.json credential_pool` 中配置（key 完整），可直接用于 delegation
+
+## Changes
+
+1. `~/.hermes/config.yaml` — 设置 `delegation.model: kimi-for-coding` / `delegation.provider: kimi-coding`；新增 `agent_system.models` 文档节
+2. `agent_system/cli_bridge.py` — `_make_delegate_skill_executor` 新增执行模型日志；`_format_final_response` 按 run_id 时间戳过滤旧文件
+3. dev workspace 同步相同改动
+
+## Validation
+
+1. 重启 gateway
+2. 触发 insight_flow / dashboard_flow 测试任务
+3. 日志中规划阶段 claude-opus-4-7，执行节点 kimi-for-coding
+
+## Status
+
+- [x] 根因分析完成
+- [x] config.yaml：delegation.model=kimi-for-coding，delegation.provider=kimi-coding；agent_system.models 文档节
+- [x] cli_bridge.py（official + dev）：执行模型日志 + stale-report 时间戳过滤
+- [x] gateway 重启：PID 51172，Feishu 已连接
+- [x] 验证：凭据解析 PASS，时间戳解析 PASS，12 测试通过（1 个预存在失败）
+
+---
+
+# Kimi Fallback Real Request Repair Plan
+
+## Goal
+
+修复 Hermes fallback 到 Kimi 后的 HTTP 404。成功标准是：真实 Kimi API smoke test 返回 200，Hermes fallback 使用真实 key 可访问的 OpenAI-compatible Chat Completions endpoint 和 `/models` 返回的模型名，`xhigh` 作为 Hermes 内部抽象映射为 Kimi thinking 请求参数，而不是透传 `output_config.effort`。
+
+## Scope
+
+- 用最小真实请求验证 Kimi key、base_url、endpoint、model。
+- 将 `/Users/frank/.hermes/config.yaml` 的 fallback 模型保持为真实 `/models` 返回的 `kimi-for-coding`，并保留 `agent.reasoning_effort=xhigh`。
+- 修正 Kimi provider 的 base_url / api_mode 解析，避免 `sk-kimi-*` 自动落到 `https://api.kimi.com/coding/`。
+- 修正 Chat Completions Kimi 请求构造：不发送 `output_config`，按官方参数启用 thinking、max_tokens、temperature、stream。
+- 增加 sanitized debug log，打印 provider/model/base_url/endpoint/stream/max_tokens/thinking，不打印 API key。
+- 增加聚焦单测和真实 smoke 脚本。
+
+## Non-goals
+
+- 不修改无关飞书消息路由、专家层 UI、Gateway progress 逻辑。
+- 不暴露或打印任何 Kimi API key。
+- 不把 OpenAI Codex 主模型切换掉；本轮只修 fallback。
+
+## Context
+
+- 当前配置为 `fallback_providers: kimi-coding / kimi-for-coding`，且 `agent.reasoning_effort=xhigh`。
+- 之前为了尝试 xhigh 修改了 Anthropic adapter，使 Kimi `/coding` 发送 `output_config.effort=xhigh`；这与 Kimi 官方 OpenAI-compatible Chat Completions 文档不一致，且可能导致 404/参数错误。
+- 真实验证显示：当前 `sk-kimi-*` key 访问 `https://api.moonshot.ai/v1` 返回 401；访问 `https://api.kimi.com/coding/v1/models` 返回 200，且唯一模型是 `kimi-for-coding`，display name 为 Kimi-k2.6。
+- `https://api.kimi.com/coding/v1/chat/completions` 在带 Coding Agent User-Agent 时返回 200；因此本轮以该 OpenAI-compatible Chat Completions endpoint 修复 fallback。
+
+## Milestones
+
+1. 真实 curl/smoke 验证 key、endpoint、model。
+2. 修正配置和 provider/runtime 路由。
+3. 修正 Kimi Chat Completions 参数映射与日志。
+4. 增加测试和 smoke 脚本。
+5. 运行验证并重启 Gateway。
+
+## Validation
+
+- `curl https://api.moonshot.ai/v1/chat/completions ... model=kimi-k2-thinking` 预期对当前 key 返回 401，用于确认 key 类型。
+- `curl https://api.kimi.com/coding/v1/models` 预期返回 `kimi-for-coding`。
+- `curl https://api.kimi.com/coding/v1/chat/completions ... model=kimi-for-coding` 预期返回 200。
+- `scripts/run_tests.sh tests/agent/transports/test_chat_completions.py tests/hermes_cli/test_api_key_providers.py`
+- `MOONSHOT_API_KEY=... python scripts/smoke_test_kimi_fallback.py`
+- `venv/bin/python -m hermes_cli.main gateway restart`
+
+## Progress
+
+- [x] 确认当前仓库有未提交无关改动，保留不动。
+- [x] 核对官方文档方向：Moonshot Chat Completions，而不是 Kimi `/coding` Anthropic path。
+- [x] 完成真实 curl 验证：Moonshot endpoint 401，Kimi Coding `/models` 和 `/chat/completions` 200。
+- [x] 完成配置和代码修正。
+- [x] 完成测试与 smoke。
+- [x] 重启 Gateway 并记录最终状态：launchd service definition 已匹配当前 checkout，Gateway loaded，PID 59302。
+- [x] 触发真实 Hermes chat 验证 fallback：session `20260506_103454_feafb9` 返回 `OK`，agent.log 记录 `provider=kimi-coding model=kimi-for-coding base_url=https://api.kimi.com/coding/v1/ endpoint=/chat/completions ... thinking={'type': 'enabled', 'keep': 'all'}`。
+
+## Decision Log
+
+- 不再把 `xhigh` 直接透传给 Kimi；它只映射为 Kimi thinking 模型的请求策略。
+- 不选 `kimi-k2-thinking`，因为当前 key 对 Moonshot endpoint 返回 401；按真实 `/models` 结果使用 `kimi-for-coding`。
+- 对 `sk-kimi-*` 继续使用 `https://api.kimi.com/coding/v1`，但运行协议改为 OpenAI-compatible Chat Completions 的 `/chat/completions`，不再走 Anthropic `/messages`。
+
+## Recovery
+
+恢复时进入：
 
 ```bash
-# 查看当前 gateway 进程
-pgrep -af "hermes-agent-official" | head -5
-# 重启命令（按实际启动方式）
-# 注意：重启会断开当前会话，需在低峰期操作
+cd /Users/frank/.hermes/hermes-agent-official
+sed -n '1,40p' /Users/frank/.hermes/config.yaml
+sed -n '200,280p' agent/transports/chat_completions.py
+sed -n '860,950p' hermes_cli/auth.py
+git status --short
+```
+
+---
+
+# Codex Switcher Takeover Import Plan
+
+## Goal
+
+实现一次性 takeover import：从 Codex Switcher 账号池复制 token bundle 到 Hermes `credential_pool.openai-codex`，由 Hermes 后续负责刷新和轮转，并归档 Switcher 原 token store，避免两个程序共用同一批 refresh token。
+
+## Scope
+
+- 增加正式命令 `hermes auth import-codex-switcher --provider openai-codex --mode takeover [--dry-run]`。
+- 增加正式命令 `hermes auth test openai-codex --label <label>`，输出仅包含 label/provider/auth_mode/status。
+- 自动定位并解析 Codex Switcher 存储，当前真实文件为 `/Users/frank/.codex-switcher/accounts.json`。
+- 导入前备份 Hermes auth store，并设置安全权限。
+- 导入时重建 Hermes credential metadata，不迁移 Switcher 运行态、冷却、错误状态。
+- 导入成功后归档 Switcher token store，确保 takeover 不是共享。
+- 更新 `credential_pool_strategies.openai-codex=least_used`。
+
+## Non-goals
+
+- 不做实时同步，不做 symlink，不让 Hermes 和 Codex Switcher 同时读写同一份 token。
+- 不打印 access_token、refresh_token、id_token、Authorization、Bearer 或完整 token 字段。
+- 不删除 Switcher 数据；只做归档或脱敏保留。
+
+## Context
+
+- 当前 Hermes `openai-codex` 池只有 1 个账号，且状态为 429 rate-limited。
+- Codex Switcher 存储文件 `/Users/frank/.codex-switcher/accounts.json` 包含 4 个账号，结构为 `accounts[].auth_data.{access_token, refresh_token, id_token, account_id, type}`。
+- Hermes 代码当前故意不在运行时自动读取 `~/.codex/auth.json`，以避免 refresh token 被不同程序复用。
+
+## Milestones
+
+1. 只读定位 Switcher 存储并输出非敏感摘要。
+2. 实现 import/test 命令与单测。
+3. dry-run 验证。
+4. 正式导入、备份 Hermes auth store、归档 Switcher token store。
+5. 更新 config、运行 smoke test、重启 Gateway。
+
+## Validation
+
+- `hermes auth list openai-codex`
+- `hermes auth import-codex-switcher --provider openai-codex --mode takeover --dry-run`
+- `hermes auth import-codex-switcher --provider openai-codex --mode takeover`
+- `hermes auth test openai-codex --label <label>`
+- `scripts/run_tests.sh tests/hermes_cli/test_codex_switcher_import.py`
+- `git diff --check`
+
+## Progress
+
+- [x] 确认当前 Hermes `openai-codex` 池只有 1 个 rate-limited 账号。
+- [x] 定位 Switcher token store：`/Users/frank/.codex-switcher/accounts.json`，发现 4 个账号。
+- [x] 实现正式命令和测试。
+- [x] dry-run 验证：只输出来源、账号数、label、auth_mode、token 布尔状态、label 冲突和 action。
+- [x] 正式导入和归档：导入 4 个账号，Hermes auth backup 为 `/Users/frank/.hermes/auth.json.bak.20260506-105235`，Switcher 原 token store 归档到 `/Users/frank/.codex-switcher-archived/accounts.imported-to-hermes.20260506-105235.json`。
+- [x] smoke test、重启 Gateway、总结最终状态：3 个导入账号 auth test 通过，1 个导入账号 401 且刷新失败后标记短期 exhausted；Hermes chat session `20260506_105508_4f2a95` 返回 `OK`；Gateway loaded，PID 70571。
+
+## Decision Log
+
+- takeover import 后，Switcher token store 必须归档，不能继续让 Switcher 使用同一批 refresh token。
+- 导入只复制 token bundle 和账号标识；Hermes 自己生成 credential id、状态、计数和轮转元数据。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+hermes auth list openai-codex
+ls -la /Users/frank/.codex-switcher /Users/frank/.codex-switcher-archived 2>/dev/null
+git status --short
 ```
 
 ---
@@ -1267,245 +1548,772 @@ tail -n 120 /Users/frank/.hermes/logs/gateway.log
 
 ---
 
-# 会话历史 conversation_access 接入
+# Final Output Selection Fix（Task #13）
 
 ## Goal
 
-让 `~/.hermes/knowledge/users.yaml` 中的 `conversation_access: all_users` 不再只是扩展元数据，而是被 Hermes 用户注册表加载，并在 Hermes 内部历史会话读取路径 `session_search` 中形成显式、可测试的权限模式。
-
-成功标准：
-
-- `KnowledgeUserContext` 能保存 `conversation_access`，未配置时默认 `default`。
-- 只有 `is_admin: true` 且 `conversation_access: all_users` 的用户拥有显式全量会话读取权限。
-- 普通用户 `session_search` 保持现有 legacy 行为，不收紧。
-- `session_search` 在加载完整 transcript 和辅助模型总结前完成权限模式解析。
-- dev 验证通过后同步 official。
+修复"用户要报告/云文档，但系统把执行记录发出去"的 bug。成功标准：final response 优先展示 analysis/report_generation 型 skill 的用户产物；云文档失败时如实告知；执行记录仅在无用户产物时作为 fallback（带标签）。
 
 ## Scope
 
-- 目标代码库：
-  - `/Users/frank/.hermes/hermes-agent-dev`
-  - `/Users/frank/.hermes/hermes-agent-official`
-- 主要改动范围：
-  - `agent/knowledge_models.py`
-  - `agent/knowledge_user_registry.py`
-  - 新增轻量会话 ACL helper
-  - `tools/session_search_tool.py`
-  - `run_agent.py`
-  - 相关测试
+- `agent_system/output_selector.py`（新建）— 产物分类 + 优先级选择
+- `agent_system/cli_bridge.py` — `_make_delegate_skill_executor` 提取 `main_report_path`；`_format_final_response` 使用 output_selector
+- `tests/agent_system/test_output_selector.py`（新建）— 3 个场景测试
 
 ## Non-goals
 
-- 不接入飞书原始聊天历史或 UAT 读取路径。
-- 不收紧普通用户现有历史会话搜索行为。
-- 不把产品线/财务知识 ACL 与会话历史 ACL 合并。
+- 不改 runtime.py、skill.json、routes.json、gateway 层
 
 ## Milestones
 
-1. 扩展用户上下文模型和注册表加载。
-2. 增加会话历史权限判定 helper。
-3. 接入 `session_search`，暴露可测试访问模式。
-4. 补充 dev 测试并运行目标套件。
-5. 同步 official 并运行同组测试。
+1. 新建 output_selector.py + 单测（Scenario A/B/C）
+2. 修改 cli_bridge.py 两处
+3. 运行 scripts/run_tests.sh 验证无退化
 
 ## Validation
 
-- `scripts/run_tests.sh tests/agent/test_knowledge_user_registry.py tests/agent/test_conversation_acl.py tests/tools/test_session_search.py -q`
+```bash
+scripts/run_tests.sh tests/agent_system/test_output_selector.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py
+```
 
 ## Progress
 
-- [x] 只读确认当前 `conversation_access` 尚未被模型/注册表加载。
-- [x] 只读确认 `session_search` 在 FTS 命中后会加载完整会话并总结，权限模式解析必须放在此之前。
-- [x] 实现 dev 改动。
-- [x] 完成 dev 测试：`54 passed`。
-- [x] 同步 official。
-- [x] 完成 official 测试：`54 passed`。
-- [x] official 真实配置只读验证：杨子枫返回 `all_sessions`，张嫄返回 `legacy`。
-
-## Decision Log
-
-- 本轮选择兼容策略：普通用户继续走 legacy 全库搜索行为，仅让 `all_users` 成为显式模式。
-- 全量会话权限采用双条件：`is_admin` 和 `conversation_access == "all_users"` 必须同时成立。
-- 飞书原始历史读取不在本轮接入，避免把 Hermes 会话权限误用为飞书 OAuth 授权绕过。
-
-## Recovery
-
-本轮已完成。后续如需恢复或复查，从 `git diff agent/knowledge_models.py agent/knowledge_user_registry.py agent/conversation_acl.py tools/session_search_tool.py run_agent.py tests/agent/test_knowledge_user_registry.py tests/agent/test_conversation_acl.py tests/tools/test_session_search.py` 查看 dev 增量，并对照 official 同名文件。
+- [ ] 新建 agent_system/output_selector.py
+- [ ] 修改 _make_delegate_skill_executor（提取 main_report_path）
+- [ ] 修改 _format_final_response（优先 main_report_path，次选 select_output_files）
+- [ ] 新建 tests/agent_system/test_output_selector.py
+- [ ] 运行测试，确认无退化
 
 ---
 
-# AI Studio 会话基础数据抽取
+# Dev / Official 环境完整整合（2026-05-14）
 
 ## Goal
 
-从 Google AI Studio 会话 `https://aistudio.google.com/app/prompts/1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p` 中抽取可访问的基础数据，包含对话正文、可展开的 Thoughts/推理过程文本、附件或文件线索、截图与抽取日志。
-
-成功标准：
-
-- 产物保存在独立目录，包含原始文本、结构化摘要、截图和日志。
-- 对每个可见或可访问的 `Thoughts` 区块尝试展开并复制文本。
-- 明确记录未能抽取的原因，例如 Chrome 未开启 AppleScript JavaScript、页面虚拟滚动或附件无法下载。
+将 `hermes-agent-official` 当前 snapshot 与 `hermes-agent-dev` 当前 Git 可见工作区完整整合到独立工作区，并在验证通过后合回 `codex/dev-env`。
 
 ## Scope
 
-- 只操作 Chrome 中该 AI Studio 会话页面。
-- 只读抽取，不向 AI Studio 提交新 prompt，不修改 Salesforce 或其他业务系统。
-- 输出目录：`/Users/frank/.hermes/hermes-agent-dev/extracted_data/aistudio_1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p_20260512`
-
-## Non-goals
-
-- 不绕过 Google 权限或登录限制。
-- 不伪造不可见的推理过程。
-- 不重写、翻译或清洗掉原始文本含义。
-
-## Milestones
-
-1. 创建抽取目录并保存当前可见页面文本与截图。
-2. 尝试展开页面中的 Thoughts 区块并重复抽取。
-3. 尝试用滚动/复制方式覆盖更多历史内容。
-4. 盘点附件、链接、文件名和下载线索。
-5. 生成结构化索引与抽取限制说明。
-
-## Parallel Workstreams
-
-- 页面读取和截图依赖当前 Chrome 状态，保持串行，避免把页面滚动位置和剪贴板状态打乱。
-- 文本索引和附件线索扫描可在每轮复制后本地执行。
-
-## Risks / Unknowns
-
-- Chrome 当前禁用“允许 Apple 事件中的 JavaScript”，无法直接读取 DOM。
-- AI Studio 可能使用虚拟滚动，`Cmd+A/Cmd+C` 未必包含全部 41,760 tokens。
-- Thoughts 文本只有在 UI 可展开且复制可见文本时才能获取。
-- 附件若是 Google 私有对象或只在页面内部引用，可能只能记录线索，无法直接下载。
-
-## Validation
-
-- 检查输出目录文件列表。
-- 检查原始文本字节数和关键词命中。
-- 截图留证当前页面状态。
-- 明确记录抽取覆盖范围和失败信号。
-
-## Progress
-
-- [x] 确认 Chrome 能打开目标 AI Studio 会话。
-- [x] 确认 Chrome 禁用 AppleScript JavaScript，需走剪贴板/键盘兜底。
-- [x] 保存初始可见文本和截图。
-- [x] 展开 Thoughts 并重复抽取。
-- [x] 扫描附件和链接线索。
-- [x] 生成结构化索引与限制说明。
-
-## Decision Log
-
-- 选择只读抽取，避免误触运行按钮或修改会话。
-- 当前不依赖 Salesforce，因为用户本轮目标是建立 AI Studio 会话基础数据。
-- Chrome 插件未暴露专用 DOM 工具时，先用剪贴板/截图兜底；随后临时启用 AppleScript-JS 读取 `document.body.innerText`，并通过 `ms-autoscroll-container` 多位置滚动快照扩大覆盖。
-- 页面未暴露附件下载 URL 或二进制内容，本轮将附件保存为线索清单和截图证据，不伪造附件内容。
-- 抽取结束后已将 Chrome Profile 3 的 `allow_javascript_apple_events` 恢复为原始未设置状态；Default Profile 原本为开启，未改变。
-- 过程里生成过 Chrome Profile 偏好备份和缓存命中日志，因包含目标会话外的无关隐私数据，已从交付目录删除并重建 manifest。
-
-## Recovery
-
-本轮已完成。后续从 `/Users/frank/.hermes/hermes-agent-dev/extracted_data/aistudio_1Wgf1B77ZO4_TVeu3xSINo0BLkUfy9W1p_20260512/README.md` 开始查看；如需复跑，先读取 `logs/chrome_tabs_before_relaunch.txt`、`logs/js_scroll_expand_sizes.txt` 和 `logs/unique_raw_files_chronological.txt`，再从 `ms-autoscroll-container` 滚动抽取流程继续。
-
----
-
-# evaluate-change-value Skill 创建与打包
-
-## Goal
-
-创建独立可安装的 Codex/Hermes Skill 包 `evaluate-change-value`，用于产品配置、SKU、价格、渠道、成本等变更的价值评估。成功标准是生成可校验的 Skill 文件夹和 zip 包，内置数据处理脚本、参考方法论、脱敏 golden case，并能用莎士比亚 T90 本地附件复算关键指标。
-
-## Scope
-
-- 输出 Skill 文件夹：`/Users/frank/.hermes/hermes-agent-dev/dist_skills/evaluate-change-value`
-- 输出 zip：`/Users/frank/.hermes/hermes-agent-dev/dist/evaluate-change-value-skill.zip`
-- 包含 `SKILL.md`、`agents/openai.yaml`、`references/`、`scripts/`、`examples/shakespeare_t90/`
-- 使用本地附件做验收，但不把原始 DOCX/XLSX 打入 zip。
-
-## Non-goals
-
-- 不修改 `agent_system` 的 routes、experts、skills。
-- 不安装到 `~/.codex/skills`。
-- 不把原始业务附件、AI Studio 原始抽取数据或敏感二进制文件打包。
-
-## Milestones
-
-1. 使用 `skill-creator` 初始化 Skill 骨架。
-2. 补齐 Skill 指令、reference 契约、脚本和脱敏样例。
-3. 用莎士比亚 T90 附件运行脚本验收关键指标。
-4. 运行 Skill 校验，打包 zip 并检查结构。
-
-## Validation
-
-- `quick_validate.py /Users/frank/.hermes/hermes-agent-dev/dist_skills/evaluate-change-value`
-- `python scripts/run_evaluation.py --input-dir <case_input> --output-dir <case_output> --case-name shakespeare_t90`
-- zip 解压后根目录为 `evaluate-change-value/`，脚本支持 `--help`，examples 不含原始附件。
-
-## Progress
-
-- [x] 确认目标目录不存在，可新建。
-- [x] 初始化 Skill 骨架。
-- [x] 补齐内容和脚本。
-- [x] 完成样例验收。
-- [x] 完成打包验证。
-
-## Decision Log
-
-- 交付选择独立 Skill 包，不接入 `agent_system`。
-- 默认包含脚本，保证指标桥接和审计可复验。
-- 案例仅保留脱敏摘要与预期输出，不携带原始业务附件。
-
-## Recovery
-
-中断后从 `dist_skills/evaluate-change-value` 检查已生成文件；若骨架损坏，可删除该未跟踪目录并重新运行 skill-creator 初始化脚本。用 `PLANS.md` 本节 Progress 恢复当前位置。
-
----
-
-# 知识沉淀机制升级 Phase 1（2026-05-14）
-
-## Goal
-
-让 knowledge_write 失败时不再静默丢失候选知识；通过 alias 映射减少错误产品线写入；通过 prompt routing 规范减少 business facts 写入 memory。
-
-## Scope
-
-- `agent/knowledge_alias.py`（新增）
-- `agent/pending_capture.py`（新增）
-- `tools/knowledge_tool.py`（修改：alias 解析 + 失败 pending capture）
-- `agent/prompt_builder.py`（修改：MEMORY_GUIDANCE + KNOWLEDGE_GUIDANCE routing table）
-
-## Non-goals
-
-- 不新增 pending_capture_write 工具（auto-happens on failure）
-- 不实现 pending→approved 工作流 UI
-- 不修改 KnowledgeACLGuard / KnowledgeManager / provider
+- 基线：`snapshot/hermes-local-20260514-224006` at `18bf580df`
+- Dev 快照：`codex/dev-wip-snapshot-20260514-232334` at `071b80c62`
+- 整合分支：`codex/integrate-dev-official`
+- 整合工作区：`/Users/frank/.hermes/hermes-agent-integrate`
 
 ## Decisions
 
-- JSONL append 而非 SQLite：与 audit log 模式一致，无额外依赖
-- capture_id 在 try 外生成：确保失败时 error response 仍有 pending_capture_id
-- alias 映射在 ACL 前：防止自然业务词被 ACL 误拒
-- mgr=None 不写 pending capture：这是用户配置问题，不是知识路由问题
+- 保留完整 Git 可见内容，包括 `dist/`、`dist_skills/`、`extracted_data/`、运行输出和本地快照。
+- `agent_system` 核心入口、runtime、planner、routes 和模型路由测试以 official 较新版本为主，保留 planning LLM、progress heartbeat、internal skill call、防递归和 Codex auth fail-closed。
+- `knowledge_tool.py` 与知识提示词测试以 dev 快照为主，保留 product-line alias、pending capture 和失败可恢复提示。
+- `toolsets.py` 以 official 版本为主，因为它已包含 `codex_pipeline` 与 `knowledge_query` / `knowledge_write` 的并集。
+- `PLANS.md` 主体保留 official 的现场计划记录，并在本节记录整合恢复信息；dev 知识系统计划同时保留在 `.plans/2026-05-10-knowledge-system-poc.md` 与 `KNOWLEDGE_SYSTEM_PLAN.md`。
 
 ## Validation
 
-2026-05-14 验证结果：
-
-- `scripts/run_tests.sh tests/agent/test_knowledge_alias.py` → 9 passed
-- `scripts/run_tests.sh tests/agent/test_pending_capture.py` → 7 passed
-- `scripts/run_tests.sh tests/tools/test_knowledge_tool.py` → 9 passed（5 existing + 4 new）
-- `scripts/run_tests.sh tests/agent/test_prompt_builder.py tests/agent/test_knowledge_system_prompt.py` → 120 passed, 1 skipped
+- `scripts/run_tests.sh tests/agent/test_knowledge_user_registry.py tests/tools/test_knowledge_tool.py tests/agent/test_prompt_builder.py tests/agent_system/test_model_routing.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/hermes_cli/test_tools_config.py tests/tools/test_session_search.py`
+- `scripts/run_tests.sh`
 
 ## Progress
 
-- [x] 新增 alias 解析模块（commit b6ea39751）
-- [x] 新增 pending capture 存储模块（commit 571fa310c）
-- [x] knowledge_tool.py 接入 alias + pending capture（commit e64274cea）
-- [x] prompt_builder.py 接入 routing table（commit 9db87cf41）
-- [x] 全量回归验证 + PLANS.md 记录
+- [x] 创建 dev WIP 快照分支并提交：`071b80c62`
+- [x] 创建整合工作区与 `codex/integrate-dev-official`
+- [x] 解决 merge 冲突并提交整合分支：`e8e257a8b`
+- [x] 聚焦测试通过：277 passed, 1 skipped
+- [x] 5 个代表性失败全部修复并验证（2026-05-15）
+- [x] 完整测试验证：69 failed（17589 passed, 56 skipped），全部失败归类确认（2026-05-15）
+- [ ] 测试通过后 merge 回 `codex/dev-env`
+
+## Validation Notes
+
+- 2026-05-14：新 worktree 没有本地虚拟环境；测试时临时创建 `.venv` 软链接指向 `/Users/frank/.hermes/hermes-agent-official/venv`，测试结束后删除，不纳入 Git。
+- 2026-05-14：完整测试首次执行未进入 pytest，`scripts/run_tests.sh` 在 macOS bash 3.2 + `set -u` 下空参数展开触发 `ARGS[@]: unbound variable`。已改为有参/无参两个 `exec pytest` 分支后重跑。
+- 2026-05-14：完整测试已进入 pytest 并跑完，结果为 17504 passed, 54 skipped, 82 failed, 22 errors。代表性失败包括 `tools.memory_tool.get_memory_dir` monkeypatch 参数不兼容、Anthropic beta header 期望缺少 `context-1m-2025-08-07`、builtin registry 期望列表缺少 `codex_pipeline_tool` / `feishu_sheet_tool` / `knowledge_tool`。按整合计划，未合回 `codex/dev-env`。
+- 2026-05-15：复测聚焦整合用例，结果为 277 passed, 1 skipped。复核完整测试代表性失败仍存在：`tests/tools/test_memory_tool.py::TestMemoryStoreAdd::test_add_entry` error，`tests/agent/test_anthropic_adapter.py::TestBuildAnthropicClient::test_custom_base_url` failed，`tests/tools/test_registry.py::TestBuiltinDiscovery::test_matches_previous_manual_builtin_tool_set` failed，`tests/tools/test_code_execution_modes.py::TestResolveChildPython::test_project_with_broken_venv_falls_back` failed，`tests/run_agent/test_tool_arg_coercion.py::TestCoerceNumber::test_inf_stays_string_for_integer_only` failed。由于代表性失败已确认，未重复执行完整套件。
+- 2026-05-15：建立归因矩阵并修复全部 5 个代表性失败（提交 87042c706..f5d9a33cf），5 passed 验证，聚焦测试 277 passed, 1 skipped。详细归因：
+  - `test_memory_tool::test_add_entry`：official 引入 `get_memory_dir(user_id)` 签名，fixture 0-arg lambda TypeError → 更新为 `lambda *a, **kw: tmp_path`（3 处）
+  - `test_custom_base_url`：`context-1m` 加入 `_COMMON_BETAS` 后 generic 第三方 URL 也携带 → `_common_betas_for_base_url` 对非 Azure/Bedrock 第三方端点剥除 context-1m
+  - `test_matches_previous_manual_builtin_tool_set`：integrate 引入 3 个自注册工具（codex_pipeline_tool/feishu_sheet_tool/knowledge_tool）→ 更新 expected 集合（27→30）
+  - `test_project_with_broken_venv_falls_back`：CONDA_PREFIX 环境泄漏导致回退到 conda python → patch.dict 补充 `CONDA_PREFIX=""`
+  - `test_inf_stays_string_for_integer_only`：`_coerce_number` 对 inf 统一返回字符串 → 区分 integer_only：False 返回 float，True 返回字符串
+  - 完整测试正在进行中
+- 2026-05-15：复核 Claude Code 修复后状态：5 个代表性失败已通过（5 passed），聚焦整合测试继续通过（277 passed, 1 skipped）。但完整 `HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh` 未通过，结果为 17527 passed, 54 skipped, 81 failed。主要剩余失败集中在 subagent stop hook、Anthropic/Claude Code credentials keychain 隔离、gateway approval/session/status、systemd/WSL service tests、file read/staleness guards、model_tools inf/nan 契约、clipboard WSL detection、TUI protocol/provider 等。按整合计划，仍不能 merge 回 `codex/dev-env`。
+- 2026-05-15：Phase 3 修复提交（c33616f71、3d1e8b972）后完整套件结果：69 failed, 17589 passed, 56 skipped（560s）。失败归类：
+  - **pre-existing official**（~47）：test_file_read_guards(6)、test_gateway_service(3)、test_gateway_wsl(2)、test_session_split_brain_11016(3)、test_status_command(3)、test_file_staleness(3)、test_file_state_registry(2)、test_phase3_semantic_search(2)、test_update_autostash(2)、test_provider_config_validation(2)、test_auth_codex_provider(2)、test_protocol(1)、test_make_agent_provider(1)、test_local_interrupt_cleanup(1)、test_web_server(1)、test_tencent_tokenhub_provider(1)、test_plugin_scanner_recursion(1)、test_cmd_update(1)、test_matrix(1)、test_gateway_shutdown(1) 等，以上在 official 基线已有
+  - **xdist 并行 flaky**（22）：test_delegate(14)、test_clipboard::TestIsWsl(3)、test_resolve_path(2)、test_cli_skin_integration(1) — 单线程运行全部通过（test_delegate:120 passed；其余 isolated pass）；official 也有这些测试文件，official baseline 那次运行碰巧未触发并行冲突
+  - **已修复 vs official**（+26）：test_memory_tool(2)、test_registry(1)、test_memory_tool_import_fallback(1)、test_code_execution_modes(1)、test_tool_arg_coercion(1)、test_anthropic_adapter(20)
+  - **结论**：integrate 无代码回归，对 official 基线净改善 26 个测试。可执行 merge 到 `codex/dev-env`。
 
 ## Recovery
 
-- alias 映射出错：删除 `PRODUCT_LINE_ALIASES` 中对应条目即可
-- pending capture 影响零：`write_pending_capture` 不影响主流程，失败静默
-- prompt 变更出错：恢复 `MEMORY_GUIDANCE` / `KNOWLEDGE_GUIDANCE` 对应段落
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short
+git diff --name-only --diff-filter=U
+```
+
+如需重来，保留 `codex/dev-wip-snapshot-20260514-232334` 不删，删除并重建 `codex/integrate-dev-official` 工作区即可。
+
+---
+
+# Production Readiness 机制 (2026-05-15)
+
+## Goal
+在 integrate 建立可验证、可迁移、可发布的 agent-system production readiness 机制，
+让所有准入判断归一到 capability_readiness.py + readiness_manifest.json，
+消除散落多处的 flag 检查。
+
+## Scope
+- agent_system/readiness_manifest.json（新增，权威 manifest）
+- agent_system/capability_readiness.py（新增，统一 helper）
+- agent_system/cli_bridge.py（修改：gate 移到 Opus 前）
+- agent_system/runtime.py（修改：enforce 默认开启）
+- agent_system/scheduler/main_scheduler/routes.json（修改：allowed_entrypoints）
+- scripts/check_agent_system_readiness.py（新增，发布门禁）
+- tests/agent_system/test_production_readiness.py（扩展至 14 个测试）
+
+## Non-goals
+- 不修改 official 环境
+- 不重启 gateway（只给出建议命令）
+- 不实现真正 skill executor（保留 system executor 模型）
+- 不关闭 Opus planning_llm
+
+## Definition of Done
+1. 所有 route/skill 分类为 ready / non_ready / unknown（manifest 驱动）
+2. Feishu/gateway 普通入口对 unknown 默认 blocked（return None）
+3. Opus planning candidates 只包含 ready route
+4. runtime 默认阻断 non-executable skill
+5. 新增 route/skill 缺 readiness 元数据时 validate_readiness_manifest 报错
+6. 张嫄养马类消息不进入 report_revision_flow，不调用 Opus，不执行空 skill
+7. integrate 全量测试通过
+
+## Route Inventory（初始分类）
+- insight_flow → unknown
+- dashboard_flow → unknown
+- html_flow → unknown
+- artifact_status_flow → unknown
+- artifact_delivery_flow → unknown
+- doc_publish_flow → unknown
+- dashboard_from_artifact_flow → unknown
+- report_revision_flow → non_ready（stub skills）
+
+## Skill Inventory（初始分类）
+- voc_insight, ops_dashboard, dashboard_html, audit, briefing,
+  artifact_resolver, artifact_status, artifact_delivery, doc_publish,
+  superpowers → unknown
+- report_revision → non_ready
+
+## Milestones
+- [x] M1: readiness_manifest.json created
+- [x] M2: capability_readiness.py created
+- [x] M3: routes.json updated with allowed_entrypoints
+- [x] M4: test_production_readiness.py extended to 14 tests (RED)
+- [x] M5: cli_bridge.py updated (gate before Opus)
+- [x] M6: runtime.py updated (enforce by default)
+- [x] M7: scripts/check_agent_system_readiness.py created
+- [x] M8: test fixtures migrated, all tests GREEN
+
+---
+
+# Hermes Knowledge Sedimentation Governance Plane Phase 5（2026-05-15）
+
+## Goal
+
+在 integrate 环境建立 Knowledge Sedimentation Governance Plane：KnowledgeCandidate 数据契约、AssetRouter 分层路由、IdentityResolver 身份解析、ScopeResolver scope 分类、PendingCapture 扩展（list/mark_terminal）、SedimentationMetrics 指标观测。修复 cli_bridge 三大 bug（身份 + 枚举 + pending on failure）。
+
+## Scope
+
+- `agent/knowledge_models.py`（修改：+KnowledgeCandidate, +TerminalState, +CandidateType）
+- `agent/pending_capture.py`（修改：+platform/suggested_next_action/terminal_state, +list_pending, +mark_terminal）
+- `agent/identity_resolver.py`（新增）
+- `agent/scope_resolver.py`（新增）
+- `agent/asset_router.py`（新增）
+- `agent/sedimentation_metrics.py`（新增）
+- `agent_system/cli_bridge.py`（修复：session identity + 合法枚举 + pending on failure）
+
+## Non-goals
+
+- 不直接修改 official（只读参考）
+- 不重启线上 gateway
+- 不实现 pending→approved UI
+- 不迁移历史聊天全文
+- 不实现完整 Knowledge Background Review worker（deferred）
+
+## Baseline Evidence（2026-05-15）
+
+- cli_bridge.py:346 `cli:frank:default` 身份，Feishu session 丢失 → _get_user_default_product_line_id 返回空 → 沉淀静默跳过
+- cli_bridge.py:395 `confidence='high'/'medium'` 非法
+- cli_bridge.py:396 `knowledge_type='business_fact'` 非法
+- cli_bridge.py 未检查 knowledge_write 结果，失败静默（无 pending）
+- IdentityResolver / AssetRouter / ScopeResolver / Metrics 均不存在
+
+## Validation（2026-05-15）
+
+- 聚焦测试：48 passed（test_knowledge_candidate + test_identity_resolver + test_scope_resolver + test_asset_router + test_sedimentation_metrics + test_pending_capture_extended + test_cli_bridge_sedimentation）
+- 全量回归：201 passed, 1 skipped（无 regression）
+
+## Progress
+
+- [x] Task 1: KnowledgeCandidate + TerminalState + CandidateType（commit d4bf522ae，4 passed）
+- [x] Task 2: PendingCapture 扩展 list/mark_terminal/platform（commit 900ab42a4，16 passed）
+- [x] Task 3: IdentityResolver（commit 3f384ae5e，6 passed）
+- [x] Task 4: ScopeResolver（commit 24bafaea9，11 passed）
+- [x] Task 5: AssetRouter + Golden Tests（commit 716a3cc76，9 passed）
+- [x] Task 6: SedimentationMetrics（commit 26ad1e2df，5 passed）
+- [x] Task 7: cli_bridge 修复（commit e155e8249，18 passed）
+- [x] Task 8: 全量回归 + PLANS.md
+
+## Recovery
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git log --oneline -10
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_asset_router.py tests/agent/test_identity_resolver.py -q
+```
+
+---
+
+# Agent-System Readiness 第二阶段收口（2026-05-15）
+
+## Codex 恢复记录（2026-05-15）
+
+- 发现 `f55d4e42d feat(readiness): agent-system production readiness phase 2` 被 `1611b519f Revert "feat(readiness): agent-system production readiness phase 2"` 整包回滚；回滚来自 Knowledge Sedimentation 审计的交付边界清洁，不代表 readiness 方案验证失败。
+- Codex 接管时，工作区存在一处未提交的 `agent_system/cli_bridge.py` 清理改动，内容为移除 `capability_readiness` 引用。该改动与恢复 readiness phase 2 目标相反，已先保存在 `stash@{0}: codex-preserve-cli-bridge-readiness-cleanup`，没有丢弃。
+- 本轮通过 `git revert --no-commit 1611b519f` 恢复被误回滚的 readiness phase 2，并重新执行聚焦验证。
+- 后续任务不得为了清洁其他专题交付边界而直接 revert agent-system readiness commit；若认为当前分支含 unrelated committed work，必须报告或新建隔离分支。
+
+## 恢复步骤记录
+
+### 第一步：停止悬挂测试
+当前会话无悬挂 run_tests/pytest 进程，跳过 kill 操作。
+
+停止重复 full suite，因为当前任务是 readiness 收口，后台 grep/tail 输出为 0 字节，没有提供诊断价值。
+
+### 第二步：未提交文件清单（production readiness 第二阶段）
+- `agent_system/runtime.py` — 修改：enforce_skill_readiness 参数 + capability_readiness 导入
+- `agent_system/scheduler/main_scheduler/routes.json` — 修改：routes 结构调整
+- `tests/agent_system/test_cli_bridge.py` — 修改：新增 readiness 集成测试
+- `tests/agent_system/test_production_readiness.py` — 修改：新增 14 个 readiness 验证测试
+- `tests/agent_system/test_runtime.py` — 修改：新增 enforce_skill_readiness 测试
+- `agent_system/capability_readiness.py` — 新增：ReadinessResult + 检查逻辑
+- `agent_system/readiness_manifest.json` — 新增：manifest 单一事实源
+- `scripts/check_agent_system_readiness.py` — 新增：readiness gate 脚本
+
+这些文件属于 production readiness 第二阶段，不属于 integrate 全量测试修复。
+
+### 第三步：唯一目标
+完成 agent-system readiness 第二阶段最小闭环。
+
+### gateway progress 红测修复
+- 根因：`get_tool_emoji("terminal")` 在 `tools.terminal_tool` 未 import 时返回 fallback `⚙️`
+- 修法：在 `agent/display.py` 新增 `_HARDCODED_TOOL_EMOJIS = {"terminal": "💻"}` 作为注册顺序安全的第 3 级 fallback
+- 不修改测试期望值，不将期望从 💻 改成 ⚙️
+
+### 最终验证结果
+- `python -m py_compile agent_system/capability_readiness.py agent_system/cli_bridge.py agent_system/runtime.py scripts/check_agent_system_readiness.py` → passed
+- `python scripts/check_agent_system_readiness.py` → READINESS CHECK PASSED
+- `tests/agent_system/test_production_readiness.py tests/gateway/test_run_progress_topics.py::test_run_agent_moves_bare_interim_progress_ui_to_single_progress_module` → 15 passed
+- `tests/agent_system/test_production_readiness.py tests/agent_system/test_cli_bridge.py tests/agent_system/test_runtime.py tests/agent_system/test_model_routing.py` → 59 passed
+- `tests/agent_system/` 150 passed
+- `tests/gateway/test_run_progress_topics.py` 30 passed
+- 合计聚焦验证 254 passed，0 failed
+
+## Skill Readiness
+- artifact_resolver: ready（executor_type=system, executable=true, production_ready=true）
+- 其余 skills: unknown（无 executor 合同声明）
+- report_revision: non_ready（stub skill，无 executor）
+
+## Route Readiness
+- 全部路由: unknown 或 non_ready
+- artifact_status_flow / artifact_delivery_flow / doc_publish_flow: unknown（required_skills 的 artifact_status/delivery/publish 无 executor）
+- report_revision_flow: non_ready
+- 无路由进入生产候选（Production Candidates = 0，符合预期）
+
+## artifact_resolver 行为
+- executor_type=system，不走 delegate_task
+- manifest 标 ready 后 check_skill_readiness 不 blocking
+
+## 张嫄养马类消息行为
+- 无明确 artifact path 时，report_revision_flow 为 non_ready，不进入 planning LLM
+- 返回 None（fallback 对话）或 blocked 状态，不触发 delegate_task 递归
+- 不显示"子专家：无 + failed"
+
+---
+
+# Knowledge Sedimentation Phase 5E 闭环修复（2026-05-15）
+
+## Goal
+
+把 Phase 5 的 Governance Plane 从“组件存在”补齐到“主聊天/Feishu 场景可验证地进入 knowledge 或 pending，并可 replay”的最小闭环。
+
+## Scope
+
+- `agent/identity_resolver.py`：Feishu 缺失 user_id 时返回 UNRESOLVED，不 fallback CLI。
+- `agent/pending_capture.py`：新增 `read_pending` / `replay_pending`，并接入 terminal_state 与 metrics。
+- `agent/asset_router.py` / `tools/knowledge_tool.py` / `agent_system/cli_bridge.py`：接入沉淀漏斗 metrics 和 terminal_state。
+- `run_agent.py`：在现有 background review 基础上增加 knowledge review，不破坏 memory/skills review。
+- tests：补 identity、pending replay、metrics wiring、knowledge background review、vertical slice。
+
+## Non-goals
+
+- 不修改 official。
+- 不重启 official gateway。
+- 不改 readiness 机制，不 revert `a74df3801`。
+- 不写入真实知识库，不绕过 ACL，不伪造 source_uri，不把整段 raw chat log 直接写入 knowledge。
+
+## Context
+
+- 第五轮审计确认 integrate 工作区干净，旧 Phase 5E 计划中的 Task 1（隔离 readiness 脏改）已经过期。
+- 当前仍阻塞：Feishu identity fallback CLI、pending 无 read/replay、run_agent 无 knowledge background review、metrics 无真实调用、无 vertical slice。
+- official 仍运行旧代码，PID 3337，本轮只在 integrate 修复。
+
+## Milestones
+
+- [x] M1: 修复 identity UNRESOLVED 不变量。
+- [x] M2: 实现 pending read/replay 与 terminal_state。
+- [x] M3: metrics 接入真实路径。
+- [x] M4: run_agent knowledge background review 最小接入。
+- [x] M5: vertical slice 覆盖 Feishu → candidate → pending/replay → metrics。
+- [x] M6: 聚焦回归通过，更新本计划。
+
+## Validation
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh \
+  tests/agent/test_identity_resolver.py \
+  tests/agent/test_pending_capture_extended.py \
+  tests/agent/test_asset_router.py \
+  tests/agent/test_sedimentation_metrics.py \
+  tests/agent_system/test_cli_bridge_sedimentation.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/run_agent/test_background_review_toolset_restriction.py \
+  tests/integration/test_knowledge_sedimentation_vertical_slice.py \
+  -q
+```
+
+## Progress
+
+- [x] 2026-05-15：Codex 接手，确认 integrate 工作区干净，Phase 5E 从 Task 2 开始修复。
+- [x] 2026-05-15：Feishu `platform=feishu` 且 `user_id=""` 时返回 `IdentitySource.UNRESOLVED`，不再 fallback CLI；旧测试已反转。
+- [x] 2026-05-15：`pending_capture` 新增 `read_pending` / `replay_pending`，replay 成功标记 `knowledge_saved`，失败标记 `blocked`。
+- [x] 2026-05-15：`knowledge_tool` / `cli_bridge` 写 pending 后标记 `terminal_state=pending_created`。
+- [x] 2026-05-15：`sedimentation_metrics` 接入 candidate routing、pending、knowledge_write、replay 路径，并新增 module-level reset。
+- [x] 2026-05-15：`run_agent.py` 增加 knowledge background review，保留 memory/skills 限权，并在 knowledge review 时只额外开放 knowledge toolset。
+- [x] 2026-05-15：新增 vertical slice：Feishu identity → David/company scope → ACL denied pending → permission repair → replay success → metrics。
+- [x] 2026-05-15：聚焦回归通过：64 passed；静态编译通过。
+
+## Validation Results
+
+```bash
+python -m py_compile agent/identity_resolver.py agent/pending_capture.py \
+  agent/asset_router.py agent/sedimentation_metrics.py tools/knowledge_tool.py \
+  agent_system/cli_bridge.py run_agent.py
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh \
+  tests/agent/test_identity_resolver.py \
+  tests/agent/test_pending_capture_extended.py \
+  tests/agent/test_asset_router.py \
+  tests/agent/test_sedimentation_metrics.py \
+  tests/agent_system/test_cli_bridge_sedimentation.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/run_agent/test_background_review_toolset_restriction.py \
+  tests/run_agent/test_background_review_summary.py \
+  tests/integration/test_knowledge_sedimentation_vertical_slice.py \
+  -q
+# 64 passed
+```
+
+## Remaining Release Gate
+
+- official 仍未修改、未重启；上线前需要单独做 RC diff、official merge/deploy 计划和 gateway restart 人工门。
+- 本轮只证明 integrate 的 Phase 5E 闭环；未运行全量测试套件。
+
+---
+
+# Knowledge Sedimentation Phase 5F Pending 运营闭环（2026-05-15）
+
+## Goal
+
+把 Phase 5E 的 pending 从“代码里可 replay”补强为“真实运营可发现、可读取、可回放，并且回放使用原始捕获身份”。成功标准是：Feishu pending 在 CLI/后台场景回放时不会误用当前 CLI 身份；agent 可通过 knowledge toolset 查询 pending、读取 pending 详情、触发单条 replay；聚焦测试通过。
+
+## Scope
+
+- `agent/pending_capture.py`：replay 时临时恢复 record 中的 platform/user_id，避免使用当前会话身份。
+- `tools/knowledge_tool.py`：新增 `knowledge_pending` 工具，支持 `list` / `read` / `replay`。
+- `toolsets.py`：将 `knowledge_pending` 纳入 `knowledge` toolset。
+- tests：覆盖跨会话身份 replay、pending 工具 list/read/replay、toolset 可见性。
+
+## Non-goals
+
+- 不修改 official。
+- 不重启 gateway。
+- 不新增审批 UI 或批量自动 replay。
+- 不绕过 ACL；replay 仍走现有 `knowledge_write` 权限链路。
+
+## Context
+
+- Phase 5E 已实现 `read_pending` / `replay_pending`，但 `_knowledge_write` 依赖 `gateway.session_context` 当前身份。
+- 真实运营中，pending 常由 Feishu 会话产生，却由 CLI、后台任务或治理 agent 在补权限后回放；如果不恢复捕获身份，会出现 `user_not_registered_or_config_error`、归属错误或审计用户错误。
+- `pending_capture.py` 已保存 `platform` 与 `user_id`，可以作为 replay 身份来源。
+
+## Milestones
+
+- [x] M1: replay 恢复原始 platform/user_id，结束后清理上下文。
+- [x] M2: `knowledge_pending` 工具支持 list/read/replay。
+- [x] M3: toolset 纳入与聚焦测试。
+- [x] M4: 更新验证结果。
+
+## Validation
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh \
+  tests/agent/test_pending_capture_extended.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/agent_system/test_cli_bridge_sedimentation.py \
+  tests/integration/test_knowledge_sedimentation_vertical_slice.py \
+  -q
+```
+
+## Progress
+
+- [x] 2026-05-15：审计确认 Phase 5E 的剩余运营薄弱点是 pending replay 依赖当前会话身份，且 pending 操作未暴露为 agent tool。
+- [x] 2026-05-15：`replay_pending` 回放前临时恢复 pending 记录里的 `platform` / `user_id`，回放后恢复当前上下文。
+- [x] 2026-05-15：`knowledge_write` 失败生成 pending 时保存完整 `structured_candidate`，避免 replay 丢失 content / knowledge_type / finance / sensitivity / doc_slug。
+- [x] 2026-05-15：新增 `knowledge_pending` 工具，支持 ACL 可见范围内的 `list` / `read` / `replay`。
+- [x] 2026-05-15：`knowledge` toolset、`hermes-cli`、`hermes-feishu` 均纳入 `knowledge_pending`，保证默认平台可见性。
+
+## Validation Results
+
+```bash
+python -m py_compile agent/pending_capture.py tools/knowledge_tool.py toolsets.py
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh \
+  tests/agent/test_pending_capture_extended.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/run_agent/test_background_review_toolset_restriction.py \
+  -q
+# 30 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh \
+  tests/agent/test_identity_resolver.py \
+  tests/agent/test_pending_capture_extended.py \
+  tests/agent/test_asset_router.py \
+  tests/agent/test_sedimentation_metrics.py \
+  tests/agent_system/test_cli_bridge_sedimentation.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/run_agent/test_background_review_toolset_restriction.py \
+  tests/run_agent/test_background_review_summary.py \
+  tests/integration/test_knowledge_sedimentation_vertical_slice.py \
+  tests/hermes_cli/test_tools_config.py \
+  -q
+# 123 passed
+
+git diff --check
+# passed
+```
+
+---
+
+# Humanizer-zh Chinese Writing Skill MVP（2026-05-15）
+
+## Goal
+
+把 `op7418/Humanizer-zh` 作为 Hermes 的中文自然写作体验层 MVP 接入，让用户说“润色一下”“这段太 AI 了”“改自然点”“像人话一点”“发老板语气别太冲”等自然表达时，更容易通过 Hermes skill index 发现并加载中文润色规则，而不是要求用户显式说“使用 Humanizer-zh”。
+
+## Scope
+
+- 新增仓库内置 bundled skill：`skills/writing/humanizer-zh/`。
+- 保留 `Humanizer-zh` MIT 许可证与来源说明。
+- 优化 `SKILL.md` frontmatter，确保 description 前 60 字含中文触发词。
+- 默认交互改为结果优先：短文本直接给修改后文本，长文本最多一句改动说明。
+- 在 skill 指令中写入事实保真、高风险文本和 Markdown/代码块保护边界。
+- 在 skill 正文中加入轻量保真示例，强化日期、项目名、百分比、截止时间不变。
+- 添加聚焦测试覆盖 skill 元数据、prompt index、slash command、`skill_view`、bundled sync 和正文约束。
+
+## Non-goals
+
+- 不新增 `WritingIntentRouter`。
+- 不重构 skill 系统、prompt cache、CLI/gateway/TUI。
+- 不把 Humanizer-zh 做成 `tools/toolsets.py` 显式 tool。
+- 不实现长期用户写作画像、memory 自动写入、多平台 UI 或大型质量评分引擎。
+- 不处理当前 integrate 中已有的知识沉淀相关脏改。
+
+## Current Architecture Findings
+
+- `agent/prompt_builder.py::build_skills_system_prompt()` 扫描 `get_skills_dir()` 与 external skill dirs，将 skill `name` 与截断后的 `description` 注入系统提示。
+- `agent/skill_utils.py::extract_skill_description()` 会把 description 截断到 60 字，因此中文触发词必须放在开头。
+- 已有 `skills/creative/humanizer` 来源是 `blader/humanizer`，frontmatter 为英文描述，不足以覆盖“润色/改自然/去 AI 味/像人话”等中文自然触发。
+- 仓库 bundled skills 会通过 `tools/skills_sync.py` 同步到用户 `~/.hermes/skills/`，因此 MVP 应放在仓库 `skills/` 树下。
+
+## Humanizer-zh Source Findings
+
+- 源仓库：https://github.com/op7418/Humanizer-zh
+- 核心资产：`SKILL.md`，约 484 行，是 Claude Code 风格中文 skill。
+- License：MIT，Copyright (c) 2026 歸藏。
+- 源 skill 声明翻译自 `blader/humanizer`，工具部分参考 `hardikpandya/stop-slop`。
+
+## Proposed MVP Integration
+
+- 新增 `skills/writing/humanizer-zh/SKILL.md` 与 `LICENSE`。
+- 不复制完整上游长 skill；提炼为 Hermes 日常体验版本，保留来源与核心规则。
+- 默认不暴露工具名，不展示评分表；只在用户要求解释时展示诊断。
+- 对正式/高风险文本默认轻改或中改，明确“不新增事实或承诺”。
+
+## Router Decision
+
+当前 MVP 不新增 router。理由：
+
+- Hermes 已有 mandatory skill index 机制，模型在系统提示中会看到 `humanizer-zh` 的中文触发描述。
+- description 前 60 字足以覆盖主要自然触发表达。
+- 先用 skill metadata 验证触发收益，避免新增全局路由造成误触发、prompt caching 风险和额外维护面。
+
+后续只有当真实使用证明 skill index 命中不足时，再考虑轻量 `WritingIntentRouter`，且仅输出“建议预加载 skill”，不改写用户消息。
+
+## Risks / Unknowns
+
+- 当前 integrate worktree 已有多项知识沉淀相关脏改，本任务只新增独立 skill 与测试，避免混入既有改动。
+- integrate 缺少本地 `venv`，测试需要使用项目已有推荐方式或 `HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv`。
+- 真实自动触发依赖模型遵循 skill index；MVP 测试只能验证索引可见性和元数据质量，不能完全证明线上模型一定加载。
+
+## Validation Plan
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_humanizer_zh_skill.py -q
+```
+
+必要时补跑：
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_skills_sync.py \
+    tests/agent/test_prompt_builder.py tests/agent/test_skill_commands.py -q
+```
+
+## Progress
+
+- [x] 2026-05-15：确认 Claude Code 只完成 Phase 0，Humanizer-zh 集成尚未开始。
+- [x] 2026-05-15：确认已有 `skills/creative/humanizer` 是英文/通用版，不等同于 Humanizer-zh。
+- [x] 2026-05-15：拉取并检查上游 `SKILL.md` 与 MIT `LICENSE`。
+- [x] 2026-05-15：新增 Hermes bundled skill `skills/writing/humanizer-zh/`。
+- [x] 2026-05-15：添加聚焦测试并验证 skill metadata、prompt index、disabled skills、slash command。
+- [x] 2026-05-15：补充 `skill_view("humanizer-zh")` 与 bundled sync 验证，确认 repo `skills/` 可同步到用户 skills 目录并写入 manifest。
+- [x] 2026-05-15：补充保真示例，要求保留 `5月15日`、`X100`、`12%`、`6月30日`、`第二轮验证`，并禁止新增完成承诺。
+- [x] 2026-05-15：将 `skills/writing/humanizer-zh/` 定向安装到真实用户目录 `/Users/frank/.hermes/skills/writing/humanizer-zh/`，避免全量同步触碰其它本地 skills。
+
+## Validation Results
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_humanizer_zh_skill.py -q
+# 6 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_prompt_builder.py tests/agent/test_skill_commands.py -q
+# 153 passed, 1 skipped
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_skills_sync.py \
+    tests/agent/test_prompt_builder.py tests/agent/test_skill_commands.py -q
+# 198 passed, 1 skipped
+
+git diff --check
+# passed
+```
+
+真实用户目录检查：
+
+```bash
+test -f /Users/frank/.hermes/skills/writing/humanizer-zh/SKILL.md
+# passed
+```
+
+## Decision Log
+
+- 选择新增 `humanizer-zh` 而不是覆盖 `humanizer`，避免破坏已有英文/通用写作 skill。
+- 选择 `skills/writing/humanizer-zh` 路径，因为这是中文写作体验层，不是 creative-only 能力。
+- 暂不新增 router，优先使用现有 skill index + 中文触发 description 的低风险路径。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short --branch --untracked-files=all
+sed -n '1,180p' skills/writing/humanizer-zh/SKILL.md
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_humanizer_zh_skill.py -q
+```
+
+若验证真实用户目录安装状态：
+
+```bash
+test -f /Users/frank/.hermes/skills/writing/humanizer-zh/SKILL.md && \
+  sed -n '1,45p' /Users/frank/.hermes/skills/writing/humanizer-zh/SKILL.md
+```
+
+---
+
+# Integrate Closure / Remaining Validation（2026-05-15）
+
+## Goal
+
+把 dev / official 整合工作从“内容已聚合但工作区脏”收束到可审计提交态，并继续清理完整测试剩余失败，直到可以安全 merge 回 `codex/dev-env`。
+
+## Current State
+
+- 已确认 `codex/integrate-dev-official` 的历史包含：
+  - `codex/dev-wip-snapshot-20260514-232334`
+  - `snapshot/hermes-local-20260514-224006`
+  - `codex/dev-env`
+  - `main`
+- 经验/知识系统 Phase 5E 已提交：`f549eb15b feat(knowledge): complete pending replay and sedimentation loop`
+- `humanizer-zh` bundled skill 已提交：`05c3046c2 feat(skills): add humanizer-zh bundled writing skill`
+- “回复问候”核查结论：未发现新的独立未提交代码差异；相关能力来自已合入的 dynamic planner / Feishu reply 拆分 / 普通问候不进 `agent_system` 验证记录。
+
+## Validation Done
+
+```bash
+python -m py_compile agent/identity_resolver.py agent/pending_capture.py \
+  agent/asset_router.py agent/sedimentation_metrics.py tools/knowledge_tool.py \
+  run_agent.py agent_system/cli_bridge.py
+# passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_identity_resolver.py \
+  tests/agent/test_pending_capture_extended.py \
+  tests/agent/test_sedimentation_metrics.py \
+  tests/agent_system/test_cli_bridge_sedimentation.py \
+  tests/tools/test_knowledge_tool.py \
+  tests/run_agent/test_background_review_toolset_restriction.py \
+  tests/run_agent/test_background_review_summary.py \
+  tests/agent/test_humanizer_zh_skill.py
+# 63 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_skills_sync.py \
+  tests/agent/test_prompt_builder.py tests/agent/test_skill_commands.py \
+  tests/agent/test_humanizer_zh_skill.py
+# 204 passed, 1 skipped
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/integration/test_knowledge_sedimentation_vertical_slice.py
+# 1 passed
+
+git diff --check
+# passed
+```
+
+## Remaining Failure Clusters
+
+完整测试仍未通过，最近结果为 `70 failed, 17610 passed, 54 skipped`。下一阶段按失败簇归因和修复，而不是逐个盲修：
+
+- `delegate/subagent`：stop hook、delegate observability、cost rollup、blocked tools、agent guardrails。
+- `auth/credential isolation`：Codex CLI auth fail-closed 测试、真实 keychain / auth store 隔离。
+- `gateway async/session`：approve/deny、session split-brain、status、shutdown cancellation。
+- `file state/staleness guards`：read dedup、staleness、state registry。
+- `platform-local assumptions`：systemd、WSL、clipboard WSL detection、container defaults。
+- `TUI protocol/provider`：mock DB / provider resolution 与当前接口契约不一致。
+
+## Next Milestones
+
+- [ ] M1：提交本节 `PLANS.md` 收束记录，保持工作区干净。
+- [ ] M2：建立剩余完整测试失败簇归因表。
+- [ ] M3：优先修复 `delegate/subagent` 失败簇。
+- [ ] M4：修复 `auth/credential isolation` 失败簇，确保不削弱 fail-closed。
+- [ ] M5：跑三层验证：失败簇测试、三会话聚焦测试、完整测试。
+- [ ] M6：完整测试通过后 merge 回 `/Users/frank/.hermes/hermes-agent-dev` 的 `codex/dev-env`。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short --branch
+git log --oneline --decorate --max-count=8
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+```
+
+---
+
+# Integrate Optimization Closure（2026-05-15）
+
+## Goal
+
+完成 dev / official 整合后的失败簇优化，把 `codex/integrate-dev-official` 收束到完整测试通过、可合回 `codex/dev-env` 的状态。
+
+## Scope
+
+- 修复/对齐 full-suite 暴露的 delegate、auth、gateway cancellation、file state、systemd/WSL、TUI provider、Matrix E2EE、TokenHub context、logging/cache/stale import 等失败簇。
+- 保留 official 的 fail-closed auth、codex_pipeline、conversation access、planner/model routing 等较新行为。
+- 保留 dev 的 knowledge pending replay / sedimentation / alias 相关能力。
+
+## Progress
+
+- [x] 修复 delegate/subagent 配置污染和 guardrail 测试导入时机问题。
+- [x] 修复 file tools 在 macOS `/private/var` tempdir 下的误拦截。
+- [x] 对齐 Codex auth fail-closed、gateway delivery manager、Tirith background install、gateway cancellation、Matrix E2EE mock、TUI provider/session resume、TokenHub 256Ki context、local interrupt cleanup。
+- [x] 收敛完整测试中的 full-only 全局状态污染：`oneshot` logging restore、clipboard WSL stale binding、TUI env override、file tool backend cache、agent cache slow init、ACP forced redaction。
+- [x] 完整测试通过。
+
+## Validation
+
+重点回归：
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_subagent_stop_hook.py \
+  tests/tools/test_delegate.py tests/run_agent/test_agent_guardrails.py
+# 157 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_file_read_guards.py \
+  tests/tools/test_file_staleness.py tests/tools/test_file_state_registry.py
+# 61 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/tools/test_tirith_security.py \
+  tests/gateway/test_approve_deny_commands.py \
+  tests/gateway/test_gateway_shutdown.py \
+  tests/gateway/test_session_split_brain_11016.py
+# 105 passed
+
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/hermes_cli/test_gateway_service.py \
+  tests/hermes_cli/test_gateway_wsl.py tests/hermes_cli/test_update_autostash.py \
+  tests/hermes_cli/test_cmd_update.py tests/hermes_cli/test_provider_config_validation.py \
+  tests/test_phase3_semantic_search.py tests/tools/test_clipboard.py
+# 293 passed
+```
+
+完整回归：
+
+```bash
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+# 17681 passed, 54 skipped, 194 warnings
+```
+
+## Decision Log
+
+- `oneshot` logging 静音必须恢复原始 `logging.disable` 状态；否则 full-suite 后续 caplog 会被跨测试污染。
+- ACP `fs/read_text_file` 属于安全边界，读取内容即使全局 redaction 未开启也强制脱敏。
+- 文件工具 integration 测试必须显式隔离 `TERMINAL_ENV=local` 并清理 terminal/file_ops 缓存，避免 full-suite 中其他 backend 测试残留。
+- TUI provider 测试必须清空 `HERMES_MODEL` / `HERMES_INFERENCE_MODEL` / `HERMES_TUI_PROVIDER`，因为这些是合法 runtime override，不应污染该单元断言。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git status --short --branch
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+```

@@ -1,0 +1,142 @@
+{
+  "run_id": "Run_report_revision_flow_20260514T080319",
+  "pipeline_id": "report_revision_flow",
+  "review_period": "2026-05-14 至 2026-05-14",
+  "review_triggers": [
+    "biweekly_review",
+    "key_node_completion",
+    "exception_event",
+    "human_intervention"
+  ],
+  "task_count": 2,
+  "success_rate": 0.0,
+  "average_output_quality": 0.0,
+  "exception_count": 2,
+  "dynamic_coverage_frequency": 0,
+  "human_review_count": 1,
+  "human_input_summary": [],
+  "human_review_decisions": [
+    {
+      "node_id": "artifact_resolver",
+      "decision": "missing",
+      "blocking": true,
+      "channel": "unavailable",
+      "summary": ""
+    }
+  ],
+  "default_skill_usage": {
+    "artifact_resolver": 1
+  },
+  "dynamic_overrides": [],
+  "exceptions": [
+    {
+      "event": "skill_execution_failed",
+      "trigger": "Subagent did not produce a response.",
+      "handling": "记录失败并进入复盘",
+      "blocking": true,
+      "audit_field": "skill_execution",
+      "review_trigger": true
+    },
+    {
+      "event": "dependency_blocked",
+      "trigger": "artifact_resolver",
+      "handling": "等待依赖节点恢复",
+      "blocking": true,
+      "audit_field": "depends_on",
+      "review_trigger": true
+    }
+  ],
+  "weight_adjustments": {},
+  "skill_weights_updated": true,
+  "rule_update_suggestions": [
+    "复核人工介入触发规则和用户确认口径"
+  ],
+  "flow_visualization": "主智能体 -> Skill 执行 -> 子专家 -> Skill 执行 -> 人工介入 -> 输出 + 审计 -> 复盘与权重优化",
+  "planning_source": "planning_llm_template_override",
+  "template_candidate": false,
+  "skipped_voc_insight_reason": "",
+  "planning_llm": {
+    "accept_local_plan": false,
+    "pipeline_id": "report_revision_flow",
+    "task_type": "report_revision",
+    "task_goal": "检查现有MRD文档5.2.4及之前内容是否已包含飞书文档中提及的上一代产品问题维度，若未包含则补充",
+    "expected_output": "修订后的MRD文档片段或确认报告，说明上一代产品问题维度的覆盖情况",
+    "requires_voc_insight": false,
+    "react_decision": "continue",
+    "next_actions": [
+      "artifact_resolver: 定位飞书文档 https://ecovacs.feishu.cn/docx/Fy52dMj20oiF8txEecScjJfInbh 中的用户洞察部分",
+      "artifact_resolver: 定位当前MRD文档5.2.4及之前内容",
+      "report_revision: 对比两份文档，检查上一代产品问题维度是否已包含，若缺失则补充"
+    ],
+    "risk_flags": [
+      "需要访问外部飞书文档，可能存在权限或网络限制",
+      "用户已完成一轮表格合并，当前任务是验证性检查而非重新生成洞察"
+    ],
+    "reason": "用户明确要求检查现有文档是否包含特定维度（上一代产品问题），这是典型的report_revision任务而非voc_analysis。local_plan错误地将其归类为voc_analysis并选择了insight_flow，但用户已有合并后的表格内容，现在需要的是文档对比和修订确认。应使用report_revision_flow，先定位两份文档，再进行对比检查。",
+    "llm_used": true,
+    "stage": "initial_plan",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "react_plan": {
+    "accept_local_plan": false,
+    "pipeline_id": "report_revision_flow",
+    "task_type": "report_revision",
+    "task_goal": "检查现有MRD文档5.2.4及之前内容是否已包含飞书文档中提及的上一代产品问题维度，若未包含则补充",
+    "expected_output": "修订后的MRD文档片段或确认报告，说明上一代产品问题维度的覆盖情况",
+    "requires_voc_insight": false,
+    "react_decision": "repair",
+    "next_actions": [
+      "重新执行artifact_resolver节点，明确指示需要定位两份文档：1) 飞书文档 https://ecovacs.feishu.cn/docx/Fy52dMj20oiF8txEecScjJfInbh 中的用户洞察部分 2) 当前MRD文档5.2.4及之前内容",
+      "若artifact_resolver再次失败，降级为ask_human，请求用户提供飞书文档内容或MRD文档路径",
+      "artifact_resolver成功后继续执行report_revision节点进行对比检查"
+    ],
+    "risk_flags": [
+      "artifact_resolver节点子智能体无响应，可能是外部飞书文档访问权限问题",
+      "需要访问外部飞书文档，存在网络或权限限制风险",
+      "若artifact_resolver持续失败，需人工介入提供文档内容"
+    ],
+    "reason": "artifact_resolver节点因子智能体无响应而失败，导致report_revision节点依赖阻塞。规划本身正确（report_revision_flow），但执行层面遇到技术障碍。应repair重试artifact_resolver，若再次失败则ask_human请求用户直接提供文档内容或路径，避免流程完全阻塞。",
+    "llm_used": true,
+    "stage": "post_audit_react",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "experience_isolation": {
+    "system_level": {
+      "owner": "Hermes 主代理",
+      "write_scope": "系统级经验库",
+      "contains": "全局策略、用户偏好、会话记忆、运行级复盘索引"
+    },
+    "expert_level": {
+      "owner": "对应专家",
+      "write_scope": "本专家 expert_mem",
+      "contains": "专家决策、历史任务、复盘结果、Skill 调用摘要"
+    },
+    "skill_level": {
+      "owner": "对应 Skill",
+      "write_scope": "本 Skill skill_mem",
+      "contains": "Skill 执行历史、成功率、异常统计、复盘反馈"
+    },
+    "rule": "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。"
+  },
+  "experience_updates": [
+    {
+      "layer": "system",
+      "owner": "hermes_main_agent",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md",
+      "write_reason": "运行级全局摘要与复盘触发索引",
+      "write_scope": "system_only"
+    },
+    {
+      "layer": "skill",
+      "owner": "artifact_resolver",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/artifact_resolver/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 0,
+      "exception_count": 0,
+      "average_output_quality": 0.0
+    }
+  ]
+}

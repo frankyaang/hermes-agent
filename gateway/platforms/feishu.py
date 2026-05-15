@@ -355,6 +355,13 @@ class FeishuNormalizedMessage:
 
 
 @dataclass(frozen=True)
+class FeishuExpandedMessage:
+    text_content: str
+    media_urls: List[str] = field(default_factory=list)
+    media_types: List[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class FeishuAdapterSettings:
     app_id: str  # Canonical bot/app identifier (credential, not from event payloads)
     app_secret: str
@@ -909,7 +916,7 @@ def _normalize_merge_forward_message(payload: Dict[str, Any]) -> FeishuNormalize
     lines: List[str] = []
     if title:
         lines.append(title)
-    lines.extend(entries[:8])
+    lines.extend(entries)
     text_content = "\n".join(lines).strip() or FALLBACK_FORWARD_TEXT
     return FeishuNormalizedMessage(
         raw_type="merge_forward",
@@ -3284,7 +3291,150 @@ class FeishuAdapter(BasePlatformAdapter):
             if injected:
                 text = injected
 
+        if raw_type.strip().lower() == "merge_forward" and message_id:
+            expanded = await self._expand_merge_forward_message(message_id)
+            if expanded and expanded.text_content:
+                text = expanded.text_content
+                media_urls.extend(expanded.media_urls)
+                media_types.extend(expanded.media_types)
+                inbound_type = MessageType.TEXT
+
         return text, inbound_type, media_urls, media_types, list(normalized.mentions)
+
+    async def _fetch_message_items(self, message_id: str, *, failure_context: str = "message") -> Optional[List[Any]]:
+        if not self._client or not message_id:
+            return None
+        request = self._build_get_message_request(message_id)
+        response = await asyncio.to_thread(self._client.im.v1.message.get, request)
+        if not response or getattr(response, "success", lambda: False)() is False:
+            code = getattr(response, "code", "unknown")
+            msg = getattr(response, "msg", "message lookup failed")
+            logger.warning("[Feishu] Failed to fetch %s %s: [%s] %s", failure_context, message_id, code, msg)
+            return None
+        items = getattr(getattr(response, "data", None), "items", None) or []
+        return list(items)
+
+    async def _expand_merge_forward_message(
+        self,
+        message_id: str,
+        *,
+        seen_message_ids: Optional[set[str]] = None,
+    ) -> Optional[FeishuExpandedMessage]:
+        if not message_id:
+            return None
+        seen = seen_message_ids if seen_message_ids is not None else set()
+        if message_id in seen:
+            logger.debug("[Feishu] Skipping recursive merge_forward expansion for %s", message_id)
+            return None
+        seen.add(message_id)
+        try:
+            items = await self._fetch_message_items(message_id, failure_context="merged forward")
+            if not items:
+                return None
+            child_items = self._merge_forward_child_items(items, message_id)
+            if not child_items:
+                return None
+            return await self._render_merge_forward_children(child_items, seen_message_ids=seen)
+        except Exception:
+            logger.warning("[Feishu] Failed to expand merged forward %s", message_id, exc_info=True)
+            return None
+
+    @staticmethod
+    def _merge_forward_child_items(items: Sequence[Any], message_id: str) -> List[Any]:
+        if len(items) <= 1:
+            return []
+        first = items[0]
+        first_type = str(getattr(first, "msg_type", "") or getattr(first, "message_type", "") or "").lower()
+        first_id = str(getattr(first, "message_id", "") or "")
+        if first_type == "merge_forward" or (message_id and first_id == message_id):
+            return list(items[1:])
+        return list(items)
+
+    async def _render_merge_forward_children(
+        self,
+        child_items: Sequence[Any],
+        *,
+        seen_message_ids: Optional[set[str]] = None,
+    ) -> FeishuExpandedMessage:
+        entries: List[str] = []
+        media_urls: List[str] = []
+        media_types: List[str] = []
+        total = len(child_items)
+        for index, item in enumerate(child_items, start=1):
+            entry_text, child_media_urls, child_media_types = await self._extract_forward_child_content(
+                item,
+                seen_message_ids=seen_message_ids,
+            )
+            media_urls.extend(child_media_urls)
+            media_types.extend(child_media_types)
+            sender_label = await self._resolve_message_item_sender_label(item)
+            entries.append(self._format_forwarded_entry(index, entry_text, sender_label))
+        header = f"[Merged forward message — {total} forwarded message{'s' if total != 1 else ''}]"
+        return FeishuExpandedMessage(
+            text_content="\n".join([header, *entries]).strip(),
+            media_urls=media_urls,
+            media_types=media_types,
+        )
+
+    async def _extract_forward_child_content(
+        self,
+        item: Any,
+        *,
+        seen_message_ids: Optional[set[str]] = None,
+    ) -> tuple[str, List[str], List[str]]:
+        msg_type = str(getattr(item, "msg_type", "") or getattr(item, "message_type", "") or "")
+        message_id = str(getattr(item, "message_id", "") or "")
+        body = getattr(item, "body", None)
+        raw_content = getattr(body, "content", "") if body is not None else getattr(item, "content", "")
+        raw_content = raw_content or ""
+        mentions = getattr(item, "mentions", None)
+
+        if msg_type.strip().lower() == "merge_forward" and message_id:
+            nested = await self._expand_merge_forward_message(message_id, seen_message_ids=seen_message_ids)
+            if nested and nested.text_content:
+                return nested.text_content, list(nested.media_urls), list(nested.media_types)
+
+        normalized = normalize_feishu_message(
+            message_type=msg_type,
+            raw_content=raw_content,
+            mentions=mentions,
+            bot=self._bot_identity(),
+        )
+        text = normalized.text_content.strip()
+        if not text:
+            placeholder = normalized.metadata.get("placeholder_text") if isinstance(normalized.metadata, dict) else None
+            text = str(placeholder).strip() if placeholder else ""
+        if not text and normalized.preferred_message_type == "photo":
+            text = FALLBACK_IMAGE_TEXT
+        if not text and msg_type:
+            text = f"[{msg_type} message]"
+
+        media_urls, media_types = await self._download_feishu_message_resources(
+            message_id=message_id,
+            normalized=normalized,
+        )
+        return text, media_urls, media_types
+
+    async def _resolve_message_item_sender_label(self, item: Any) -> str:
+        sender = getattr(item, "sender", None)
+        sender_id = str(getattr(sender, "id", "") or "").strip() if sender is not None else ""
+        if not sender_id:
+            return ""
+        display_name = await self._resolve_sender_name_from_api(sender_id)
+        return display_name or sender_id
+
+    @staticmethod
+    def _format_forwarded_entry(index: int, text: str, sender_label: str = "") -> str:
+        body = (text or "").strip() or "[Empty message]"
+        lines = body.splitlines() or [body]
+        prefix = f"{index}. "
+        if sender_label:
+            prefix += f"{sender_label}: "
+        first = prefix + lines[0]
+        if len(lines) == 1:
+            return first
+        continuation_indent = " " * max(3, len(prefix))
+        return "\n".join([first, *(continuation_indent + line for line in lines[1:])])
 
     async def _download_feishu_message_resources(
         self,
@@ -3633,17 +3783,19 @@ class FeishuAdapter(BasePlatformAdapter):
         if message_id in self._message_text_cache:
             return self._message_text_cache[message_id]
         try:
-            request = self._build_get_message_request(message_id)
-            response = await asyncio.to_thread(self._client.im.v1.message.get, request)
-            if not response or getattr(response, "success", lambda: False)() is False:
-                code = getattr(response, "code", "unknown")
-                msg = getattr(response, "msg", "message lookup failed")
-                logger.warning("[Feishu] Failed to fetch parent message %s: [%s] %s", message_id, code, msg)
-                return None
-            items = getattr(getattr(response, "data", None), "items", None) or []
+            items = await self._fetch_message_items(message_id, failure_context="parent message")
             parent = items[0] if items else None
-            body = getattr(parent, "body", None)
+            if not parent:
+                return None
             msg_type = getattr(parent, "msg_type", "") or ""
+            if str(msg_type).strip().lower() == "merge_forward":
+                child_items = self._merge_forward_child_items(items or [], message_id)
+                if child_items:
+                    expanded = await self._render_merge_forward_children(child_items, seen_message_ids={message_id})
+                    text = expanded.text_content
+                    self._message_text_cache[message_id] = text
+                    return text
+            body = getattr(parent, "body", None)
             raw_content = getattr(body, "content", "") or ""
             parent_mentions = getattr(parent, "mentions", None) if parent else None
             text = self._extract_text_from_raw_content(

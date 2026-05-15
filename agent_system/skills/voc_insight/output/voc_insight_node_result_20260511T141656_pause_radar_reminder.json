@@ -1,0 +1,183 @@
+{
+  "task_id": "dashboard_flow:voc_insight",
+  "flow_id": "dashboard_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "status": "completed",
+  "generated_at": "2026-05-11T14:16:56+08:00",
+  "expert_id": "user_analyst",
+  "expert_role": "primary",
+  "skill_id": "voc_insight",
+  "requested_skill_id": "voc_insight",
+  "source_materials_count": 1,
+  "source_signal": {
+    "raw_user_feedback": "暂停重要沟通雷达的提醒",
+    "reply_context": "张欢-重要沟通雷达 cronjob response / ops_dashboard completed_with_permission_gap",
+    "intent_classification": "pause_recurring_reminder",
+    "is_new_voc_data_request": false,
+    "is_control_instruction": true
+  },
+  "structured_outputs": {
+    "user_insight_conclusion": "用户当前核心诉求不是继续分析雷达内容，而是停止在权限缺口状态下重复收到无实质信息的提醒。重要沟通雷达在张欢本人 UAT 缺失时无法产出可行动事项，继续高频提醒会形成噪声；应保持暂停，直到授权恢复且用户确认恢复提醒。",
+    "voice_of_user": "暂停重要沟通雷达的提醒",
+    "pain_points": [
+      "权限缺口状态下的雷达提醒缺少业务增量",
+      "重复提示授权缺口会变成提醒噪声",
+      "用户希望对自动化通知有即时控制权"
+    ],
+    "root_cause": "张欢本人 Feishu user_access_token 缺失，私域历史读取按策略停止，导致雷达无法输出实质高优事项。",
+    "product_insights": [
+      "缺权限时，监控类 Agent 应从定时提醒转为状态型待办，避免重复打扰。",
+      "恢复监控不应仅依赖技术条件恢复，还应在高频提醒前获得用户确认。",
+      "私域边界合规之外，还需要通知节奏合规：不越权、不伪造、不反复打扰。"
+    ],
+    "recommended_actions": [
+      {
+        "priority": "P0",
+        "action": "保持张欢-重要沟通雷达暂停",
+        "reason": "符合用户明确反馈，且当前无 UAT 无法产出实质事项。"
+      },
+      {
+        "priority": "P0",
+        "action": "不启用 app/bot fallback",
+        "reason": "用户未批准有限范围替代读取；需继续遵守私域硬边界。"
+      },
+      {
+        "priority": "P1",
+        "action": "授权恢复后询问用户是否恢复提醒及频率",
+        "reason": "避免技术恢复后自动重启高频通知。"
+      }
+    ]
+  },
+  "cron_observation": {
+    "checked_via": "cronjob list",
+    "target_job_id": "6bb4cce497f8",
+    "target_job_name": "张欢-重要沟通雷达",
+    "schedule": "0 10,14,17,21 * * 1-5",
+    "state": "paused",
+    "enabled": false,
+    "paused_at": "2026-05-11T14:16:39.821372+08:00",
+    "last_run_at": "2026-05-11T14:12:46.358472+08:00",
+    "last_status": "ok",
+    "script": "zhanghuan_work_radar.py",
+    "pause_action_performed_by_this_node": false,
+    "observation_summary": "目标重要沟通雷达 cron job 当前已暂停。"
+  },
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "required_access": "张欢本人 user_access_token",
+    "uat_status_observed": {
+      "has_token": false,
+      "status": "missing",
+      "path": "/Users/frank/.hermes/secure/feishu_user_tokens.json"
+    },
+    "private_history_read": false,
+    "app_or_bot_fallback_used": false,
+    "tokens_or_secrets_exposed": false
+  },
+  "skills_loaded": [
+    "voc_insight (local Agent System skill)",
+    "user_analyst EXPERT.md",
+    "feishu-work-monitoring-cron",
+    "feishu-chat-history-audit"
+  ],
+  "skill_weights": {
+    "voc_insight": 100,
+    "superpowers": 80,
+    "briefing": 70,
+    "ops_dashboard": 100
+  },
+  "primary_expert_skill_calls": [
+    {
+      "expert_id": "user_analyst",
+      "skill_id": "voc_insight",
+      "mode": "local_skill_file_plus_production_llm_subagent",
+      "status": "completed"
+    }
+  ],
+  "secondary_expert_skill_calls": [],
+  "real_skill_execution": true,
+  "skill_execution_modes": [
+    "local_agent_system_skill_execution",
+    "production_llm_subagent",
+    "tool_verified_cron_state"
+  ],
+  "online_llm_api_calls": 1,
+  "max_spawn_depth": 3,
+  "human_review_required": "否",
+  "human_review_decision": "not_required",
+  "human_review_blocking": false,
+  "human_review_channel": "unavailable",
+  "human_input_summary": "用户在当前消息中明确要求暂停重要沟通雷达提醒。",
+  "exceptions": [
+    {
+      "code": "upstream_permission_gap",
+      "severity": "non_blocking_for_pause_insight",
+      "message": "张欢本人 user_access_token 缺失，原雷达无法读取私域历史。"
+    }
+  ],
+  "missing_inputs": [
+    "如未来要恢复实质雷达内容，仍需张欢本人 Feishu OAuth 授权。"
+  ],
+  "audit_checks": {
+    "local_voc_insight_skill_loaded": true,
+    "user_analyst_boundary_checked": true,
+    "prior_permission_gap_outputs_checked": true,
+    "cron_status_checked": true,
+    "target_radar_job_paused": true,
+    "uat_status_checked": true,
+    "no_private_history_read_without_uat": true,
+    "no_app_bot_fallback": true,
+    "no_tokens_or_secrets_exposed": true,
+    "node_scope_respected": true
+  },
+  "memory_access_policy": {
+    "system_level": {
+      "read": true,
+      "write": "Hermes 主代理 / 全局运行器",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md"
+    },
+    "expert_level": {
+      "read": ["user_analyst", "ops_expert"],
+      "write": ["user_analyst"],
+      "paths": {
+        "user_analyst": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md"
+      }
+    },
+    "skill_level": {
+      "read": ["voc_insight", "ops_dashboard", "briefing", "superpowers"],
+      "write": ["voc_insight"],
+      "paths": {
+        "voc_insight": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md"
+      }
+    },
+    "write_boundary": "本节点只写 user_analyst 专家级经验和 voc_insight Skill 级经验，不写系统级经验。"
+  },
+  "experience_write_scope": {
+    "expert_level": ["user_analyst"],
+    "skill_level": ["voc_insight"],
+    "system_level": "not_written_by_subagent"
+  },
+  "experience_updates": [
+    {
+      "layer": "expert",
+      "owner": "user_analyst",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+      "reason": "记录暂停提醒类用户反馈的专家决策边界。"
+    },
+    {
+      "layer": "skill",
+      "owner": "voc_insight",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md",
+      "reason": "沉淀权限缺口后暂停提醒的 Skill 处理模式。"
+    }
+  ],
+  "files_created_or_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T141656_pause_radar_reminder.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T141656_pause_radar_reminder.json",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md"
+  ],
+  "next_action": "保持重要沟通雷达暂停；如后续张欢完成 OAuth 授权，再由用户确认是否恢复雷达提醒及频率。"
+}

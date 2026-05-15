@@ -669,6 +669,14 @@ DEFAULT_CONFIG = {
             "timeout": 30,
             "extra_body": {},
         },
+        "flush_memories": {
+            "provider": "auto",
+            "model": "",
+            "base_url": "",
+            "api_key": "",
+            "timeout": 30,
+            "extra_body": {},
+        },
     },
     
     "display": {
@@ -833,6 +841,26 @@ DEFAULT_CONFIG = {
         # Flip to true only if you trust delegated work to run dangerous cmds
         # without human review (cron pipelines, batch automation, etc.).
         "subagent_auto_approve": False,
+    },
+
+    # Hermes Agent System routing. Planning is local by default; the optional
+    # planning_llm switch is intentionally off so Opus is never used implicitly.
+    "agent_system": {
+        "planning_llm": {
+            "enabled": False,
+            "provider": "xiamiapi",
+            "model": "claude-opus-4-7",
+            "max_prompt_tokens": 12000,
+            "max_output_tokens": 1200,
+        },
+        "models": {
+            "planning": {"provider": "", "model": ""},
+            "execution": {"provider": "", "model": ""},
+            "audit": {"provider": "", "model": ""},
+        },
+        "fallback": {
+            "enabled": False,
+        },
     },
 
     # Ephemeral prefill messages file — JSON list of {role, content} dicts
@@ -2491,6 +2519,7 @@ _KNOWN_ROOT_KEYS = {
     "_config_version", "model", "providers", "fallback_model",
     "fallback_providers", "credential_pool_strategies", "toolsets",
     "agent", "terminal", "display", "compression", "delegation",
+    "agent_system",
     "auxiliary", "custom_providers", "context", "memory", "gateway",
     "sessions",
 }

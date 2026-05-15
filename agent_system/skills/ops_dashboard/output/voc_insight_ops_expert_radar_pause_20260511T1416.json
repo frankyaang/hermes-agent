@@ -1,0 +1,87 @@
+{
+  "task_id": "dashboard_flow:voc_insight",
+  "flow_id": "dashboard_flow",
+  "node_id": "voc_insight",
+  "expert_id": "ops_expert",
+  "expert_role": "secondary",
+  "skill_id": "ops_dashboard",
+  "requested_skill_id": "voc_insight",
+  "status": "completed_with_user_pause_executed",
+  "generated_at": "2026-05-11T14:16:48+08:00",
+  "source_materials_count": 1,
+  "user_intent": {
+    "raw_text": "暂停重要沟通雷达的提醒",
+    "classification": "pause_reminder_opt_out",
+    "confidence": "high",
+    "interpretation": "用户明确要求暂停张欢-重要沟通雷达提醒；这不是继续补授权或重跑雷达的请求。"
+  },
+  "cronjob_action": {
+    "action": "pause",
+    "job_id": "6bb4cce497f8",
+    "job_name": "张欢-重要沟通雷达",
+    "before_state": "scheduled",
+    "before_enabled": true,
+    "after_state": "paused",
+    "after_enabled": false,
+    "paused_at": "2026-05-11T14:16:39.821372+08:00",
+    "schedule_before_pause": "0 10,14,17,21 * * 1-5",
+    "verification": "cronjob list after pause returned state=paused and enabled=false"
+  },
+  "unchanged_jobs": [
+    {
+      "job_id": "81b57c7a99c4",
+      "job_name": "张欢-周度工作复盘",
+      "state": "scheduled",
+      "enabled": true,
+      "reason": "用户只点名暂停重要沟通雷达提醒，未要求暂停周报。"
+    }
+  ],
+  "user_insight_conclusion": "在缺少张欢本人 user_access_token 的权限缺口场景下，继续推送零数据/授权提醒会形成低价值打扰；用户当前核心需求是控制提醒频率并暂停该雷达，而不是继续接收授权提示。",
+  "dashboard_metrics": {
+    "pause_intent_detected": true,
+    "pause_executed": true,
+    "private_history_read": false,
+    "readable_private_sources": 0,
+    "app_bot_fallback_used": false,
+    "token_secret_code_exposed": false,
+    "related_weekly_review_job_changed": false
+  },
+  "recommended_next_actions": [
+    {
+      "priority": "P0",
+      "action": "停止重要沟通雷达后续定时提醒",
+      "status": "completed"
+    },
+    {
+      "priority": "P1",
+      "action": "保留恢复入口：用户说恢复重要沟通雷达时再 resume job_id=6bb4cce497f8",
+      "status": "pending_parent_or_future_user_request"
+    },
+    {
+      "priority": "P1",
+      "action": "未来权限缺口提醒中增加暂停/恢复选项",
+      "status": "recommended"
+    },
+    {
+      "priority": "P2",
+      "action": "将零数据权限缺口通知改为一次提醒 + 静默健康状态",
+      "status": "recommended"
+    }
+  ],
+  "files": {
+    "markdown": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_pause_20260511T1416.md",
+    "json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_pause_20260511T1416.json"
+  },
+  "audit_checks": {
+    "ops_dashboard_skill_loaded": true,
+    "agent_system_skill_files_checked": true,
+    "previous_permission_gap_result_checked": true,
+    "cronjob_list_called_before_pause": true,
+    "cronjob_pause_verified": true,
+    "only_requested_job_paused": true,
+    "no_private_history_without_uat": true,
+    "no_app_bot_fallback": true,
+    "no_token_secret_code_output": true,
+    "structured_summary_present": true
+  }
+}

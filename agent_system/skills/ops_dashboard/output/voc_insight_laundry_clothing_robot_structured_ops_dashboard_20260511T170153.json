@@ -1,0 +1,271 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "flow_id": "insight_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "expert_id": "ops_expert",
+  "expert_role": "secondary",
+  "skill_id": "ops_dashboard",
+  "requested_skill_id": "voc_insight",
+  "status": "completed",
+  "final_output": false,
+  "generated_at": "2026-05-11T17:01:53+08:00",
+  "source_materials_count": 1,
+  "output_type": "用户洞察结论",
+  "evidence_boundary": {
+    "input_nature": "洗衣、收集脏衣、洗烘一体机操作、衣物叠放与智能触发的产品需求草案；非原始VOC评论池、非问卷统计、非竞品实测、非质量FRR/FFR数据。",
+    "quantitative_claims": "仅沿用输入给出的目标指标：语音唤醒率≥98%、意图识别≥95%、端到端任务触发≤2s、投放关门启动≥90%、衣物折叠/叠放≥90%；不新增样本占比。",
+    "confidence": "medium",
+    "main_limitation": "缺少真实家庭试点、设备机型分布、衣物品类分布、失败原因、用户返工和竞品替代数据。"
+  },
+  "core_conclusion": "2代洗衣/叠衣机器人用户真正购买的是从散落脏衣、正确收集、安全投放洗烘、洗烘完成、干衣取出、可收纳折叠/叠放到指定区域交付的少接管家务闭环，而不是单点动作展示。MVP应限定洗烘一体机、固定洗衣区、指定区域、标准衣物、固定折叠平面和指定交付位置。",
+  "north_star_metric": {
+    "name": "有效无人值守洗叠闭环率",
+    "definition": "在限定家庭环境、限定衣物品类和限定洗烘设备下，用户通过语音、App或智能体发起任务后，机器人无需用户持续看管即可完成脏衣收集、投放、关门、正确启动洗烘、洗烘完成处理、取出、折叠/叠放和指定区域交付；过程中无误收、误洗、衣物损伤、设备异常和高危安全事件，最终结果被用户认可为可直接收纳。"
+  },
+  "mvp_boundary": {
+    "must_have": [
+      "已验证兼容的前置式洗烘一体机",
+      "固定洗衣区与固定折叠平面",
+      "用户指定区域/脏衣篮收集",
+      "标准日常衣物处理",
+      "语音/App/智能体入口统一到同一任务状态机",
+      "开门、投放、关门锁止、正确程序启动和洗烘完成识别",
+      "标准衣物折叠/叠放和指定交付位置",
+      "误拾取、误洗、衣物损伤、漏水、卡门、门未锁启动红线审计"
+    ],
+    "later": [
+      "独立洗衣机+烘干机短距离转运",
+      "更多门型、面板、旋钮、触控和品牌API",
+      "复杂衣物折叠和精细洗护",
+      "家庭成员/衣物品类/收纳点规则深化",
+      "衣柜/抽屉深度收纳",
+      "智能家居平台和家庭日程联动"
+    ],
+    "not_first_release": [
+      "支持所有洗衣机/烘干机",
+      "全屋任意散落衣物自动搜索",
+      "所有衣物材质自动处理",
+      "完全无需用户设置规则",
+      "直接入柜收纳"
+    ]
+  },
+  "function_cards": [
+    {
+      "priority": "P0",
+      "core_function_name": "多入口任务触发与统一状态反馈",
+      "user_value": "用户可通过语音、App或智能体建议轻量发起任务，并知道机器人是否听懂、做到哪一步、是否需要接管。",
+      "function_nature": "基础入口+信任建立",
+      "cost_flexibility": "中浮动：远场语音、App入口和状态页不可砍；开放对话和复杂NLU泛化可后置。",
+      "key_components": ["远场麦克风阵列", "NLU", "App任务配置页", "任务状态事件总线", "扬声器/屏幕/推送"],
+      "material_requirements": "麦克风开孔防尘防水汽；洗衣区部件抗潮湿、易擦拭。",
+      "spec_requirements": "支持核心洗衣/收集/叠衣/暂停/取消/接管意图，所有入口进入同一状态机。",
+      "intelligence_requirements": "意图识别、槽位识别、异常解释、低打扰建议触发。",
+      "core_metrics": ["语音唤醒率≥98%", "意图识别准确率≥95%", "端到端任务创建≤2s", "关键状态反馈≤3s", "状态反馈到达率≥99%"],
+      "ux_validation": "用户不看说明书可发起3类任务，并能在10秒内判断任务状态。",
+      "design_requirements": [
+        {"requirement": "入口轻量", "metric": "Top5高频意图识别成功率≥95%"},
+        {"requirement": "状态闭环", "metric": "关键状态反馈到达率≥99%"},
+        {"requirement": "异常可接管", "metric": "异常原因可解释率≥95%"}
+      ],
+      "reference_solution": "App任务卡片+时间线+接管按钮；语音只反馈关键确认。",
+      "appearance_reference": "简洁状态灯/小屏，家居化、低打扰。",
+      "future_optimization": "家庭成员语音权限、快捷任务、低价值提醒抑制、跨品牌API联动。"
+    },
+    {
+      "priority": "P0",
+      "core_function_name": "洗烘设备兼容性问卷与首装校准",
+      "user_value": "用户在购买前或首装阶段明确家里设备是否支持，避免买回家不可用。",
+      "function_nature": "购买前闸门+交付风险控制",
+      "cost_flexibility": "低浮动：兼容判断不可降本；可缩小机型范围。",
+      "key_components": ["机型支持库", "视觉识别", "RGB-D相机", "力控机械臂", "门锁/状态读取", "IoT/API网关"],
+      "material_requirements": "接触门体/面板部件需软包胶、低摩擦、不刮花、耐水汽。",
+      "spec_requirements": "问卷输出支持/不支持/需校准/限定支持，并在首装实机验证开门、关门、按钮/API和程序启动。",
+      "intelligence_requirements": "根据照片/型号/门型/空间判断可操作性并生成校准任务。",
+      "core_metrics": ["设备信息采集完整率≥95%", "兼容性判断准确率≥98%", "已支持机型首次校准通过率≥90%", "误判支持为红线"],
+      "ux_validation": "用户提交问卷后获得明确结果；安装人员可按校准结果完成验证。",
+      "design_requirements": [
+        {"requirement": "售前透明", "metric": "支持/不支持原因覆盖率100%"},
+        {"requirement": "问卷后实机验证", "metric": "首次校准任务完成率≥90%"},
+        {"requirement": "边界可运营", "metric": "机型库和失败原因可回写"}
+      ],
+      "reference_solution": "设备白名单+灰名单+不支持原因库；只对白名单开放自动执行。",
+      "appearance_reference": "首装页面用照片示意；末端执行器柔性防刮。",
+      "future_optimization": "品牌协议打通、API/IoT控制、独立洗衣机+烘干机组合扩展。"
+    },
+    {
+      "priority": "P0",
+      "core_function_name": "指定区域脏衣收集与误拾取预检",
+      "user_value": "用户少弯腰、少走动，同时不担心机器人拿错干净衣、玩具、证件或贵重物。",
+      "function_nature": "用户价值核心+风险门禁",
+      "cost_flexibility": "低浮动：视觉识别、柔性抓取、误拾取拦截不可砍；全屋搜索和复杂分拣后置。",
+      "key_components": ["RGB-D相机", "语义分割", "柔性夹爪/吸附辅助", "力传感", "低矮底盘", "待确认篮"],
+      "material_requirements": "夹爪柔软、防勾丝、低静电、可清洗；脏衣篮抗菌、耐汗渍、易拆洗。",
+      "spec_requirements": "首版限定指定区域、固定脏衣篮、标准日常衣物；风险物进入待确认。",
+      "intelligence_requirements": "脏衣/非衣物识别、禁区识别、可抓取姿态判断、异物提示、区域地图。",
+      "core_metrics": ["指定区域脏衣召回≥90%", "限定品类识别准确率≥95%", "误拾取率≤2%", "非衣物误投放0", "禁区进入0"],
+      "ux_validation": "10–30户试点中用户认可减少捡衣负担，误收不造成信任破坏。",
+      "design_requirements": [
+        {"requirement": "先限定区域", "metric": "指定区域任务成功率≥90%"},
+        {"requirement": "不拿错优先", "metric": "非衣物误投放0"},
+        {"requirement": "风险衣物拦截", "metric": "高风险异物/特殊衣物提示召回≥90%"}
+      ],
+      "reference_solution": "可处理衣物清单+禁洗清单+待确认篮。",
+      "appearance_reference": "低矮圆角底盘，夹爪动作柔和可见。",
+      "future_optimization": "衣物标签/RFID/洗护标签识别，扩展床品、儿童衣物、宠物用品。"
+    },
+    {
+      "priority": "P0",
+      "core_function_name": "洗烘一体机操作闭环",
+      "user_value": "用户相信机器人能安全投放、关门、选对程序并确认启动，不需要守在机器旁。",
+      "function_nature": "端到端闭环核心",
+      "cost_flexibility": "低浮动：力控、视觉确认、门锁/夹衣检测、程序正确性不可砍；复杂多程序自适应后置。",
+      "key_components": ["6/7DoF机械臂或专用门体机构", "力/扭矩传感", "腕部相机", "滚筒内视觉", "门缝检测", "设备状态读取"],
+      "material_requirements": "末端接触件软质防刮、耐磨耐水汽，推门部件有缓冲。",
+      "spec_requirements": "将投放-关门-开机-选择程序-启动≥90%拆为开门、投放、关门、程序、启动五个子步骤。",
+      "intelligence_requirements": "门型识别、动作力控、滚筒内分布判断、程序模板匹配、错误码解释。",
+      "core_metrics": ["开门成功率≥95%", "投放成功率≥90%", "门缝夹衣率≤1%", "关门锁止确认≥98%", "正确程序启动率≥95%", "高危误启动0"],
+      "ux_validation": "用户不在洗衣机旁时任务可启动并反馈；失败可定位具体步骤。",
+      "design_requirements": [
+        {"requirement": "动作可归因", "metric": "五个子步骤均有独立成功率"},
+        {"requirement": "启动前安全确认", "metric": "门未锁/夹衣/过载放行0"},
+        {"requirement": "程序不选错", "metric": "错误程序导致返工/损伤0"}
+      ],
+      "reference_solution": "首版固定1–3个标准程序，特殊衣物进入用户确认。",
+      "appearance_reference": "弱化工业机械感，突出柔性接触、安全停机和低速动作。",
+      "future_optimization": "多品牌程序库、自动耗材状态、独立洗烘转运。"
+    },
+    {
+      "priority": "P0",
+      "core_function_name": "洗烘完成处理与干衣取出转运",
+      "user_value": "用户不用记洗完没、烘干没，也不用自己取出热/湿/皱的衣物。",
+      "function_nature": "闭环补全功能",
+      "cost_flexibility": "中低浮动：完成状态、残留检测和潮湿判断不可砍；防皱整理可后置。",
+      "key_components": ["设备状态接口", "温湿度传感", "视觉残留检测", "柔性抓取末端", "转运篮", "低速移动底盘"],
+      "material_requirements": "转运篮防潮透气易清洗；接触热衣物部件耐温、低静电、防勾丝。",
+      "spec_requirements": "完成状态识别后再开门；确认干燥可折叠；取出后检查滚筒残留。",
+      "intelligence_requirements": "洗烘状态读取/推断、湿度异常识别、残留检测、转运路径规划。",
+      "core_metrics": ["完成状态识别≥98%", "滚筒残留率≤2%", "掉落污染率≤1%", "潮湿衣物误折叠≤2%", "异常反馈≤30s"],
+      "ux_validation": "用户不需要自己去查看洗完没；取出后无明显漏衣、掉地、潮湿误折叠。",
+      "design_requirements": [
+        {"requirement": "洗完自动进入下一段", "metric": "完成状态识别≥98%"},
+        {"requirement": "不折叠未干衣物", "metric": "潮湿衣物误折叠≤2%"},
+        {"requirement": "不遗留衣物", "metric": "滚筒残留率≤2%"}
+      ],
+      "reference_solution": "固定折叠平面靠近洗烘一体机，先用转运篮承接再单件分离。",
+      "appearance_reference": "转运篮家用洗衣篮化、可拆洗，避免裸露夹衣机构。",
+      "future_optimization": "防皱抖散、二次烘干建议、品牌状态深度集成。"
+    },
+    {
+      "priority": "P0/P1",
+      "core_function_name": "标准衣物折叠与可收纳叠放",
+      "user_value": "用户看到可以直接收纳的结果，才会认为机器人减少了洗衣后的整理负担。",
+      "function_nature": "显性满意点+体验差异化；标准衣物P0，复杂衣物P1/P2。",
+      "cost_flexibility": "中浮动：标准衣物折叠和质量评分不可砍；复杂衣物后置。",
+      "key_components": ["固定折叠平面", "柔性机械手/双臂", "衣物分离机构", "RGB-D相机", "布料关键点识别", "堆叠检测"],
+      "material_requirements": "折叠平面低摩擦、抗静电、可清洁；夹爪防勾丝、不染色、不残留。",
+      "spec_requirements": "首版限定T恤、毛巾、长裤、睡衣等标准衣物，折叠≥90%需含质量评分。",
+      "intelligence_requirements": "单件分离、衣物类型识别、关键点检测、折叠策略选择、质量评分。",
+      "core_metrics": ["标准衣物折叠成功率≥90%", "单件分离成功率≥85%", "堆叠倒塌率≤2%", "用户可接受评分≥4/5", "衣物损伤0"],
+      "ux_validation": "用户盲评认为可直接收纳，返工率持续下降。",
+      "design_requirements": [
+        {"requirement": "折叠有质量标准", "metric": "用户可接受评分≥4/5"},
+        {"requirement": "不强行处理不支持衣物", "metric": "损伤0"},
+        {"requirement": "结果能稳定叠放", "metric": "堆叠倒塌率≤2%"}
+      ],
+      "reference_solution": "标准衣物清单+待人工处理篮，按衣物类型模板折叠。",
+      "appearance_reference": "可收纳折叠台或基站侧翻平台，浅色可拆洗接触面。",
+      "future_optimization": "成员分类、标签识别、复杂衣物、个性化折叠、入柜。"
+    },
+    {
+      "priority": "P1",
+      "core_function_name": "指定区域叠放/收纳/交付",
+      "user_value": "用户不用洗完后重新分、重新拿、重新放，完成态是放到指定篮、床面、收纳台或成员区域。",
+      "function_nature": "日常价值放大功能；P0保留最小指定叠放位置。",
+      "cost_flexibility": "高浮动：指定篮/固定台面保留；开抽屉、入衣柜后置。",
+      "key_components": ["收纳点识别", "定位标记/视觉锚点", "转运篮", "堆叠托盘", "App收纳规则", "家庭成员标签"],
+      "material_requirements": "收纳篮/托盘抗菌可拆洗、低静电，堆叠面防滑不粘毛。",
+      "spec_requirements": "首版支持放到指定篮/台面/房间固定点，不承诺深度入柜。",
+      "intelligence_requirements": "收纳点识别、规则匹配、衣物类别分堆、错放检测。",
+      "core_metrics": ["指定位置交付成功率≥95%", "错放率≤3%", "用户二次整理时间下降", "手动纠正次数下降"],
+      "ux_validation": "用户认为可以直接拿走或放进柜子，指定位置不混乱、不倒塌。",
+      "design_requirements": [
+        {"requirement": "完成位置明确", "metric": "指定位置交付成功率≥95%"},
+        {"requirement": "分堆不制造新负担", "metric": "手动纠正次数下降"},
+        {"requirement": "深度收纳不提前承诺", "metric": "复杂入柜进入后续里程碑"}
+      ],
+      "reference_solution": "P0指定篮，P1按成员/品类分堆，P2入柜/抽屉。",
+      "appearance_reference": "配套收纳篮家居化，避免工业料箱感。",
+      "future_optimization": "衣柜分区学习、抽屉开合、跨房间配送、智能衣柜联动。"
+    },
+    {
+      "priority": "P1",
+      "core_function_name": "家庭成员习惯智能体",
+      "user_value": "用户希望洗衣自动排进生活节奏，但不希望在错误时间、错误条件下被打扰。",
+      "function_nature": "智能化差异化；首版建议触发，不直接强自动化。",
+      "cost_flexibility": "中高浮动：基础规则提醒低成本；复杂个性化、多成员权限和跨设备联动分阶段投入。",
+      "key_components": ["家庭习惯模型", "任务历史库", "偏好配置", "权限系统", "脏衣量估计", "设备状态接口", "通知系统"],
+      "material_requirements": "如涉及脏衣量传感篮，需抗菌、可拆洗、耐潮湿、低功耗。",
+      "spec_requirements": "支持建议而非强制执行，建议说明原因并允许关闭、延后、修改。",
+      "intelligence_requirements": "习惯学习、任务推荐、低打扰策略、多成员权限、取消原因学习。",
+      "core_metrics": ["建议采纳率", "用户取消率", "低价值提醒率", "自动任务完成率", "D7/D30复用", "关闭提醒率"],
+      "ux_validation": "用户觉得提醒有用且不烦；建议触发带来复用提升。",
+      "design_requirements": [
+        {"requirement": "先建议后自动", "metric": "建议采纳率提升，关闭提醒率受控"},
+        {"requirement": "触发条件可解释", "metric": "推荐原因展示覆盖率100%"},
+        {"requirement": "尊重安静时段和权限", "metric": "安静时段误触发0"}
+      ],
+      "reference_solution": "P0打通语音/App触发，P1建议洗衣，P2低风险任务自动执行。",
+      "appearance_reference": "提醒以App/语音为主，设备只做柔和提示灯。",
+      "future_optimization": "天气/电价/家庭日程联动、穿着周期学习、多成员归属、主动洗护建议。"
+    }
+  ],
+  "dashboard_architecture": [
+    "摘要卡：有效无人值守洗叠闭环率、单次任务非计划人工介入、支持机型覆盖/首次校准通过率、红线事件数",
+    "入口触发区：语音唤醒率、意图识别、触发延迟、App参数完整率、智能体建议采纳/取消/低价值提醒",
+    "兼容性区：问卷完成率、白名单/灰名单/不支持设备、首装校准失败原因、设备门型/控制方式/洗烘一体占比",
+    "任务链路漏斗：收集、预检、开门、投放、关门、程序启动、完成识别、取出转运、折叠/交付",
+    "安全与质量区：误拾取、误洗、衣物损伤、门锁、水路、卡门、漏水、潮湿误折叠、滚筒残留",
+    "结果质量区：折叠成功率、用户可接受评分、指定位置交付成功率、返工率",
+    "行动区：P0必须修复、P1试点优化、P2产品化扩展"
+  ],
+  "priority_actions": {
+    "P0": [
+      "锁定首版支持边界：前置式洗烘一体机、固定洗衣区、标准衣物、指定区域、固定折叠平面。",
+      "把调研问卷升级为兼容性闸门，形成机型支持库。",
+      "建立端到端任务状态机。",
+      "拆解投放-关门-启动综合成功率为开门、投放、关门锁止、程序选择、启动确认。",
+      "建立误拾取、误洗、损伤、漏水、卡门、门未锁启动红线审计。",
+      "建立按衣物类型的折叠质量评分体系。"
+    ],
+    "P1": [
+      "扩展指定区域收集。",
+      "做家庭成员、衣物品类、收纳点规则。",
+      "优化智能体建议触发。",
+      "建立按设备、衣物、区域、动作、算法分类的失败原因库。",
+      "增加洗涤剂、耗材、水路、门锁状态提示。"
+    ],
+    "P2": [
+      "扩展独立洗衣机+烘干机转运。",
+      "支持更多门型、面板和品牌API。",
+      "进入衣柜/抽屉深度收纳。",
+      "增加复杂衣物折叠和精细洗护。",
+      "与智能家居平台和家庭日程联动。"
+    ]
+  },
+  "output_files": {
+    "markdown": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_structured_ops_dashboard_20260511T170153.md",
+    "json": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_structured_ops_dashboard_20260511T170153.json"
+  },
+  "audit_checks": {
+    "used_skill": "ops_dashboard",
+    "read_local_skill_definition": true,
+    "read_private_memory": true,
+    "matched_requested_user_format": true,
+    "source_materials_processed": true,
+    "markdown_created": true,
+    "json_created": true,
+    "human_review_required": false
+  }
+}

@@ -112,6 +112,19 @@ def test_added_message_relabels_by_target():
     assert actions == ["Memory updated"]
 
 
+def test_knowledge_write_success_surfaces_compact_action():
+    review_messages = [
+        _tool_msg(
+            "k1",
+            {"success": True, "slug": "david-company", "product_line_id": "ecovacs_company"},
+        )
+    ]
+
+    actions = _summarize(review_messages, [])
+
+    assert actions == ["Knowledge saved"]
+
+
 def test_removed_or_replaced_relabels_by_target():
     review_messages = [
         _tool_msg(

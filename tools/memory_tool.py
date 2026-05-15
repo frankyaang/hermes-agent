@@ -50,9 +50,46 @@ logger = logging.getLogger(__name__)
 # (HERMES_HOME env var changes) are always respected.  The old module-level
 # constant was cached at import time and could go stale if a profile switch
 # happened after the first import.
-def get_memory_dir() -> Path:
-    """Return the profile-scoped memories directory."""
-    return get_hermes_home() / "memories"
+def get_memory_dir(user_id: Optional[str] = None) -> Path:
+    """
+    Return the profile-scoped memories directory.
+
+    Args:
+        user_id: Optional user identifier for per-user isolation.
+                 If provided, returns a user-specific subdirectory.
+                 If None, returns the global memories directory (backward compatible).
+
+    Returns:
+        Path to the memories directory
+    """
+    base = get_hermes_home() / "memories"
+
+    if user_id:
+        # Per-user subdirectory for isolation
+        user_dir = base / _sanitize_user_id(user_id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        return user_dir
+
+    # Backward compatibility: no user_id means global directory
+    return base
+
+
+def _sanitize_user_id(user_id: str) -> str:
+    """
+    Sanitize user_id for use as a directory name.
+
+    Replaces characters that are problematic in file paths.
+
+    Examples:
+        ou_xxx → ou_xxx
+        telegram:123456 → telegram_123456
+        user@domain.com → user_domain_com
+    """
+    # Replace problematic characters with underscore
+    sanitized = user_id.replace(":", "_").replace("/", "_").replace("@", "_").replace(".", "_")
+    # Remove any remaining non-alphanumeric except underscore and hyphen
+    sanitized = re.sub(r'[^\w\-]', '_', sanitized)
+    return sanitized
 
 ENTRY_DELIMITER = "\n§\n"
 
@@ -113,17 +150,34 @@ class MemoryStore:
         Tool responses always reflect this live state.
     """
 
-    def __init__(self, memory_char_limit: int = 2200, user_char_limit: int = 1375):
+    def __init__(
+        self,
+        memory_char_limit: int = 2200,
+        user_char_limit: int = 1375,
+        user_id: Optional[str] = None,
+        memory_dir: Optional[Path] = None
+    ):
+        """
+        Initialize memory store.
+
+        Args:
+            memory_char_limit: Maximum characters for MEMORY.md
+            user_char_limit: Maximum characters for USER.md
+            user_id: User identifier for per-user isolation
+            memory_dir: Override memory directory (for testing or custom paths)
+        """
         self.memory_entries: List[str] = []
         self.user_entries: List[str] = []
         self.memory_char_limit = memory_char_limit
         self.user_char_limit = user_char_limit
+        self.user_id = user_id
+        self._memory_dir = memory_dir  # Override for testing
         # Frozen snapshot for system prompt -- set once at load_from_disk()
         self._system_prompt_snapshot: Dict[str, str] = {"memory": "", "user": ""}
 
     def load_from_disk(self):
         """Load entries from MEMORY.md and USER.md, capture system prompt snapshot."""
-        mem_dir = get_memory_dir()
+        mem_dir = self._get_memory_dir()
         mem_dir.mkdir(parents=True, exist_ok=True)
 
         self.memory_entries = self._read_file(mem_dir / "MEMORY.md")
@@ -138,6 +192,12 @@ class MemoryStore:
             "memory": self._render_block("memory", self.memory_entries),
             "user": self._render_block("user", self.user_entries),
         }
+
+    def _get_memory_dir(self) -> Path:
+        """Get the memory directory for this store."""
+        if self._memory_dir:
+            return self._memory_dir
+        return get_memory_dir(self.user_id)
 
     @staticmethod
     @contextmanager
@@ -176,9 +236,9 @@ class MemoryStore:
                     pass
             fd.close()
 
-    @staticmethod
-    def _path_for(target: str) -> Path:
-        mem_dir = get_memory_dir()
+    def _path_for(self, target: str) -> Path:
+        """Get the file path for a memory target."""
+        mem_dir = self._get_memory_dir()
         if target == "user":
             return mem_dir / "USER.md"
         return mem_dir / "MEMORY.md"
@@ -194,7 +254,8 @@ class MemoryStore:
 
     def save_to_disk(self, target: str):
         """Persist entries to the appropriate file. Called after every mutation."""
-        get_memory_dir().mkdir(parents=True, exist_ok=True)
+        mem_dir = self._get_memory_dir()
+        mem_dir.mkdir(parents=True, exist_ok=True)
         self._write_file(self._path_for(target), self._entries_for(target))
 
     def _entries_for(self, target: str) -> List[str]:

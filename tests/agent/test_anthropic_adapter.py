@@ -27,6 +27,25 @@ from agent.transports import get_transport
 
 
 # ---------------------------------------------------------------------------
+# Module-level fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _isolate_keychain(monkeypatch):
+    """Block macOS Keychain reads from leaking real credentials into tests.
+
+    Tests here only mock Path.home for file-based reads. The keychain path
+    uses subprocess and bypasses Path.home. On machines with real Claude Code
+    credentials installed this leaks real tokens into tests expecting None.
+    """
+    monkeypatch.setattr(
+        "agent.anthropic_adapter._read_claude_code_credentials_from_keychain",
+        lambda: None,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
 

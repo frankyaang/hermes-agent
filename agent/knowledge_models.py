@@ -10,6 +10,7 @@ class KnowledgeUserContext:
     finance_product_line_ids: list[str]
     role: str
     is_admin: bool
+    conversation_access: str = "default"
 
 
 @dataclass
@@ -57,3 +58,43 @@ class KnowledgeAuditEvent:
     knowledge_slugs: list[str] = field(default_factory=list)
     source_uris: list[str] = field(default_factory=list)
     query_text: str = ""
+
+
+class TerminalState:
+    KNOWLEDGE_SAVED = "knowledge_saved"
+    MEMORY_SAVED = "memory_saved"
+    SKILL_SAVED_OR_UPDATED = "skill_saved_or_updated"
+    PENDING_CREATED = "pending_created"
+    NO_ACTION_WITH_REASON = "no_action_with_reason"
+    BLOCKED = "blocked"
+
+
+class CandidateType:
+    KNOWLEDGE = "knowledge"
+    MEMORY = "memory"
+    SKILL = "skill"
+
+
+@dataclass
+class KnowledgeCandidate:
+    candidate_id: str
+    candidate_type: str          # CandidateType value
+    title: str
+    summary: str
+    structured_content: dict     # extracted fields, not raw chat log
+    source_uri: str
+    source_type: str             # feishu_doc / session / manual / agent_system
+    origin_session_id: str
+    origin_platform: str
+    origin_user_id: str
+    asset_class: str             # company / product_line / project / person / user_pref / workflow
+    target_scope: str            # canonical product_line_id or scope identifier
+    confidence: str              # draft / unverified / verified / deprecated
+    sensitivity_level: str       # public / internal / confidential / secret
+    knowledge_type: str          # from allowed enum
+    routing_decision: str        # route_to_knowledge / route_to_memory / route_to_skill / pending / no_action
+    routing_reason: str
+    missing_fields: list[str] = field(default_factory=list)
+    failure_reason: str = ""
+    terminal_state: str = ""     # TerminalState value; "" = not yet terminal
+    created_at: str = ""

@@ -1,0 +1,212 @@
+{
+  "run_id": "Run_dashboard_flow_20260514T033241",
+  "pipeline_id": "dashboard_flow",
+  "review_period": "2026-05-14 至 2026-05-14",
+  "review_triggers": [
+    "biweekly_review",
+    "key_node_completion",
+    "exception_event",
+    "dynamic_override",
+    "human_intervention"
+  ],
+  "task_count": 3,
+  "success_rate": 0.0,
+  "average_output_quality": 0.0,
+  "exception_count": 3,
+  "dynamic_coverage_frequency": 1,
+  "human_review_count": 1,
+  "human_input_summary": [],
+  "human_review_decisions": [
+    {
+      "node_id": "voc_insight",
+      "decision": "missing",
+      "blocking": true,
+      "channel": "unavailable",
+      "summary": ""
+    }
+  ],
+  "default_skill_usage": {
+    "ops_dashboard": 1,
+    "voc_insight": 1
+  },
+  "dynamic_overrides": [
+    {
+      "override_trigger": "expert_skill_scope",
+      "override_reason": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+      "replacement_skill_id": "ops_dashboard",
+      "coverage_result": "failed",
+      "impact_on_weight": -1
+    }
+  ],
+  "exceptions": [
+    {
+      "event": "skill_execution_failed",
+      "trigger": "Delegation depth limit reached (depth=3, max_spawn_depth=3). Raise delegation.max_spawn_depth in config.yaml if deeper nesting is required (cap: 3).",
+      "handling": "记录失败并进入复盘",
+      "blocking": true,
+      "audit_field": "skill_execution",
+      "review_trigger": true
+    },
+    {
+      "event": "dependency_blocked",
+      "trigger": "voc_insight",
+      "handling": "等待依赖节点恢复",
+      "blocking": true,
+      "audit_field": "depends_on",
+      "review_trigger": true
+    },
+    {
+      "event": "dependency_blocked",
+      "trigger": "ops_dashboard",
+      "handling": "等待依赖节点恢复",
+      "blocking": true,
+      "audit_field": "depends_on",
+      "review_trigger": true
+    }
+  ],
+  "weight_adjustments": {
+    "voc_insight": {
+      "base_weight": 90,
+      "success_rate": 0.0,
+      "output_quality": 0.0,
+      "exception_count": 1,
+      "dynamic_coverage_frequency": 0,
+      "weight": 90,
+      "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1"
+    },
+    "ops_dashboard": {
+      "base_weight": 90,
+      "success_rate": 0.0,
+      "output_quality": 0.0,
+      "exception_count": 1,
+      "dynamic_coverage_frequency": 1,
+      "weight": 90,
+      "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1"
+    }
+  },
+  "skill_weights_updated": true,
+  "rule_update_suggestions": [
+    "复核人工介入触发规则和用户确认口径",
+    "评估默认 Skill 覆盖范围和权重"
+  ],
+  "flow_visualization": "主智能体 -> Skill 执行 -> 子专家 -> Skill 执行 -> 人工介入 -> 输出 + 审计 -> 复盘与权重优化",
+  "planning_source": "planning_llm_template_override",
+  "template_candidate": false,
+  "skipped_voc_insight_reason": "",
+  "planning_llm": {
+    "accept_local_plan": false,
+    "pipeline_id": "dashboard_flow",
+    "task_type": "generic",
+    "task_goal": "以 ops_expert 身份调用 ops_dashboard 技能，基于 voc_insight 节点输出生成运营看板",
+    "expected_output": "运营看板（结构化数据或Markdown格式）",
+    "requires_voc_insight": true,
+    "react_decision": "continue",
+    "next_actions": [
+      "确认 voc_insight 节点已完成并获取其输出",
+      "调用 ops_dashboard 技能，使用 ops_expert",
+      "生成运营看板作为最终输出"
+    ],
+    "risk_flags": [
+      "local_plan 选择了 insight_flow，但用户明确要求调用 ops_dashboard",
+      "local_plan 的 primary_expert 是 user_analyst，但用户指定使用 ops_expert"
+    ],
+    "reason": "用户意图明确：以 ops_expert 身份调用 ops_dashboard 完成 voc_insight 节点。local_plan 错误地选择了 insight_flow（仅含 voc_insight + briefing），且专家选择为 user_analyst。正确路径应为 dashboard_flow：voc_insight → ops_dashboard（final_output=true），由 ops_expert 执行 ops_dashboard 节点。拒绝 local_plan，选择 dashboard_flow。",
+    "llm_used": true,
+    "stage": "initial_plan",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "react_plan": {
+    "accept_local_plan": false,
+    "pipeline_id": "dashboard_flow",
+    "task_type": "generic",
+    "task_goal": "以 ops_expert 身份调用 ops_dashboard 技能，基于 voc_insight 节点输出生成运营看板",
+    "expected_output": "运营看板（结构化数据或Markdown格式）",
+    "requires_voc_insight": true,
+    "react_decision": "repair",
+    "next_actions": [
+      "提升 delegation.max_spawn_depth 配置至 4 或更高",
+      "重新执行 voc_insight 节点",
+      "待 voc_insight 完成后自动触发 ops_dashboard 节点",
+      "生成最终运营看板输出"
+    ],
+    "risk_flags": [
+      "delegation_depth_limit_blocking: 当前 max_spawn_depth=3 不足以支持 voc_insight 技能的嵌套调用深度",
+      "cascade_dependency_failure: voc_insight 失败导致 ops_dashboard 和 briefing 节点全部阻塞",
+      "human_review_unavailable: voc_insight 节点需要人工审核但渠道不可用",
+      "zero_success_rate: 所有节点执行失败，流程完全阻塞"
+    ],
+    "reason": "流程因技术配置限制（delegation depth=3）导致 voc_insight 节点执行失败，进而阻塞整个 dashboard_flow。根本原因是 voc_insight 技能的嵌套调用深度超过系统配置上限。修复路径：(1) 调整 config.yaml 中 delegation.max_spawn_depth 至 4+；(2) 重试 voc_insight 节点；(3) 依赖链自动恢复后完成 ops_dashboard 输出。人工审核通道不可用属于次要风险，优先解决技术阻塞。",
+    "llm_used": true,
+    "stage": "post_audit_react",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "experience_isolation": {
+    "system_level": {
+      "owner": "Hermes 主代理",
+      "write_scope": "系统级经验库",
+      "contains": "全局策略、用户偏好、会话记忆、运行级复盘索引"
+    },
+    "expert_level": {
+      "owner": "对应专家",
+      "write_scope": "本专家 expert_mem",
+      "contains": "专家决策、历史任务、复盘结果、Skill 调用摘要"
+    },
+    "skill_level": {
+      "owner": "对应 Skill",
+      "write_scope": "本 Skill skill_mem",
+      "contains": "Skill 执行历史、成功率、异常统计、复盘反馈"
+    },
+    "rule": "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。"
+  },
+  "experience_updates": [
+    {
+      "layer": "system",
+      "owner": "hermes_main_agent",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md",
+      "write_reason": "运行级全局摘要与复盘触发索引",
+      "write_scope": "system_only"
+    },
+    {
+      "layer": "expert",
+      "owner": "ops_expert",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/ops_expert/expert_mem/MEMORY.md",
+      "write_reason": "专家决策、复盘结果和 Skill 使用摘要",
+      "write_scope": "expert_only",
+      "skill_usage": [
+        "ops_dashboard"
+      ]
+    },
+    {
+      "layer": "expert",
+      "owner": "user_analyst",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+      "write_reason": "专家决策、复盘结果和 Skill 使用摘要",
+      "write_scope": "expert_only",
+      "skill_usage": [
+        "voc_insight"
+      ]
+    },
+    {
+      "layer": "skill",
+      "owner": "ops_dashboard",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 1,
+      "exception_count": 1,
+      "average_output_quality": 0.0
+    },
+    {
+      "layer": "skill",
+      "owner": "voc_insight",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 1,
+      "exception_count": 1,
+      "average_output_quality": 0.0
+    }
+  ]
+}

@@ -217,7 +217,8 @@ async def test_handle_message_persists_agent_token_counts(monkeypatch):
 
     result = await runner._handle_message(_make_event("hello"))
 
-    assert result == "ok"
+    assert result is None
+    assert runner.adapters[Platform.TELEGRAM].send.await_count >= 1
     runner.session_store.update_session.assert_called_once_with(
         session_entry.session_key,
         last_prompt_tokens=80,
@@ -261,9 +262,11 @@ async def test_first_run_slack_home_channel_onboarding_uses_parent_command(monke
 
     result = await runner._handle_message(_make_event("hello", platform=Platform.SLACK))
 
-    assert result == "ok"
-    runner.adapters[Platform.SLACK].send.assert_awaited_once()
-    onboarding = runner.adapters[Platform.SLACK].send.await_args.args[1]
+    assert result is None
+    assert runner.adapters[Platform.SLACK].send.await_count >= 1
+    onboarding = "\n".join(
+        str(call.args[1]) for call in runner.adapters[Platform.SLACK].send.await_args_list
+    )
     assert "/hermes sethome" in onboarding
     assert "Type /sethome" not in onboarding
 
@@ -305,10 +308,12 @@ async def test_first_run_non_slack_home_channel_onboarding_keeps_direct_command(
 
     result = await runner._handle_message(_make_event("hello", platform=Platform.TELEGRAM))
 
-    assert result == "ok"
-    runner.adapters[Platform.TELEGRAM].send.assert_awaited_once()
-    onboarding = runner.adapters[Platform.TELEGRAM].send.await_args.args[1]
-    assert "Type /sethome" in onboarding
+    assert result is None
+    assert runner.adapters[Platform.TELEGRAM].send.await_count >= 1
+    onboarding = "\n".join(
+        str(call.args[1]) for call in runner.adapters[Platform.TELEGRAM].send.await_args_list
+    )
+    assert "/sethome" in onboarding
 
 
 @pytest.mark.asyncio

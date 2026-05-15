@@ -1,0 +1,196 @@
+{
+  "run_id": "Run_insight_flow_20260511T083307",
+  "flow_id": "insight_flow",
+  "node_id": "briefing",
+  "node_key": "briefing",
+  "task_id": "insight_flow:briefing",
+  "display_name": "过程汇报",
+  "skill_id": "briefing",
+  "expert_role": "system",
+  "status": "completed",
+  "final_output": false,
+  "generated_at_cst": "2026-05-11 16:41:58 CST",
+  "generated_at_iso": "2026-05-11T16:41:58+08:00",
+  "input_summary": {
+    "source_materials_count": 1,
+    "source_material": "洗衣 / 叠衣机器人场景需求草案：支持语音、App、智能体触发；通过问卷确认洗衣机和烘干机类型；收集脏衣、开关机门、投放、启动洗烘；洗烘后在平面上折叠，并按同样结构梳理需求。",
+    "input_type": "用户洞察结论 / 产品定义型场景需求",
+    "output_format": "report"
+  },
+  "executive_summary": "洗衣 / 叠衣机器人首版应定义为在已验证兼容家庭中，通过语音、App或智能体触发，在指定区域收集标准脏衣，安全投放至前置式洗烘一体机并启动预设洗烘程序，洗烘完成后取出干衣，在固定平面完成标准衣物折叠与叠放，并用可解释状态反馈让用户无需持续看管。核心北极星应从单动作成功率升级为有效无人值守洗叠闭环率。",
+  "upstream_nodes": {
+    "voc_insight": {
+      "status": "completed",
+      "primary": {
+        "expert_id": "user_analyst",
+        "skill_id": "voc_insight",
+        "api_calls": 17,
+        "duration_seconds": 451.49,
+        "tokens_input": 1234705,
+        "tokens_output": 18630,
+        "model": "gpt-5.5",
+        "summary": "将源材料识别为非传统VOC / 产品定义型场景需求信号，输出洗衣/叠衣完整任务链、JudgmentUnit、MVP边界、P0/P1/P2范围、验收指标重构、风险和待补证据。核心判断是用户价值在于少接管的洗叠家务闭环，而不是机器人会按洗衣机按钮。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.md",
+        "json_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.json"
+      },
+      "secondary": {
+        "expert_id": "ops_expert",
+        "skill_id": "ops_dashboard",
+        "requested_skill_id": "voc_insight",
+        "dynamic_override": "ops_expert 不直接加载 voc_insight，改用 ops_dashboard",
+        "api_calls": 19,
+        "duration_seconds": 451.55,
+        "tokens_input": 1534153,
+        "tokens_output": 18739,
+        "model": "gpt-5.5",
+        "summary": "从运营看板角度把洗衣/叠衣需求草案转成北极星指标、指标分层、P0/P1/P2行动和红线事件审计。核心北极星为有效无人值守洗叠闭环率，MVP应限定洗烘一体机、固定洗衣区、明确衣物品类和可解释状态机。",
+        "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.md",
+        "json_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.json"
+      }
+    }
+  },
+  "mvp_definition": {
+    "one_sentence": "在已验证兼容的家庭环境中，机器人通过语音、App或智能体触发，在用户指定区域收集标准脏衣，安全投放至前置式洗烘一体机并启动预设洗烘程序，洗烘完成后取出干衣，在固定平面完成标准衣物折叠与叠放，并以可解释状态反馈让用户无需持续看管。",
+    "north_star_metric": "有效无人值守洗叠闭环率",
+    "task_chain": [
+      "触发任务",
+      "设备与环境确认",
+      "区域收集",
+      "分拣与预检",
+      "投放洗衣机",
+      "启动洗烘程序",
+      "过程监控与异常反馈",
+      "洗烘完成处理",
+      "衣物折叠",
+      "叠放/收纳/交付"
+    ],
+    "in_scope": [
+      "语音/App/智能体触发与统一任务状态机",
+      "售前问卷与首次实机校准",
+      "指定区域或固定脏衣篮收集",
+      "标准日常混洗衣物与特殊衣物待确认",
+      "前置式洗烘一体机开门、投放、关门、锁门确认、正确程序启动",
+      "洗烘完成状态识别、取出干衣并转运到固定折叠平面",
+      "标准衣物折叠、叠放到指定篮/台面/收纳点",
+      "衣物损伤、误洗、误收、漏水、夹衣等红线事件审计"
+    ],
+    "out_of_scope": [
+      "支持所有洗衣机/烘干机",
+      "独立洗衣机与独立烘干机跨设备自动转运",
+      "任意房间开放式散落衣物全屋收集",
+      "自动处理所有衣物品类与精细面料护理",
+      "口袋异物100%检出",
+      "直接入柜、抽屉深度收纳和任意家庭成员分类"
+    ],
+    "validation_thresholds": {
+      "voice_wake_rate": ">=98%",
+      "intent_accuracy": ">=95%",
+      "task_creation_latency": "<=2s",
+      "state_feedback_latency": "<=3s for key states; <=30s for exceptions",
+      "device_compatibility_accuracy": ">=98% after questionnaire and calibration",
+      "specified_area_dirty_clothes_recall": ">=90% or >=95% for constrained categories",
+      "wrong_pick_rate": "<=2%; non-clothing mistaken投放=0",
+      "door_open_success": ">=95%",
+      "load_success": ">=90%",
+      "door_lock_confirmation": ">=98%",
+      "correct_program_start": ">=95%",
+      "completion_state_detection": ">=98%",
+      "drum_residual_rate": "<=2%",
+      "standard_folding_success": ">=90%",
+      "user_acceptance_score": ">=4/5",
+      "unplanned_human_intervention": "<=1 per task",
+      "red_line_events": "0 target for damage, leak, door jam, wrong wash, high-risk misoperation"
+    }
+  },
+  "execution_statistics": {
+    "upstream_expert_calls": 2,
+    "upstream_api_calls_total": 36,
+    "duration_sum_seconds": 903.04,
+    "wallclock_seconds_approx": 451.95,
+    "tokens_input_total": 2768858,
+    "tokens_output_total": 37369,
+    "tokens_total": 2806227,
+    "dynamic_overrides": 1,
+    "output_quality_average": 90.0
+  },
+  "quality_assessment": {
+    "task_understanding": 95,
+    "insight_consistency": 95,
+    "multi_expert_complementarity": 95,
+    "output_completeness": 95,
+    "data_boundary_transparency": 90,
+    "memory_boundary_compliance": 95
+  },
+  "issues_encountered": [
+    "源材料不是直接VOC/评论/竞品/质量反馈数据，不能视为样本统计结论。",
+    "Top15 fact pool、真实样本占比和FRR/FFR风险校正不适用于该单条产品定义型输入。",
+    "任务包中human_review_required=否/user_gate=false与上游聚合字段human_review_decision=missing/human_review_blocking=true存在字段表征不一致；本节点记录为非阻塞。"
+  ],
+  "missing_inputs": [
+    "目标家庭洗衣机/烘干机类型分布",
+    "家庭衣物品类分布",
+    "用户对混洗、分拣、口袋异物和禁洗衣物的担忧排序",
+    "洗衣区空间、折叠平面与收纳位置约束",
+    "竞品和替代方案反馈",
+    "家庭试点真实失败原因、人工接管次数、返工率、复用率与满意度"
+  ],
+  "files_created": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T164158_laundry_folding.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/output/insight_flow_briefing_20260511T164158_laundry_folding.json"
+  ],
+  "files_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/briefing/skill_mem/MEMORY.md"
+  ],
+  "upstream_files_verified": {
+    "voc_insight_laundry_folding_scenario_20260511T163424.md": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.md",
+      "exists": true,
+      "bytes": 21356,
+      "lines": 272
+    },
+    "voc_insight_laundry_folding_scenario_20260511T163424.json": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_laundry_folding_scenario_20260511T163424.json",
+      "exists": true,
+      "bytes": 8852,
+      "lines": 186
+    },
+    "voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.md": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.md",
+      "exists": true,
+      "bytes": 20108,
+      "lines": 263
+    },
+    "voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.json": {
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_laundry_clothing_robot_ops_dashboard_20260511T163417.json",
+      "exists": true,
+      "bytes": 9388,
+      "lines": 148
+    }
+  },
+  "real_skill_execution": true,
+  "production_llm_required": true,
+  "skill_execution_modes": [
+    "local_agent_system_skill_execution",
+    "production_llm_subagent_current"
+  ],
+  "online_agent_probe": {
+    "credential_status": "direct_key_available",
+    "base_url_configured": true,
+    "provider": "openai-codex",
+    "model": "gpt-5.5"
+  },
+  "audit_checks": {
+    "local_briefing_skill_read": true,
+    "briefing_memory_read": true,
+    "upstream_voc_insight_report_verified": true,
+    "upstream_voc_insight_json_parsed": true,
+    "upstream_ops_dashboard_report_verified": true,
+    "upstream_ops_dashboard_json_parsed": true,
+    "dynamic_override_recorded": true,
+    "human_review_requirement_recorded": true,
+    "final_output_false": true,
+    "output_files_written": true,
+    "memory_boundary_respected": true,
+    "blocking_exception_absent": true
+  }
+}

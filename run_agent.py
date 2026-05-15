@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 import os
 import random
 import re
+import sqlite3
 import ssl
 import sys
 import tempfile
@@ -91,7 +92,7 @@ from agent.retry_utils import jittered_backoff
 from agent.error_classifier import classify_api_error, FailoverReason
 from agent.prompt_builder import (
     DEFAULT_AGENT_IDENTITY, PLATFORM_HINTS,
-    MEMORY_GUIDANCE, SESSION_SEARCH_GUIDANCE, SKILLS_GUIDANCE,
+    MEMORY_GUIDANCE, KNOWLEDGE_GUIDANCE, SESSION_SEARCH_GUIDANCE, SKILLS_GUIDANCE,
     HERMES_AGENT_HELP_GUIDANCE,
     build_nous_subscription_prompt,
 )
@@ -120,6 +121,7 @@ from agent.display import (
     _detect_tool_failure,
     get_tool_emoji as _get_tool_emoji,
 )
+from agent.progress_ui import strip_leading_progress_ui
 from agent.trajectory import (
     convert_scratchpad_to_think, has_incomplete_scratchpad,
     save_trajectory as _save_trajectory_to_file,
@@ -836,6 +838,26 @@ class AIAgent:
         self._base_url = value
         self._base_url_lower = value.lower() if value else ""
         self._base_url_hostname = base_url_hostname(value)
+
+    @property
+    def user_id(self) -> str | None:
+        """当前 gateway 用户 ID。"""
+        return getattr(self, "_user_id", None)
+
+    @property
+    def chat_id(self) -> str | None:
+        """当前 gateway 聊天 / 频道 ID。"""
+        return getattr(self, "_chat_id", None)
+
+    @property
+    def thread_id(self) -> str | None:
+        """当前 gateway thread ID。"""
+        return getattr(self, "_thread_id", None)
+
+    @property
+    def gateway_session_key(self) -> str | None:
+        """当前 gateway session key。"""
+        return getattr(self, "_gateway_session_key", None)
 
     def __init__(
         self,
@@ -1615,15 +1637,46 @@ class AIAgent:
                 self._memory_enabled = mem_config.get("memory_enabled", False)
                 self._user_profile_enabled = mem_config.get("user_profile_enabled", False)
                 self._memory_nudge_interval = int(mem_config.get("nudge_interval", 10))
+                self._memory_backend = mem_config.get("backend", "files")  # 'files' or 'sqlite'
+
                 if self._memory_enabled or self._user_profile_enabled:
-                    from tools.memory_tool import MemoryStore
-                    self._memory_store = MemoryStore(
-                        memory_char_limit=mem_config.get("memory_char_limit", 2200),
-                        user_char_limit=mem_config.get("user_char_limit", 1375),
-                    )
-                    self._memory_store.load_from_disk()
+                    if self._memory_backend == "sqlite":
+                        # SQLite backend (Phase 2)
+                        try:
+                            from pathlib import Path
+                            from agent.memory_database import MemoryDatabase
+                            db_path = get_hermes_home() / "memories" / f"{self.user_id or 'default'}.db"
+                            self._memory_db = MemoryDatabase(db_path, self.user_id or "default")
+                            self._memory_store = None  # SQLite doesn't use MemoryStore
+                        except Exception as e:
+                            print(f"Warning: Failed to initialize SQLite memory backend: {e}")
+                            self._memory_db = None
+                            self._memory_store = None
+                    else:
+                        # File-based backend (default, backward compatible)
+                        from tools.memory_tool import MemoryStore
+                        self._memory_store = MemoryStore(
+                            memory_char_limit=mem_config.get("memory_char_limit", 2200),
+                            user_char_limit=mem_config.get("user_char_limit", 1375),
+                            user_id=self.user_id,  # Per-user isolation
+                        )
+                        self._memory_store.load_from_disk()
+                        self._memory_db = None  # Not using SQLite
             except Exception:
                 pass  # Memory is optional -- don't break agent init
+
+        # Working Memory - session-scoped immediate memory
+        self._working_memory = None
+        if not skip_memory and (self._memory_enabled or self._user_profile_enabled):
+            try:
+                from agent.working_memory import WorkingMemory
+                self._working_memory = WorkingMemory(
+                    session_id=self.session_id,
+                    user_id=self.user_id or "default",
+                    channel_id=self.chat_id,
+                )
+            except Exception:
+                pass  # Working memory is optional
         
 
 
@@ -1717,6 +1770,18 @@ class AIAgent:
         try:
             skills_config = _agent_cfg.get("skills", {})
             self._skill_nudge_interval = int(skills_config.get("creation_nudge_interval", 10))
+        except Exception:
+            pass
+
+        # Knowledge sedimentation review: periodic post-response pass that may
+        # save stable business facts through knowledge_write.
+        self._knowledge_nudge_interval = 10
+        self._turns_since_knowledge = 0
+        try:
+            knowledge_config = _agent_cfg.get("knowledge", {})
+            self._knowledge_nudge_interval = int(
+                knowledge_config.get("sedimentation_nudge_interval", 10)
+            )
         except Exception:
             pass
 
@@ -3201,6 +3266,23 @@ class AIAgent:
         "If nothing stands out, just say 'Nothing to save.' and stop."
     )
 
+    _KNOWLEDGE_REVIEW_PROMPT = (
+        "Review the conversation above and consider whether stable business knowledge "
+        "should be saved.\n\n"
+        "Only save concise, reusable business facts, decisions, meeting conclusions, "
+        "product/project facts, company-level executive context, or customer/market "
+        "findings that are supported by the conversation. Do not write user preferences "
+        "or personal working style here; those belong in memory. Do not write workflow "
+        "instructions or reusable procedures here; those belong in skills.\n\n"
+        "Use knowledge_write only when you can provide a compact title, structured "
+        "content, product_line_id/scope, knowledge_type, confidence, and a source_uri. "
+        "Use source_uri='hermes://session/{session_id}' unless a more specific source "
+        "URI appears in the conversation. Never write an entire raw chat log as the "
+        "knowledge content. If knowledge_write is denied, do not retry or bypass ACL; "
+        "the tool will preserve a pending capture when appropriate.\n\n"
+        "If nothing is worth saving, just say 'Nothing to save.' and stop."
+    )
+
     @staticmethod
     def _summarize_background_review_actions(
         review_messages: List[Dict],
@@ -3262,6 +3344,8 @@ class AIAgent:
             elif "removed" in message.lower() or "replaced" in message.lower():
                 label = "Memory" if target == "memory" else "User profile" if target == "user" else target
                 actions.append(f"{label} updated")
+            elif data.get("slug") and data.get("product_line_id"):
+                actions.append("Knowledge saved")
         return actions
 
     def _spawn_background_review(
@@ -3269,6 +3353,7 @@ class AIAgent:
         messages_snapshot: List[Dict],
         review_memory: bool = False,
         review_skills: bool = False,
+        review_knowledge: bool = False,
     ) -> None:
         """Spawn a background thread to review the conversation for memory/skill saves.
 
@@ -3284,8 +3369,16 @@ class AIAgent:
             prompt = self._COMBINED_REVIEW_PROMPT
         elif review_memory:
             prompt = self._MEMORY_REVIEW_PROMPT
-        else:
+        elif review_skills:
             prompt = self._SKILL_REVIEW_PROMPT
+        else:
+            prompt = ""
+
+        if review_knowledge:
+            knowledge_prompt = self._KNOWLEDGE_REVIEW_PROMPT.format(
+                session_id=self.session_id or "unknown"
+            )
+            prompt = f"{prompt}\n\n{knowledge_prompt}" if prompt else knowledge_prompt
 
         def _run_review():
             import contextlib
@@ -3318,6 +3411,10 @@ class AIAgent:
                     # reconstruct auth from scratch -- producing the spurious
                     # "No LLM provider configured" warning at end of turn.
                     _parent_runtime = self._current_main_runtime()
+                    enabled_toolsets = ["memory", "skills"]
+                    if review_knowledge:
+                        enabled_toolsets.append("knowledge")
+
                     review_agent = AIAgent(
                         model=self.model,
                         max_iterations=8,
@@ -3329,7 +3426,7 @@ class AIAgent:
                         api_key=_parent_runtime.get("api_key") or None,
                         credential_pool=getattr(self, "_credential_pool", None),
                         parent_session_id=self.session_id,
-                        enabled_toolsets=["memory", "skills"],
+                        enabled_toolsets=enabled_toolsets,
                     )
                     review_agent._memory_write_origin = "background_review"
                     review_agent._memory_write_context = "background_review"
@@ -3338,6 +3435,7 @@ class AIAgent:
                     review_agent._user_profile_enabled = self._user_profile_enabled
                     review_agent._memory_nudge_interval = 0
                     review_agent._skill_nudge_interval = 0
+                    review_agent._knowledge_nudge_interval = 0
 
                     review_agent.run_conversation(
                         user_message=prompt,
@@ -3422,6 +3520,147 @@ class AIAgent:
             metadata["tool_call_id"] = tool_call_id
         return {k: v for k, v in metadata.items() if v not in (None, "")}
 
+    def _handle_sqlite_memory(
+        self,
+        action: str,
+        target: str,
+        content: str,
+        old_text: Optional[str] = None,
+    ) -> str:
+        """Handle memory tool calls using SQLite backend."""
+        import uuid
+        from agent.memory_database import Memory
+        from agent.working_memory import MemoryEntry
+
+        if not self._memory_db:
+            return json.dumps({
+                "success": False,
+                "error": "SQLite memory backend not initialized"
+            })
+
+        # Determine memory type and scope from target
+        memory_type = "preference" if target == "user" else "fact"
+        scope = "user"
+
+        if action == "add":
+            # Check character limits
+            total_count = self._memory_db.count_active_memories()
+            if total_count >= 1000:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Memory limit reached ({total_count}/1000). Please delete old memories first."
+                })
+
+            # Insert new memory
+            memory = Memory(
+                memory_id=str(uuid.uuid4()),
+                user_id=self.user_id or "default",
+                content=content,
+                memory_type=memory_type,
+                scope=scope,
+                channel_id=self.chat_id,
+                source_session_id=self.session_id,
+                priority=50,
+            )
+
+            try:
+                self._memory_db.insert(memory)
+
+                # Update Working Memory for immediate visibility
+                if self._working_memory:
+                    entry = MemoryEntry(
+                        content=content,
+                        memory_type=memory_type,
+                        confidence=1.0,
+                        metadata={"source": "sqlite_memory", "memory_id": memory.memory_id}
+                    )
+                    self._working_memory.add_pending(entry)
+
+                return json.dumps({
+                    "success": True,
+                    "memory_id": memory.memory_id,
+                    "message": f"Added to {target} memory"
+                })
+            except sqlite3.IntegrityError:
+                return json.dumps({
+                    "success": False,
+                    "error": "Duplicate memory: This entry already exists"
+                })
+
+        elif action == "delete":
+            # Find and delete by content
+            results = self._memory_db.search_by_keywords(
+                keywords=[content],
+                limit=1
+            )
+            if results and results[0].content == content:
+                self._memory_db.delete(results[0].memory_id, soft=True)
+                return json.dumps({
+                    "success": True,
+                    "message": f"Deleted from {target} memory"
+                })
+            return json.dumps({
+                "success": False,
+                "error": "Memory entry not found"
+            })
+
+        elif action == "replace":
+            # Find old entry and replace
+            if not old_text:
+                return json.dumps({
+                    "success": False,
+                    "error": "old_text required for replace action"
+                })
+
+            results = self._memory_db.search_by_keywords(
+                keywords=[old_text],
+                limit=1
+            )
+            if results and results[0].content == old_text:
+                self._memory_db.update(results[0].memory_id, {"content": content})
+                return json.dumps({
+                    "success": True,
+                    "memory_id": results[0].memory_id,
+                    "message": f"Updated {target} memory"
+                })
+            return json.dumps({
+                "success": False,
+                "error": "Memory entry not found for replacement"
+            })
+
+        elif action == "list":
+            # List all memories of this type
+            results = self._memory_db.search(
+                memory_type=memory_type if target != "memory" else None,
+                limit=100
+            )
+            entries = [m.content for m in results]
+            return json.dumps({
+                "success": True,
+                "entries": entries,
+                "count": len(entries)
+            })
+
+        elif action == "search":
+            # Search memories by content
+            query = content or ""
+            results = self._memory_db.search_by_keywords(
+                keywords=query.split() if query else [],
+                limit=10
+            )
+            entries = [m.content for m in results]
+            return json.dumps({
+                "success": True,
+                "entries": entries,
+                "count": len(entries)
+            })
+
+        else:
+            return json.dumps({
+                "success": False,
+                "error": f"Unknown action: {action}"
+            })
+
     def _apply_persist_user_message_override(self, messages: List[Dict]) -> None:
         """Rewrite the current-turn user message before persistence/return.
 
@@ -3439,6 +3678,21 @@ class AIAgent:
             msg = messages[idx]
             if isinstance(msg, dict) and msg.get("role") == "user":
                 msg["content"] = override
+
+    @staticmethod
+    def _sanitize_assistant_message_for_history(message: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove gateway-owned progress UI from assistant visible content."""
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            return message
+        content = message.get("content")
+        if not isinstance(content, str) or not content:
+            return message
+        stripped = strip_leading_progress_ui(content)
+        if stripped == content:
+            return message
+        sanitized = dict(message)
+        sanitized["content"] = stripped
+        return sanitized
 
     def _persist_session(self, messages: List[Dict], conversation_history: List[Dict] = None):
         """Save session state to both JSON log and SQLite on any exit path.
@@ -3472,6 +3726,7 @@ class AIAgent:
             start_idx = len(conversation_history) if conversation_history else 0
             flush_from = max(start_idx, self._last_flushed_db_idx)
             for msg in messages[flush_from:]:
+                msg = self._sanitize_assistant_message_for_history(msg)
                 role = msg.get("role", "unknown")
                 content = msg.get("content")
                 tool_calls_data = None
@@ -4001,6 +4256,7 @@ class AIAgent:
             # Clean assistant content for session logs
             cleaned = []
             for msg in messages:
+                msg = self._sanitize_assistant_message_for_history(msg)
                 if msg.get("role") == "assistant" and msg.get("content"):
                     msg = dict(msg)
                     msg["content"] = self._clean_session_content(msg["content"])
@@ -4576,6 +4832,8 @@ class AIAgent:
         tool_guidance = []
         if "memory" in self.valid_tool_names:
             tool_guidance.append(MEMORY_GUIDANCE)
+        if "knowledge_write" in self.valid_tool_names:
+            tool_guidance.append(KNOWLEDGE_GUIDANCE)
         if "session_search" in self.valid_tool_names:
             tool_guidance.append(SESSION_SEARCH_GUIDANCE)
         if "skill_manage" in self.valid_tool_names:
@@ -7101,14 +7359,31 @@ class AIAgent:
                     _name_str = ", ".join(_partial_names[:3])
                     if len(_partial_names) > 3:
                         _name_str += f", +{len(_partial_names) - 3} more"
-                    _warn = (
-                        f"\n\n⚠ Stream stalled mid tool-call "
-                        f"({_name_str}); the action was not executed. "
-                        f"Ask me to retry if you want to continue."
-                    )
-                    _partial_text = (_partial_text or "") + _warn
-                    # Also fire as a streaming delta so the user sees it now
-                    # instead of only in the persisted transcript.
+                    _is_write_stall = any("write_file" in n for n in _partial_names)
+                    if _is_write_stall:
+                        # Visible to the user.  No "ask me to retry" — the
+                        # gateway picks up the recovery marker below and
+                        # re-runs the agent automatically.
+                        _warn = (
+                            f"\n\n⚠ 报告写入过程中连接中断（{_name_str}），"
+                            f"文件未完成保存。Hermes 正在切换为会话分段交付。"
+                        )
+                        # Internal marker consumed by gateway/run.py to
+                        # trigger one-shot auto recovery.  Appended to the
+                        # stub content (NOT fired as a stream delta) so it
+                        # reaches the gateway via final_response but never
+                        # surfaces to the user mid-stream.
+                        _recovery_marker = (
+                            "\n[[HERMES_DELIVERY_RECOVERY:write_file_stalled]]"
+                        )
+                    else:
+                        _warn = (
+                            f"\n\n⚠ 连接在工具调用过程中中断（{_name_str}），该操作未执行。"
+                        )
+                        _recovery_marker = ""
+                    _partial_text = (_partial_text or "") + _warn + _recovery_marker
+                    # Fire only the human-readable warning as a streaming
+                    # delta — the internal marker must not be shown live.
                     try:
                         self._fire_stream_delta(_warn)
                     except Exception:
@@ -8101,6 +8376,7 @@ class AIAgent:
             qwen_session_metadata=_qwen_meta,
             fixed_temperature=_fixed_temp,
             omit_temperature=_omit_temp,
+            base_url=self.base_url,
             supports_reasoning=self._supports_reasoning_extra_body(),
             github_reasoning_extra=self._github_models_reasoning_extra_body() if _is_gh else None,
             anthropic_max_output=_ant_max,
@@ -8822,24 +9098,50 @@ class AIAgent:
                 limit=function_args.get("limit", 3),
                 db=self._session_db,
                 current_session_id=self.session_id,
+                platform=self.platform,
+                user_id=self._user_id,
             )
         elif function_name == "memory":
+            action = function_args.get("action")
             target = function_args.get("target", "memory")
+            content = function_args.get("content", "")
+            old_text = function_args.get("old_text")
+
+            # Handle SQLite backend
+            if self._memory_db:
+                return self._handle_sqlite_memory(action, target, content, old_text)
+
+            # Handle file-based backend (default)
             from tools.memory_tool import memory_tool as _memory_tool
             result = _memory_tool(
-                action=function_args.get("action"),
+                action=action,
                 target=target,
-                content=function_args.get("content"),
-                old_text=function_args.get("old_text"),
+                content=content,
+                old_text=old_text,
                 store=self._memory_store,
             )
+
+            # Update Working Memory for immediate visibility
+            if self._working_memory and action == "add":
+                try:
+                    from agent.working_memory import MemoryEntry
+                    entry = MemoryEntry(
+                        content=content,
+                        memory_type="user_profile" if target == "user" else "fact",
+                        confidence=1.0,
+                        metadata={"source": "explicit_memory_tool"}
+                    )
+                    self._working_memory.add_pending(entry)
+                except Exception:
+                    pass  # Don't break if working memory fails
+
             # Bridge: notify external memory provider of built-in memory writes
-            if self._memory_manager and function_args.get("action") in ("add", "replace"):
+            if self._memory_manager and action in ("add", "replace"):
                 try:
                     self._memory_manager.on_memory_write(
-                        function_args.get("action", ""),
+                        action,
                         target,
-                        function_args.get("content", ""),
+                        content,
                         metadata=self._build_memory_write_metadata(
                             task_id=effective_task_id,
                             tool_call_id=tool_call_id,
@@ -9361,6 +9663,8 @@ class AIAgent:
                         limit=function_args.get("limit", 3),
                         db=self._session_db,
                         current_session_id=self.session_id,
+                        platform=self.platform,
+                        user_id=self._user_id,
                     )
                 tool_duration = time.time() - tool_start_time
                 if self._should_emit_quiet_tool_messages():
@@ -9727,7 +10031,7 @@ class AIAgent:
                 if "<think>" in final_response:
                     final_response = re.sub(r'<think>.*?</think>\s*', '', final_response, flags=re.DOTALL).strip()
                 if final_response:
-                    messages.append({"role": "assistant", "content": final_response})
+                    messages.append(self._sanitize_assistant_message_for_history({"role": "assistant", "content": final_response}))
                 else:
                     final_response = "I reached the iteration limit and couldn't generate a summary."
             else:
@@ -9768,7 +10072,7 @@ class AIAgent:
                     if "<think>" in final_response:
                         final_response = re.sub(r'<think>.*?</think>\s*', '', final_response, flags=re.DOTALL).strip()
                     if final_response:
-                        messages.append({"role": "assistant", "content": final_response})
+                        messages.append(self._sanitize_assistant_message_for_history({"role": "assistant", "content": final_response}))
                     else:
                         final_response = "I reached the iteration limit and couldn't generate a summary."
                 else:
@@ -9930,6 +10234,14 @@ class AIAgent:
                 _should_review_memory = True
                 self._turns_since_memory = 0
 
+        _should_review_knowledge = False
+        if (getattr(self, "_knowledge_nudge_interval", 0) > 0
+                and "knowledge_write" in self.valid_tool_names):
+            self._turns_since_knowledge += 1
+            if self._turns_since_knowledge >= self._knowledge_nudge_interval:
+                _should_review_knowledge = True
+                self._turns_since_knowledge = 0
+
         # Add user message
         user_msg = {"role": "user", "content": user_message}
         messages.append(user_msg)
@@ -9939,6 +10251,72 @@ class AIAgent:
         if not self.quiet_mode:
             _print_preview = _summarize_user_message_for_log(user_message)
             self._safe_print(f"💬 Starting conversation: '{_print_preview[:60]}{'...' if len(_print_preview) > 60 else ''}'")
+
+        # Record the execution thread before any pre-LLM short-circuit so
+        # agent-system delegate children inherit normal interrupt plumbing.
+        self._execution_thread_id = threading.current_thread().ident
+
+        # Always clear stale per-thread state from a previous turn. If an
+        # interrupt arrived before startup finished, preserve it and bind it
+        # to this execution thread now instead of dropping it on the floor.
+        _set_interrupt(False, self._execution_thread_id)
+        if self._interrupt_requested:
+            _set_interrupt(True, self._execution_thread_id)
+            self._interrupt_thread_signal_pending = False
+        else:
+            self._interrupt_message = None
+            self._interrupt_thread_signal_pending = False
+
+        # Hermes Agent System runtime bridge. Keep this before system prompt
+        # construction and preflight compression so agent-system turns do not
+        # spend the parent model on setup work before delegating execution.
+        try:
+            from agent_system.cli_bridge import maybe_run_agent_system_from_message
+
+            _agent_system_result = maybe_run_agent_system_from_message(
+                user_message,
+                parent_agent=self,
+                task_id=effective_task_id,
+                progress_callback=self.tool_progress_callback,
+            )
+        except Exception as exc:
+            logger.warning("agent_system CLI bridge failed before LLM loop: %s", exc)
+            _agent_system_result = None
+
+        if _agent_system_result is not None:
+            final_response = _agent_system_result.get("final_response", "")
+            messages.append(self._sanitize_assistant_message_for_history({"role": "assistant", "content": final_response}))
+            self._cleanup_task_resources(effective_task_id)
+            self._persist_session(messages, conversation_history)
+            self._stream_callback = None
+            self.clear_interrupt()
+            return {
+                "final_response": final_response,
+                "last_reasoning": None,
+                "messages": messages,
+                "api_calls": 0,
+                "completed": True,
+                "partial": False,
+                "interrupted": False,
+                "response_previewed": False,
+                "model": self.model,
+                "provider": self.provider,
+                "base_url": self.base_url,
+                "input_tokens": self.session_input_tokens,
+                "output_tokens": self.session_output_tokens,
+                "cache_read_tokens": self.session_cache_read_tokens,
+                "cache_write_tokens": self.session_cache_write_tokens,
+                "reasoning_tokens": self.session_reasoning_tokens,
+                "prompt_tokens": self.session_prompt_tokens,
+                "completion_tokens": self.session_completion_tokens,
+                "total_tokens": self.session_total_tokens,
+                "last_prompt_tokens": getattr(self.context_compressor, "last_prompt_tokens", 0) or 0,
+                "estimated_cost_usd": self.session_estimated_cost_usd,
+                "cost_status": self.session_cost_status,
+                "cost_source": self.session_cost_source,
+                "agent_system_status": _agent_system_result.get("agent_system_status"),
+                "agent_system_result": _agent_system_result.get("agent_system_result"),
+            }
 
         # ── System prompt (cached per session for prefix caching) ──
         # Built once on first call, reused for all subsequent calls.
@@ -10106,74 +10484,6 @@ class AIAgent:
         truncated_response_prefix = ""
         compression_attempts = 0
         _turn_exit_reason = "unknown"  # Diagnostic: why the loop ended
-        
-        # Record the execution thread so interrupt()/clear_interrupt() can
-        # scope the tool-level interrupt signal to THIS agent's thread only.
-        # Must be set before any thread-scoped interrupt syncing.
-        self._execution_thread_id = threading.current_thread().ident
-
-        # Always clear stale per-thread state from a previous turn. If an
-        # interrupt arrived before startup finished, preserve it and bind it
-        # to this execution thread now instead of dropping it on the floor.
-        _set_interrupt(False, self._execution_thread_id)
-        if self._interrupt_requested:
-            _set_interrupt(True, self._execution_thread_id)
-            self._interrupt_thread_signal_pending = False
-        else:
-            self._interrupt_message = None
-            self._interrupt_thread_signal_pending = False
-
-        # Hermes Agent System runtime bridge.  This is deliberately a narrow
-        # pre-LLM hook: it only runs when the user explicitly mentions
-        # agent_system and names a known pipeline from routes.json.  It lives
-        # after execution-thread binding so real delegate_task children inherit
-        # the normal interrupt/activity plumbing.
-        try:
-            from agent_system.cli_bridge import maybe_run_agent_system_from_message
-
-            _agent_system_result = maybe_run_agent_system_from_message(
-                user_message,
-                parent_agent=self,
-                task_id=effective_task_id,
-            )
-        except Exception as exc:
-            logger.warning("agent_system CLI bridge failed before LLM loop: %s", exc)
-            _agent_system_result = None
-
-        if _agent_system_result is not None:
-            final_response = _agent_system_result.get("final_response", "")
-            messages.append({"role": "assistant", "content": final_response})
-            self._cleanup_task_resources(effective_task_id)
-            self._persist_session(messages, conversation_history)
-            self._stream_callback = None
-            self.clear_interrupt()
-            return {
-                "final_response": final_response,
-                "last_reasoning": None,
-                "messages": messages,
-                "api_calls": 0,
-                "completed": True,
-                "partial": False,
-                "interrupted": False,
-                "response_previewed": False,
-                "model": self.model,
-                "provider": self.provider,
-                "base_url": self.base_url,
-                "input_tokens": self.session_input_tokens,
-                "output_tokens": self.session_output_tokens,
-                "cache_read_tokens": self.session_cache_read_tokens,
-                "cache_write_tokens": self.session_cache_write_tokens,
-                "reasoning_tokens": self.session_reasoning_tokens,
-                "prompt_tokens": self.session_prompt_tokens,
-                "completion_tokens": self.session_completion_tokens,
-                "total_tokens": self.session_total_tokens,
-                "last_prompt_tokens": getattr(self.context_compressor, "last_prompt_tokens", 0) or 0,
-                "estimated_cost_usd": self.session_estimated_cost_usd,
-                "cost_status": self.session_cost_status,
-                "cost_source": self.session_cost_source,
-                "agent_system_status": _agent_system_result.get("agent_system_status"),
-                "agent_system_result": _agent_system_result.get("agent_system_result"),
-            }
 
         # Notify memory providers of the new turn so cadence tracking works.
         # Must happen BEFORE prefetch_all() so providers know which turn it is
@@ -10377,6 +10687,13 @@ class AIAgent:
             # External recall context is injected into the user message, not the system
             # prompt, so the stable cache prefix remains unchanged.
             effective_system = active_system_prompt or ""
+
+            # Inject Working Memory (session-scoped immediate memory)
+            if self._working_memory and self._working_memory:
+                working_mem_block = self._working_memory.format_for_context()
+                if working_mem_block:
+                    effective_system = (effective_system + "\n\n" + working_mem_block).strip()
+
             if self.ephemeral_system_prompt:
                 effective_system = (effective_system + "\n\n" + self.ephemeral_system_prompt).strip()
             # NOTE: Plugin context from pre_llm_call hooks is injected into the
@@ -10986,7 +11303,7 @@ class AIAgent:
                             if assistant_message is not None and not _trunc_has_tool_calls:
                                 length_continue_retries += 1
                                 interim_msg = self._build_assistant_message(assistant_message, finish_reason)
-                                messages.append(interim_msg)
+                                messages.append(self._sanitize_assistant_message_for_history(interim_msg))
                                 if assistant_message.content:
                                     truncated_response_prefix += assistant_message.content
 
@@ -12400,8 +12717,8 @@ class AIAgent:
                             and last_codex_message_items == interim_codex_message_items
                         )
                         if not duplicate_interim:
-                            messages.append(interim_msg)
                             self._emit_interim_assistant_message(interim_msg)
+                            messages.append(self._sanitize_assistant_message_for_history(interim_msg))
 
                     if self._codex_incomplete_retries < 3:
                         if not self.quiet_mode:
@@ -12468,7 +12785,7 @@ class AIAgent:
                             }
 
                         assistant_msg = self._build_assistant_message(assistant_message, finish_reason)
-                        messages.append(assistant_msg)
+                        messages.append(self._sanitize_assistant_message_for_history(assistant_msg))
                         for tc in assistant_message.tool_calls:
                             if tc.function.name not in self.valid_tool_names:
                                 content = f"Tool '{tc.function.name}' does not exist. Available tools: {available}"
@@ -12638,8 +12955,8 @@ class AIAgent:
                     # a LATER tool round.
                     self._post_tool_empty_retried = False
 
-                    messages.append(assistant_msg)
                     self._emit_interim_assistant_message(assistant_msg)
+                    messages.append(self._sanitize_assistant_message_for_history(assistant_msg))
 
                     # Close any open streaming display (response box, reasoning
                     # box) before tool execution begins.  Intermediate turns may
@@ -12861,7 +13178,7 @@ class AIAgent:
                                 assistant_message, "incomplete"
                             )
                             interim_msg["_thinking_prefill"] = True
-                            messages.append(interim_msg)
+                            messages.append(self._sanitize_assistant_message_for_history(interim_msg))
                             self._session_messages = messages
                             self._save_session_log(messages)
                             continue
@@ -12932,7 +13249,7 @@ class AIAgent:
                         reasoning_text = self._extract_reasoning(assistant_message)
                         assistant_msg = self._build_assistant_message(assistant_message, finish_reason)
                         assistant_msg["content"] = "(empty)"
-                        messages.append(assistant_msg)
+                        messages.append(self._sanitize_assistant_message_for_history(assistant_msg))
 
                         if reasoning_text:
                             reasoning_preview = reasoning_text[:500] + "..." if len(reasoning_text) > 500 else reasoning_text
@@ -12978,8 +13295,8 @@ class AIAgent:
                     ):
                         codex_ack_continuations += 1
                         interim_msg = self._build_assistant_message(assistant_message, "incomplete")
-                        messages.append(interim_msg)
                         self._emit_interim_assistant_message(interim_msg)
+                        messages.append(self._sanitize_assistant_message_for_history(interim_msg))
 
                         continue_msg = {
                             "role": "user",
@@ -13015,7 +13332,7 @@ class AIAgent:
                     ):
                         messages.pop()
 
-                    messages.append(final_msg)
+                    messages.append(self._sanitize_assistant_message_for_history(final_msg))
                     
                     _turn_exit_reason = f"text_response(finish_reason={finish_reason})"
                     if not self.quiet_mode:
@@ -13069,7 +13386,7 @@ class AIAgent:
                     final_response = f"I apologize, but I encountered repeated errors: {error_msg}"
                     # Append as assistant so the history stays valid for
                     # session resume (avoids consecutive user messages).
-                    messages.append({"role": "assistant", "content": final_response})
+                    messages.append(self._sanitize_assistant_message_for_history({"role": "assistant", "content": final_response}))
                     break
         
         if final_response is None and (
@@ -13233,14 +13550,16 @@ class AIAgent:
             interrupted=interrupted,
         )
 
-        # Background memory/skill review — runs AFTER the response is delivered
+        # Background asset review — runs AFTER the response is delivered
         # so it never competes with the user's task for model attention.
-        if final_response and not interrupted and (_should_review_memory or _should_review_skills):
+        if final_response and not interrupted and (
+                _should_review_memory or _should_review_skills or _should_review_knowledge):
             try:
                 self._spawn_background_review(
                     messages_snapshot=list(messages),
                     review_memory=_should_review_memory,
                     review_skills=_should_review_skills,
+                    review_knowledge=_should_review_knowledge,
                 )
             except Exception:
                 pass  # Background review is best-effort

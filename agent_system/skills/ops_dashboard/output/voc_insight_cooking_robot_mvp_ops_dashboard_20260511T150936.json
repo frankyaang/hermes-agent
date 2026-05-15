@@ -1,0 +1,74 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "node_id": "voc_insight",
+  "expert_id": "ops_expert",
+  "skill_id": "ops_dashboard",
+  "status": "completed",
+  "generated_at": "2026-05-11T15:09:36+08:00",
+  "output_type": "用户洞察结论",
+  "final_output": false,
+  "source_materials": [
+    "从用户价值、用户体验验证标准和运营优先级角度，分析家庭自主做饭双臂机器人应如何定义 MVP。"
+  ],
+  "report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_cooking_robot_mvp_ops_dashboard_20260511T150936.md",
+  "core_conclusion": "家庭自主做饭双臂机器人的 MVP 应聚焦固定工位、标准食材输入和少量高频热餐的免看管成餐闭环，而不是全厨房、全菜系、全流程自动化。",
+  "mvp_definition": {
+    "must_have": [
+      "固定烹饪工位",
+      "标准食材/净菜盒输入",
+      "3类高频菜谱原型",
+      "自主下料/翻炒/火候/调味/出锅",
+      "安全监控与异常停机",
+      "基础清洁",
+      "低学习成本交互"
+    ],
+    "should_have_later": [
+      "连续多菜",
+      "个性化口味学习",
+      "扩展菜谱库",
+      "食材包生态",
+      "多模态交互"
+    ],
+    "excluded_from_mvp": [
+      "开冰箱取菜",
+      "洗菜切菜",
+      "任意厨房自由移动",
+      "高风险油炸/明火复杂菜",
+      "全自动洗碗/深度清洁"
+    ]
+  },
+  "north_star_metric": "有效免看管成餐率",
+  "ux_thresholds": {
+    "home_autonomous_completion_rate": ">=85%",
+    "lab_autonomous_completion_rate": ">=90%",
+    "active_user_time_per_meal": "<=5-8min",
+    "safety_incidents": "0",
+    "taste_satisfaction": ">=4.0/5 or >=75% willing to repeat",
+    "post_meal_cleanup_time": "<=5min",
+    "d7_usage": ">=3 uses per pilot family"
+  },
+  "priority_actions": {
+    "P0": [
+      "锁定2-3人份高频热餐场景",
+      "选择3类菜谱原型",
+      "标准化食材输入",
+      "建立安全测试矩阵",
+      "建立家庭试点数据埋点"
+    ],
+    "P1": [
+      "扩展10-15个高频菜谱",
+      "加入口味偏好档位",
+      "增强基础清洁",
+      "验证食材包/净菜合作",
+      "形成双臂必要性证据"
+    ],
+    "P2": [
+      "多菜连续烹饪",
+      "备菜能力模块化接入",
+      "开放厨房环境适配",
+      "菜谱平台和营养管理",
+      "多模态自然交互"
+    ]
+  },
+  "data_boundary": "未提供真实VOC/评论/竞品/质量反馈数据，结论为概念阶段用户洞察与运营看板定义，需通过用户访谈、家庭试点和安全法规评估验证。"
+}

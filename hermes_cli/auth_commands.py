@@ -6,6 +6,8 @@ from getpass import getpass
 import math
 import sys
 import time
+import urllib.error
+import urllib.request
 from types import SimpleNamespace
 import uuid
 
@@ -336,6 +338,121 @@ def auth_add_command(args) -> None:
     raise SystemExit(f"`hermes auth add {provider}` is not implemented for auth type {requested_type} yet.")
 
 
+def auth_import_codex_switcher_command(args) -> None:
+    provider = _normalize_provider(getattr(args, "provider", "openai-codex") or "openai-codex")
+    mode = str(getattr(args, "mode", "takeover") or "takeover").strip().lower()
+    dry_run = bool(getattr(args, "dry_run", False))
+    source = getattr(args, "source", None)
+    if provider != "openai-codex":
+        raise SystemExit("Codex Switcher import only supports provider: openai-codex")
+    if mode != "takeover":
+        raise SystemExit("Only takeover mode is supported. Real-time sync is intentionally unsupported.")
+
+    from hermes_cli.codex_switcher_import import (
+        account_action,
+        archive_switcher_store,
+        build_import_plan,
+        file_mode,
+        import_switcher_accounts,
+    )
+
+    try:
+        plan = build_import_plan(provider=provider, source=source)
+    except Exception as exc:
+        raise SystemExit(f"Codex Switcher import failed during discovery: {exc}") from exc
+
+    print(f"source_file: {plan.source_file}")
+    print(f"account_count: {len(plan.accounts)}")
+    print(f"target_provider: {provider}")
+    print(f"mode: {mode}")
+    print(f"dry_run: {str(dry_run).lower()}")
+    print()
+    for account in plan.accounts:
+        action = account_action(account, plan.existing_labels)
+        conflict = action == "conflict"
+        print(f"- label: {account.label}")
+        print(f"  auth_mode: {account.auth_mode}")
+        print(f"  has_access_token: {str(account.has_access_token).lower()}")
+        print(f"  has_refresh_token: {str(account.has_refresh_token).lower()}")
+        print(f"  last_refresh: {account.last_refresh or ''}")
+        print(f"  label_conflict: {str(conflict).lower()}")
+        print(f"  action: {action}")
+
+    if dry_run:
+        return
+
+    try:
+        imported_count, imported_labels, backup = import_switcher_accounts(plan)
+    except Exception as exc:
+        raise SystemExit(f"Codex Switcher import failed before archive: {exc}") from exc
+
+    archive_path = None
+    if imported_count:
+        archive_path = archive_switcher_store(plan.source_file)
+
+    print()
+    print(f"imported_count: {imported_count}")
+    for label in imported_labels:
+        print(f"- imported_label: {label}")
+    print(f"hermes_auth_backup: {backup or ''}")
+    print(f"switcher_archive: {archive_path or ''}")
+    if archive_path:
+        print(f"switcher_archive_mode: {file_mode(archive_path)}")
+        print(f"source_store_mode: {file_mode(plan.source_file)}")
+
+
+def _test_codex_entry(entry) -> tuple[str, str]:
+    from agent.auxiliary_client import _codex_cloudflare_headers
+
+    token = getattr(entry, "access_token", "") or ""
+    headers = _codex_cloudflare_headers(token)
+    headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(
+        "https://chatgpt.com/backend-api/codex/models?client_version=1.0.0",
+        headers=headers,
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            status = getattr(response, "status", 0)
+            if 200 <= int(status) < 300:
+                return "ok", ""
+            return "failed", f"http_{status}"
+    except urllib.error.HTTPError as exc:
+        return "failed", f"http_{exc.code}"
+    except Exception as exc:
+        return "failed", type(exc).__name__
+
+
+def auth_test_command(args) -> None:
+    provider = _normalize_provider(getattr(args, "provider", ""))
+    label = (getattr(args, "label", None) or "").strip()
+    if provider != "openai-codex":
+        raise SystemExit("auth test currently supports provider: openai-codex")
+    if not label:
+        raise SystemExit("--label is required")
+    pool = load_pool(provider)
+    matches = [entry for entry in pool.entries() if entry.label == label]
+    if not matches:
+        raise SystemExit(f"No {provider} credential found with label: {label}")
+    entry = matches[0]
+    status, reason = _test_codex_entry(entry)
+    if status != "ok" and reason == "http_401" and getattr(entry, "refresh_token", None):
+        try:
+            refreshed = pool._refresh_entry(entry, force=True)
+        except Exception:
+            refreshed = None
+        if refreshed is not None:
+            status, reason = _test_codex_entry(refreshed)
+    auth_mode = getattr(entry, "auth_mode", None) or "chatgpt"
+    print(f"label: {entry.label}")
+    print(f"provider: {provider}")
+    print(f"auth_mode: {auth_mode}")
+    print(f"status: {status}")
+    if reason and status != "ok":
+        print(f"reason: {reason}")
+
+
 def auth_list_command(args) -> None:
     provider_filter = _normalize_provider(getattr(args, "provider", "") or "")
     if provider_filter:
@@ -642,6 +759,12 @@ def auth_command(args) -> None:
         return
     if action == "reset":
         auth_reset_command(args)
+        return
+    if action == "import-codex-switcher":
+        auth_import_codex_switcher_command(args)
+        return
+    if action == "test":
+        auth_test_command(args)
         return
     if action == "status":
         auth_status_command(args)

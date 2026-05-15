@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "updated_at": "2026-05-14T11:16:32.777864+00:00",
+  "formula": "Skill_Weight = Base_Weight + Success_Rate*0.4 + Output_Quality*0.3 - Exception_Count*0.2 + Dynamic_Coverage_Frequency*-0.1",
+  "skills": {}
+}

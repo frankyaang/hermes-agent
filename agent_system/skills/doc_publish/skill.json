@@ -1,0 +1,9 @@
+{
+  "name": "doc_publish",
+  "display_name": "文档发布",
+  "description": "将已有 Markdown/报告转换为飞书云文档格式；无 token 时返回待发布内容和本地路径",
+  "type": "ui_render",
+  "pipeline": "doc_publish_pipeline",
+  "private_memory": true,
+  "root": "skills/doc_publish"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "artifact_resolver",
+  "display_name": "产物定位",
+  "description": "定位已有文件、已有输出或历史产物，返回路径和摘要",
+  "type": "analysis",
+  "pipeline": "artifact_resolver_pipeline",
+  "private_memory": true,
+  "root": "skills/artifact_resolver"
+}

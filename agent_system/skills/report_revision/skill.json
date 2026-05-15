@@ -1,0 +1,9 @@
+{
+  "name": "report_revision",
+  "display_name": "报告修订",
+  "description": "基于已有报告做细化/改写/润色，不重新运行 VOC 分析",
+  "type": "report_generation",
+  "pipeline": "report_revision_pipeline",
+  "private_memory": true,
+  "root": "skills/report_revision"
+}

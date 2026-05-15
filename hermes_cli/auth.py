@@ -414,12 +414,10 @@ def get_anthropic_key() -> str:
 # api.moonshot.ai/v1 (the old default).  Auto-detect when user hasn't set
 # KIMI_BASE_URL explicitly.
 #
-# Note: the base URL intentionally has NO /v1 suffix.  The /coding endpoint
-# speaks the Anthropic Messages protocol, and the anthropic SDK appends
-# "/v1/messages" internally — so "/coding" + SDK suffix → "/coding/v1/messages"
-# (the correct target). Using "/coding/v1" here would produce
-# "/coding/v1/v1/messages" (a 404).
-KIMI_CODE_BASE_URL = "https://api.kimi.com/coding"
+# Note: Kimi Code exposes an OpenAI-compatible Chat Completions surface at
+# /coding/v1/chat/completions.  The OpenAI SDK appends /chat/completions to
+# base_url, so the base must include /coding/v1.
+KIMI_CODE_BASE_URL = "https://api.kimi.com/coding/v1"
 
 
 def _resolve_kimi_base_url(api_key: str, default_url: str, env_override: str) -> str:
@@ -2331,7 +2329,7 @@ def _refresh_codex_auth_tokens(
     return updated_tokens
 
 
-def _import_codex_cli_tokens() -> Optional[Dict[str, str]]:
+def _import_codex_cli_tokens(*, allow_expired: bool = False) -> Optional[Dict[str, str]]:
     """Try to read tokens from ~/.codex/auth.json (Codex CLI shared file).
     
     Returns tokens dict if valid and not expired, None otherwise.
@@ -2355,7 +2353,7 @@ def _import_codex_cli_tokens() -> Optional[Dict[str, str]]:
         # Reject expired tokens — importing stale tokens from ~/.codex/
         # that can't be refreshed leaves the user stuck with "Login successful!"
         # but no working credentials.
-        if _codex_access_token_is_expiring(access_token, 0):
+        if not allow_expired and _codex_access_token_is_expiring(access_token, 0):
             logger.debug(
                 "Codex CLI tokens at %s are expired — skipping import.", auth_path,
             )
@@ -2371,8 +2369,33 @@ def resolve_codex_runtime_credentials(
     refresh_if_expiring: bool = True,
     refresh_skew_seconds: int = CODEX_ACCESS_TOKEN_REFRESH_SKEW_SECONDS,
 ) -> Dict[str, Any]:
-    """Resolve runtime credentials from Hermes's own Codex token store."""
-    data = _read_codex_tokens()
+    """Resolve runtime credentials for Codex.
+
+    Prefer Hermes's own token store when present.  If the user removed Hermes
+    Codex credentials, fall back to the active Codex CLI/Switcher auth file
+    without importing or saving those tokens into Hermes.
+    """
+    external_source = False
+    try:
+        data = _read_codex_tokens()
+    except AuthError as exc:
+        if exc.code != "codex_auth_missing":
+            raise
+        cli_tokens = _import_codex_cli_tokens()
+        if not cli_tokens:
+            raise
+        # Fail-closed: refuse to share ~/.codex/auth.json tokens.
+        # Using the Codex CLI's refresh token from Hermes would rotate it,
+        # invalidating the Codex Desktop / VS Code session.
+        raise AuthError(
+            "Codex credentials found in ~/.codex/auth.json (Codex CLI/Desktop), "
+            "but Hermes refuses to share them to avoid invalidating your Codex session. "
+            "Run 'hermes auth login openai-codex' to create a separate Hermes Codex session, "
+            "then retry.",
+            provider="openai-codex",
+            code="codex_cli_auth_json_rejected",
+            relogin_required=True,
+        )
     tokens = dict(data["tokens"])
     access_token = str(tokens.get("access_token", "") or "").strip()
     refresh_timeout_seconds = float(os.getenv("HERMES_CODEX_REFRESH_TIMEOUT_SECONDS", "20"))
@@ -2380,6 +2403,22 @@ def resolve_codex_runtime_credentials(
     should_refresh = bool(force_refresh)
     if (not should_refresh) and refresh_if_expiring:
         should_refresh = _codex_access_token_is_expiring(access_token, refresh_skew_seconds)
+    if should_refresh:
+        if external_source:
+            # Codex Switcher / Codex CLI owns this auth lineage.  Re-read the
+            # active file, but do not refresh or write it from Hermes.
+            cli_tokens = _import_codex_cli_tokens()
+            if cli_tokens:
+                tokens = cli_tokens
+                access_token = str(tokens.get("access_token", "") or "").strip()
+            should_refresh = False
+        if external_source and _codex_access_token_is_expiring(access_token, 0):
+            raise AuthError(
+                "Codex Switcher credentials are expired. Switch or refresh the account in Codex Switcher.",
+                provider="openai-codex",
+                code="codex_switcher_auth_expired",
+                relogin_required=True,
+            )
     if should_refresh:
         # Re-read under lock to avoid racing with other Hermes processes
         with _auth_store_lock(timeout_seconds=max(float(AUTH_LOCK_TIMEOUT_SECONDS), refresh_timeout_seconds + 5.0)):
@@ -2404,7 +2443,7 @@ def resolve_codex_runtime_credentials(
         "provider": "openai-codex",
         "base_url": base_url,
         "api_key": access_token,
-        "source": "hermes-auth-store",
+        "source": "codex-cli-auth-json" if external_source else "hermes-auth-store",
         "last_refresh": data.get("last_refresh"),
         "auth_mode": "chatgpt",
     }

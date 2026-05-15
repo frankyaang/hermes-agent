@@ -1,0 +1,13 @@
+{
+  "name": "builder_expert",
+  "display_name": "深度养马专家",
+  "description": "技能/专家/调度路由生成模式专家。仅在'深度养马模式'激活时接管对话，通过 9 阶段状态机引导用户生成新的 Hermes skill / expert / route 资产。",
+  "skills": [],
+  "private_memory": true,
+  "root": "experts/builder_expert",
+  "mode_activated": true,
+  "mode_phrases": {
+    "entry": ["启动深度养马模式", "进入深度养马模式", "开启深度养马模式"],
+    "exit": ["退出深度养马模式", "结束深度养马模式", "关闭深度养马模式"]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "run_id": "Run_doc_publish_flow_20260514T110756",
+  "pipeline_id": "doc_publish_flow",
+  "review_period": "2026-05-14 至 2026-05-14",
+  "review_triggers": [
+    "biweekly_review",
+    "key_node_completion"
+  ],
+  "task_count": 2,
+  "success_rate": 100.0,
+  "average_output_quality": 0.0,
+  "exception_count": 0,
+  "dynamic_coverage_frequency": 0,
+  "human_review_count": 0,
+  "human_input_summary": [],
+  "human_review_decisions": [],
+  "default_skill_usage": {
+    "artifact_resolver": 1,
+    "doc_publish": 1
+  },
+  "dynamic_overrides": [],
+  "exceptions": [],
+  "weight_adjustments": {},
+  "skill_weights_updated": true,
+  "rule_update_suggestions": [],
+  "flow_visualization": "主智能体 -> Skill 执行 -> 子专家 -> Skill 执行 -> 人工介入 -> 输出 + 审计 -> 复盘与权重优化",
+  "planning_source": "template_reuse+planning_llm",
+  "template_candidate": false,
+  "skipped_voc_insight_reason": "任务为格式转换/发布，不需要重新运行VOC分析",
+  "planning_llm": {
+    "accept_local_plan": false,
+    "pipeline_id": null,
+    "task_type": null,
+    "task_goal": "理解用户指定的阅读范围（今天19:00左右分享到群里的云文档）",
+    "expected_output": "确认可访问的云文档列表，或请求用户提供具体文档链接/内容",
+    "requires_voc_insight": false,
+    "react_decision": "ask_human",
+    "next_actions": [
+      "请用户明确提供云文档的具体链接或内容",
+      "确认当前上下文中是否已包含相关文档",
+      "说明系统无法直接访问群聊历史记录"
+    ],
+    "risk_flags": [
+      "用户意图不明确：仅指定时间范围，未提供具体文档",
+      "local_plan错误分类为doc_format任务，实际为信息确认阶段",
+      "缺少source_artifact具体值",
+      "系统无法回溯群聊历史获取文档"
+    ],
+    "reason": "用户消息仅说明阅读范围为'今天19:00左右分享的云文档'，但未提供文档链接、标题或内容。local_plan错误地将其分类为doc_format任务并选择doc_publish_flow，但实际上这是任务启动前的范围确认阶段。系统无法自主访问群聊历史记录，需要用户明确提供文档。应ask_human获取具体输入后再规划后续流程。",
+    "llm_used": true,
+    "stage": "initial_plan",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "react_plan": {
+    "accept_local_plan": false,
+    "pipeline_id": null,
+    "task_type": null,
+    "task_goal": "理解用户指定的阅读范围（今天19:00左右分享到群里的云文档）",
+    "expected_output": "确认可访问的云文档列表，或请求用户提供具体文档链接/内容",
+    "requires_voc_insight": false,
+    "react_decision": "ask_human",
+    "next_actions": [
+      "请用户明确提供云文档的具体链接或内容",
+      "确认当前上下文中是否已包含相关文档",
+      "说明系统无法直接访问群聊历史记录"
+    ],
+    "risk_flags": [
+      "用户意图不明确：仅指定时间范围，未提供具体文档",
+      "local_plan错误分类为doc_format任务，实际为信息确认阶段",
+      "缺少source_artifact具体值",
+      "系统无法回溯群聊历史获取文档",
+      "两个节点均显示无可执行实现，pipeline执行失败"
+    ],
+    "reason": "用户消息仅说明阅读范围为'今天19:00左右分享的云文档'，但未提供文档链接、标题或内容。local_plan错误地将其分类为doc_format任务并选择doc_publish_flow，但实际上这是任务启动前的范围确认阶段。系统无法自主访问群聊历史记录，需要用户明确提供文档。且执行结果显示artifact_resolver和doc_publish均无可执行实现，pipeline实际未完成有效工作。应ask_human获取具体输入后再规划后续流程。",
+    "llm_used": true,
+    "stage": "post_audit_react",
+    "provider": "xiamiapi",
+    "model": "claude-opus-4-7"
+  },
+  "experience_isolation": {
+    "system_level": {
+      "owner": "Hermes 主代理",
+      "write_scope": "系统级经验库",
+      "contains": "全局策略、用户偏好、会话记忆、运行级复盘索引"
+    },
+    "expert_level": {
+      "owner": "对应专家",
+      "write_scope": "本专家 expert_mem",
+      "contains": "专家决策、历史任务、复盘结果、Skill 调用摘要"
+    },
+    "skill_level": {
+      "owner": "对应 Skill",
+      "write_scope": "本 Skill skill_mem",
+      "contains": "Skill 执行历史、成功率、异常统计、复盘反馈"
+    },
+    "rule": "允许按规则读取上层经验；写入只限自身层级，不跨层覆盖。"
+  },
+  "experience_updates": [
+    {
+      "layer": "system",
+      "owner": "hermes_main_agent",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md",
+      "write_reason": "运行级全局摘要与复盘触发索引",
+      "write_scope": "system_only"
+    },
+    {
+      "layer": "skill",
+      "owner": "artifact_resolver",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/artifact_resolver/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 0,
+      "exception_count": 0,
+      "average_output_quality": 0.0
+    },
+    {
+      "layer": "skill",
+      "owner": "doc_publish",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/doc_publish/skill_mem/MEMORY.md",
+      "write_reason": "Skill 执行历史、成功率、异常统计和复盘反馈",
+      "write_scope": "skill_only",
+      "call_count": 0,
+      "exception_count": 0,
+      "average_output_quality": 0.0
+    }
+  ]
+}

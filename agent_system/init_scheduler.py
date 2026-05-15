@@ -33,7 +33,8 @@ routes = [
             "primary_expert": "user_analyst",
             "secondary_experts": ["ops_expert"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
+        "final_output": True,  # ✅ 输出用户洞察结果
     },
     {
         "pipeline_id": "insight_flow",
@@ -75,7 +76,7 @@ routes = [
             "primary_expert": "user_analyst",
             "secondary_experts": ["ops_expert"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
     },
     {
         "pipeline_id": "dashboard_flow",
@@ -96,7 +97,7 @@ routes = [
             "primary_expert": "ops_expert",
             "secondary_experts": ["user_analyst"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
         "final_output": True,
     },
     {
@@ -139,7 +140,7 @@ routes = [
             "primary_expert": "user_analyst",
             "secondary_experts": ["ops_expert"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
     },
     {
         "pipeline_id": "html_flow",
@@ -160,7 +161,7 @@ routes = [
             "primary_expert": "ops_expert",
             "secondary_experts": ["user_analyst"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
     },
     {
         "pipeline_id": "html_flow",
@@ -203,7 +204,7 @@ routes = [
             "primary_expert": "audit_expert",
             "secondary_experts": ["ops_expert"],
         },
-        "user_gate": True,
+        "user_gate": False,  # Disabled for Feishu (no human review UI)
         "optional": True,
     },
 ]

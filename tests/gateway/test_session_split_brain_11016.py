@@ -396,4 +396,3 @@ class TestOldTaskCannotClobberNewerGuard:
         # default path) still work.
         adapter._release_session_guard(sk)
         assert sk not in adapter._active_sessions
-

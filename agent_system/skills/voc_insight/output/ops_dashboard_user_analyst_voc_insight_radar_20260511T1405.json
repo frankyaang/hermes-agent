@@ -1,0 +1,47 @@
+{
+  "task_id": "dashboard_flow:ops_dashboard",
+  "flow_id": "dashboard_flow",
+  "node_id": "ops_dashboard",
+  "display_name": "运营看板",
+  "expert_id": "user_analyst",
+  "expert_role": "secondary",
+  "skill_id": "voc_insight",
+  "requested_skill_id": "ops_dashboard",
+  "status": "completed_with_permission_gap",
+  "generated_at": "2026-05-11T14:05:56+08:00",
+  "data_window": {
+    "start": "2026-05-11 09:45:26 CST",
+    "end": "2026-05-11 14:00:31 CST"
+  },
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "required_access": "张欢本人 user_access_token",
+    "uat_status": "missing",
+    "has_token": false,
+    "app_bot_fallback_used": false,
+    "private_history_read": false
+  },
+  "counts": {
+    "readable_sources": 0,
+    "message_count": 0,
+    "new_message_count": 0,
+    "high_priority_candidates": 0
+  },
+  "result_summary": "当前无法形成张欢重要沟通/VOC运营看板：未找到张欢本人 Feishu user_access_token，私域历史读取已按硬门禁停止，未使用 app/bot fallback；请张欢完成 OAuth 授权后再恢复读取。",
+  "user_visible_output": "当前未找到张欢本人 Feishu user_access_token，私域历史读取已停止、未使用 app/bot fallback；请张欢打开 OAuth 授权链接完成本人授权后，下轮重要沟通雷达/运营看板再恢复读取。",
+  "auth_url": "https://open.feishu.cn/open-apis/authen/v1/index?app_id=cli_a9f04f3ad279dbcc&redirect_uri=https%3A%2F%2Fopen.feishu.cn&state=rFkXScmpju4axI5RChbVtd1y4zpEnG0i",
+  "main_report_path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/ops_dashboard_user_analyst_voc_insight_radar_20260511T1405.md",
+  "audit_checks": {
+    "local_voc_skill_loaded": true,
+    "user_analyst_expert_boundary_checked": true,
+    "config_checked": true,
+    "oauth_status_checked": true,
+    "no_private_history_overread": true,
+    "no_token_secret_code_output": true,
+    "unreadable_sources_not_expanded_in_user_output": true
+  },
+  "related_files": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T140143_radar_oauth_block.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_20260511T1400.md"
+  ]
+}

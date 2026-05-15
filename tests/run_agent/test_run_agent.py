@@ -1106,9 +1106,8 @@ class TestBuildApiKwargs:
 
         assert "temperature" not in kwargs
 
-    def test_kimi_coding_endpoint_sends_max_tokens_and_reasoning(self, agent):
-        """Kimi endpoint should send max_tokens=32000 and reasoning_effort as
-        top-level params, matching Kimi CLI's default behavior."""
+    def test_kimi_coding_endpoint_sends_max_tokens_and_thinking(self, agent):
+        """Kimi endpoint should send max_tokens=32000 and thinking extra_body."""
         agent.base_url = "https://api.kimi.com/coding/v1"
         agent._base_url_lower = agent.base_url.lower()
         agent.model = "kimi-for-coding"
@@ -1117,19 +1116,24 @@ class TestBuildApiKwargs:
         kwargs = agent._build_api_kwargs(messages)
 
         assert kwargs["max_tokens"] == 32000
-        assert kwargs["reasoning_effort"] == "medium"
+        assert "reasoning_effort" not in kwargs
+        assert "output_config" not in kwargs
+        assert kwargs["extra_body"]["thinking"] == {"type": "enabled"}
 
-    def test_kimi_coding_endpoint_respects_custom_effort(self, agent):
-        """reasoning_effort should reflect reasoning_config.effort when set."""
+    def test_kimi_coding_endpoint_maps_xhigh_to_official_thinking_body(self, agent):
+        """xhigh is a Hermes abstraction mapped to Kimi thinking parameters."""
         agent.base_url = "https://api.kimi.com/coding/v1"
         agent._base_url_lower = agent.base_url.lower()
         agent.model = "kimi-for-coding"
-        agent.reasoning_config = {"enabled": True, "effort": "high"}
+        agent.reasoning_config = {"enabled": True, "effort": "xhigh"}
         messages = [{"role": "user", "content": "hi"}]
 
         kwargs = agent._build_api_kwargs(messages)
 
-        assert kwargs["reasoning_effort"] == "high"
+        assert kwargs["temperature"] == 1.0
+        assert kwargs["extra_body"]["thinking"] == {"type": "enabled", "keep": "all"}
+        assert "reasoning_effort" not in kwargs
+        assert "output_config" not in kwargs
 
     def test_kimi_coding_endpoint_sends_thinking_extra_body(self, agent):
         """Kimi endpoint should send extra_body.thinking={"type":"enabled"}
@@ -1145,8 +1149,7 @@ class TestBuildApiKwargs:
 
     def test_kimi_coding_endpoint_disables_thinking(self, agent):
         """When reasoning_config.enabled=False, thinking should be disabled
-        and reasoning_effort should be omitted entirely — mirroring Kimi
-        CLI's with_thinking("off") which maps to reasoning_effort=None."""
+        and reasoning_effort should be omitted entirely."""
         agent.base_url = "https://api.kimi.com/coding/v1"
         agent._base_url_lower = agent.base_url.lower()
         agent.model = "kimi-for-coding"
@@ -1158,7 +1161,7 @@ class TestBuildApiKwargs:
         assert kwargs["extra_body"]["thinking"] == {"type": "disabled"}
         assert "reasoning_effort" not in kwargs
 
-    def test_moonshot_endpoint_sends_max_tokens_and_reasoning(self, agent):
+    def test_moonshot_endpoint_sends_max_tokens_and_thinking(self, agent):
         """api.moonshot.ai should get the same Kimi-compatible params."""
         agent.base_url = "https://api.moonshot.ai/v1"
         agent._base_url_lower = agent.base_url.lower()
@@ -1168,10 +1171,10 @@ class TestBuildApiKwargs:
         kwargs = agent._build_api_kwargs(messages)
 
         assert kwargs["max_tokens"] == 32000
-        assert kwargs["reasoning_effort"] == "medium"
+        assert "reasoning_effort" not in kwargs
         assert kwargs["extra_body"]["thinking"] == {"type": "enabled"}
 
-    def test_moonshot_cn_endpoint_sends_max_tokens_and_reasoning(self, agent):
+    def test_moonshot_cn_endpoint_sends_max_tokens_and_thinking(self, agent):
         """api.moonshot.cn (China endpoint) should get the same params."""
         agent.base_url = "https://api.moonshot.cn/v1"
         agent._base_url_lower = agent.base_url.lower()
@@ -1181,7 +1184,7 @@ class TestBuildApiKwargs:
         kwargs = agent._build_api_kwargs(messages)
 
         assert kwargs["max_tokens"] == 32000
-        assert kwargs["reasoning_effort"] == "medium"
+        assert "reasoning_effort" not in kwargs
         assert kwargs["extra_body"]["thinking"] == {"type": "enabled"}
 
     def test_provider_preferences_injected(self, agent):

@@ -5269,7 +5269,7 @@ def _warn_stale_dashboard_processes() -> None:
                 capture_output=True, text=True, timeout=10,
             )
             if result.returncode == 0:
-                for line in result.stdout.split("\n"):
+                for line in getattr(result, "stdout", "").split("\n"):
                     stripped = line.strip()
                     if not stripped or "grep" in stripped:
                         continue
@@ -8448,6 +8448,36 @@ For more help on a command:
         "reset", help="Clear exhaustion status for all credentials for a provider"
     )
     auth_reset.add_argument("provider", help="Provider id")
+    auth_import_switcher = auth_subparsers.add_parser(
+        "import-codex-switcher",
+        help="Import Codex Switcher accounts into the Hermes Codex credential pool",
+    )
+    auth_import_switcher.add_argument(
+        "--provider",
+        default="openai-codex",
+        choices=["openai-codex"],
+        help="Target provider (currently only openai-codex)",
+    )
+    auth_import_switcher.add_argument(
+        "--mode",
+        default="takeover",
+        choices=["takeover"],
+        help="Import mode. takeover copies tokens once and archives the source token store.",
+    )
+    auth_import_switcher.add_argument(
+        "--source",
+        help="Optional Codex Switcher accounts.json path",
+    )
+    auth_import_switcher.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Inspect accounts without writing tokens",
+    )
+    auth_test = auth_subparsers.add_parser(
+        "test", help="Smoke test one pooled credential without printing tokens"
+    )
+    auth_test.add_argument("provider", help="Provider id")
+    auth_test.add_argument("--label", required=True, help="Credential label to test")
     auth_status = auth_subparsers.add_parser("status", help="Show auth status for a provider")
     auth_status.add_argument("provider", help="Provider id")
     auth_logout = auth_subparsers.add_parser("logout", help="Log out a provider and clear stored auth state")

@@ -12,8 +12,6 @@ because _wait_for_process never got to call _kill_process before python
 died.  See commit message for full context.
 """
 import os
-import signal
-import subprocess
 import threading
 import time
 
@@ -45,7 +43,14 @@ def test_wait_for_process_kills_subprocess_on_keyboardinterrupt():
         result_holder = {}
         proc_holder = {}
         started = threading.Event()
-        raise_at = [None]  # set by the main thread to tell worker when
+        original_wait_for_process = env._wait_for_process
+
+        def recording_wait_for_process(proc, *args, **kwargs):
+            proc_holder["proc"] = proc
+            started.set()
+            return original_wait_for_process(proc, *args, **kwargs)
+
+        env._wait_for_process = recording_wait_for_process
 
         # Drive execute() on a separate thread so we can SIGNAL-interrupt it
         # via a thread-targeted exception without killing our test process.
@@ -60,43 +65,20 @@ def test_wait_for_process_kills_subprocess_on_keyboardinterrupt():
 
         t = threading.Thread(target=worker, daemon=True)
         t.start()
-        # Wait until the subprocess actually exists.  LocalEnvironment.execute
-        # does init_session() (one spawn) before the real command, so we need
-        # to wait until a sleep 30 is visible.  Use pgrep-style lookup via
-        # /proc to find the bash process running our sleep.
-        deadline = time.monotonic() + 5.0
-        target_pid = None
-        while time.monotonic() < deadline:
-            # Walk our children and grand-children to find one running 'sleep 30'
-            try:
-                import psutil  # optional — fall back if absent
-                for p in psutil.Process(os.getpid()).children(recursive=True):
-                    try:
-                        if "sleep 30" in " ".join(p.cmdline()):
-                            target_pid = p.pid
-                            break
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        continue
-            except ImportError:
-                # Fall back to ps
-                ps = subprocess.run(
-                    ["ps", "-eo", "pid,ppid,pgid,cmd"], capture_output=True, text=True,
-                )
-                for line in ps.stdout.splitlines():
-                    if "sleep 30" in line and "grep" not in line:
-                        parts = line.split()
-                        if parts and parts[0].isdigit():
-                            target_pid = int(parts[0])
-                            break
-            if target_pid:
-                break
-            time.sleep(0.1)
 
-        assert target_pid is not None, (
-            "test setup: couldn't find 'sleep 30' subprocess after 5 s"
+        assert started.wait(timeout=5.0), (
+            "test setup: command subprocess was not spawned after 5 s"
         )
-        pgid = os.getpgid(target_pid)
+        target_proc = proc_holder["proc"]
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and target_proc.poll() is not None:
+            time.sleep(0.1)
+        assert target_proc.poll() is None, (
+            "test setup: command subprocess exited before the interrupt was injected"
+        )
+        pgid = os.getpgid(target_proc.pid)
         assert _pgid_still_alive(pgid), "sanity: subprocess should be alive"
+        time.sleep(0.3)
 
         # Now inject a KeyboardInterrupt into the worker thread the same
         # way CPython's signal machinery would.  We use ctypes.PyThreadState_SetAsyncExc

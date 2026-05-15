@@ -195,6 +195,50 @@ def test_resolve_returns_hermes_auth_store_source(tmp_path, monkeypatch):
     assert creds["base_url"] == DEFAULT_CODEX_BASE_URL
 
 
+def test_resolve_codex_runtime_credentials_rejects_codex_cli_when_hermes_empty(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    codex_home = tmp_path / "codex-cli"
+    hermes_home.mkdir(parents=True)
+    codex_home.mkdir(parents=True)
+    (hermes_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
+    (codex_home / "auth.json").write_text(json.dumps({
+        "tokens": {"access_token": "cli-at", "refresh_token": "cli-rt"},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+
+    with pytest.raises(AuthError) as exc:
+        resolve_codex_runtime_credentials(refresh_if_expiring=False)
+
+    assert exc.value.code == "codex_cli_auth_json_rejected"
+    assert exc.value.relogin_required is True
+    store = json.loads((hermes_home / "auth.json").read_text())
+    assert "openai-codex" not in store.get("providers", {})
+
+
+def test_resolve_codex_runtime_credentials_does_not_refresh_codex_cli_tokens(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    codex_home = tmp_path / "codex-cli"
+    hermes_home.mkdir(parents=True)
+    codex_home.mkdir(parents=True)
+    (hermes_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
+    (codex_home / "auth.json").write_text(json.dumps({
+        "tokens": {"access_token": "cli-at", "refresh_token": "cli-rt"},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+
+    def _unexpected_refresh(*_args, **_kwargs):
+        raise AssertionError("Hermes must not refresh Codex Switcher tokens")
+
+    monkeypatch.setattr("hermes_cli.auth._refresh_codex_auth_tokens", _unexpected_refresh)
+
+    with pytest.raises(AuthError) as exc:
+        resolve_codex_runtime_credentials(force_refresh=True, refresh_if_expiring=False)
+
+    assert exc.value.code == "codex_cli_auth_json_rejected"
+
+
 class _StubHTTPResponse:
     def __init__(self, status_code: int, payload):
         self.status_code = status_code

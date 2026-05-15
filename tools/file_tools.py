@@ -5,6 +5,7 @@ import errno
 import json
 import logging
 import os
+import tempfile
 import threading
 from pathlib import Path
 from typing import Optional
@@ -156,6 +157,19 @@ _SENSITIVE_PATH_PREFIXES = (
 _SENSITIVE_EXACT_PATHS = {"/var/run/docker.sock", "/run/docker.sock"}
 
 
+def _is_within_system_tempdir(resolved_path: str) -> bool:
+    """Return True for paths under the active OS temp directory.
+
+    On macOS, ``tempfile`` commonly returns ``/var/folders/...`` which
+    resolves to ``/private/var/folders/...``.  That is inside the broad
+    ``/private/var`` system prefix, but it is still the safe scratch space
+    pytest and local tools are expected to write to.
+    """
+    temp_root = os.path.realpath(tempfile.gettempdir())
+    candidate = os.path.realpath(resolved_path)
+    return candidate == temp_root or candidate.startswith(temp_root + os.sep)
+
+
 def _check_sensitive_path(filepath: str, task_id: str = "default") -> str | None:
     """Return an error message if the path targets a sensitive system location."""
     try:
@@ -163,6 +177,8 @@ def _check_sensitive_path(filepath: str, task_id: str = "default") -> str | None
     except (OSError, ValueError):
         resolved = filepath
     normalized = os.path.normpath(os.path.expanduser(filepath))
+    if _is_within_system_tempdir(resolved):
+        return None
     _err = (
         f"Refusing to write to sensitive system path: {filepath}\n"
         "Use the terminal tool with sudo if you need to modify system files."

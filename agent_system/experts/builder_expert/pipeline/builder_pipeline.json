@@ -1,0 +1,21 @@
+{
+  "name": "builder_pipeline",
+  "version": 1,
+  "expert": "builder_expert",
+  "type": "interactive_state_machine",
+  "skills": [],
+  "nodes": [],
+  "states": [
+    "ENTRY",
+    "INTAKE",
+    "ARCHITECT",
+    "DRAFT",
+    "VALIDATE",
+    "DRY_RUN",
+    "TRIAL_RUN",
+    "COMMIT",
+    "NEXT_OR_EXIT"
+  ],
+  "state_file_pattern": "agent_system/temp/skill_creation_<session_identity>.json",
+  "status": "skeleton_defined"
+}

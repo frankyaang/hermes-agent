@@ -1,0 +1,177 @@
+{
+  "task_id": "dashboard_flow:ops_dashboard",
+  "flow_id": "dashboard_flow",
+  "node_id": "ops_dashboard",
+  "node_key": "ops_dashboard",
+  "display_name": "运营看板",
+  "status": "completed_with_user_pause_verified",
+  "final_output": true,
+  "generated_at": "2026-05-11T14:23:05+08:00",
+  "expert_id": "user_analyst",
+  "expert_role": "secondary",
+  "skill_id": "voc_insight",
+  "requested_skill_id": "ops_dashboard",
+  "source_materials_count": 1,
+  "output_type": "产品运营报告与Dashboard结构",
+  "source_signal": {
+    "raw_user_feedback": "暂停重要沟通雷达的提醒",
+    "reply_context": "Cronjob Response: 张欢-重要沟通雷达 / previous ops_dashboard completed_with_permission_gap",
+    "intent_classification": "pause_recurring_reminder",
+    "is_control_instruction": true,
+    "is_new_private_history_analysis_request": false
+  },
+  "user_insight_conclusion": "用户明确要求暂停重要沟通雷达提醒。该反馈说明在张欢本人 user_access_token 缺失、雷达无法产出实质事项时，继续高频推送授权/零数据提醒会成为低价值打扰；运营策略应从继续提醒授权切换为保持暂停、静默健康状态和显式恢复入口。",
+  "cron_observation": {
+    "checked_via": "cronjob list",
+    "target_job_id": "6bb4cce497f8",
+    "target_job_name": "张欢-重要沟通雷达",
+    "schedule": "0 10,14,17,21 * * 1-5",
+    "state": "paused",
+    "enabled": false,
+    "next_run_at": "2026-05-11T17:00:00+08:00",
+    "last_run_at": "2026-05-11T14:12:46.358472+08:00",
+    "last_status": "ok",
+    "paused_at": "2026-05-11T14:16:39.821372+08:00",
+    "script": "zhanghuan_work_radar.py",
+    "pause_action_performed_by_this_node": false,
+    "observation_summary": "目标重要沟通雷达任务已处于 paused/enabled=false；本节点只核验，不重复执行暂停。"
+  },
+  "unchanged_neighbor_jobs": [
+    {
+      "job_id": "81b57c7a99c4",
+      "job_name": "张欢-周度工作复盘",
+      "schedule": "30 18 * * 5",
+      "state": "scheduled",
+      "enabled": true,
+      "reason": "用户只点名暂停重要沟通雷达提醒，未要求暂停周度工作复盘。"
+    }
+  ],
+  "permission_boundary": {
+    "data_subject": "张欢",
+    "required_access": "张欢本人 user_access_token",
+    "uat_status_observed": {
+      "has_token": false,
+      "status": "missing",
+      "path": "/Users/frank/.hermes/secure/feishu_user_tokens.json"
+    },
+    "private_history_read": false,
+    "unreadable_sources_interpreted_as_no_messages": false,
+    "app_or_bot_fallback_used": false,
+    "tokens_or_secrets_exposed": false
+  },
+  "dashboard_structure": {
+    "summary_cards": [
+      "提醒状态卡：雷达是否启用、最近暂停时间、恢复入口",
+      "权限健康卡：UAT状态、可读来源数、阻塞原因",
+      "用户反馈卡：最近一次控制指令、处理状态",
+      "影响范围卡：被暂停任务、未变更任务"
+    ],
+    "permission_health_area": [
+      "UAT状态",
+      "数据可读性",
+      "合规边界",
+      "恢复条件"
+    ],
+    "noise_control_area": [
+      "首次权限缺口一次性说明",
+      "重复权限缺口静默健康状态",
+      "用户暂停时只暂停指定job",
+      "授权恢复后先询问是否恢复提醒及频率"
+    ],
+    "future_business_board_when_authorized_and_resumed": [
+      "高优事项队列",
+      "持续跟进队列",
+      "来源覆盖表",
+      "例会输入区"
+    ]
+  },
+  "dashboard_metrics": {
+    "pause_intent_detected": true,
+    "target_radar_job_paused": true,
+    "target_radar_enabled": false,
+    "related_weekly_review_job_changed": false,
+    "has_zhanghuan_uat": false,
+    "readable_private_sources": 0,
+    "private_history_read": false,
+    "app_bot_fallback_used": false,
+    "token_secret_code_exposed": false
+  },
+  "recommended_actions": [
+    {
+      "priority": "P0",
+      "action": "保持张欢-重要沟通雷达暂停",
+      "status": "verified",
+      "completion_standard": "job_id=6bb4cce497f8 shows state=paused and enabled=false"
+    },
+    {
+      "priority": "P0",
+      "action": "不继续推送该雷达的授权/零数据提醒",
+      "status": "active",
+      "completion_standard": "paused job no longer triggers at its workday cadence"
+    },
+    {
+      "priority": "P0",
+      "action": "不使用 app/bot fallback 替代张欢本人 UAT",
+      "status": "respected",
+      "completion_standard": "app_or_bot_fallback_used=false"
+    },
+    {
+      "priority": "P1",
+      "action": "授权恢复后先询问是否恢复提醒及频率",
+      "status": "recommended",
+      "completion_standard": "resume only after has_token=true, readable_sources>0, and user confirmation"
+    },
+    {
+      "priority": "P2",
+      "action": "将零数据权限缺口通知改为首次说明 + 后续静默健康状态 + 显式恢复入口",
+      "status": "recommended",
+      "completion_standard": "future permission-gap jobs avoid repeated high-frequency reminders"
+    }
+  ],
+  "skills_and_context_loaded": [
+    "local Agent System voc_insight Skill",
+    "local Agent System ops_dashboard Skill",
+    "product-ops-dashboard skill guidance",
+    "robot-product-voc-survey-insight skill guidance",
+    "feishu-work-monitoring-cron pause/opt-out rules",
+    "feishu-chat-history-audit person-scoped privacy boundary",
+    "verification-before-completion"
+  ],
+  "audit_checks": {
+    "local_voc_insight_skill_loaded": true,
+    "local_ops_dashboard_skill_loaded": true,
+    "prior_voc_insight_pause_output_checked": true,
+    "prior_ops_dashboard_pause_output_checked": true,
+    "cron_status_checked": true,
+    "target_radar_job_paused": true,
+    "neighbor_weekly_job_not_paused": true,
+    "uat_status_checked": true,
+    "no_private_history_read_without_uat": true,
+    "no_app_bot_fallback": true,
+    "no_tokens_or_secrets_exposed": true,
+    "node_scope_respected": true,
+    "final_output_present": true
+  },
+  "exceptions": [
+    {
+      "code": "upstream_permission_gap",
+      "severity": "non_blocking_for_pause_dashboard",
+      "message": "张欢本人 user_access_token 仍缺失，实质沟通事项看板不可生成；但暂停提醒看板可完成。"
+    }
+  ],
+  "missing_inputs": [
+    "如未来要恢复实质重要沟通雷达内容，仍需张欢本人 Feishu OAuth 授权，并由用户确认恢复提醒频率。"
+  ],
+  "files_created_or_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/ops_dashboard_user_analyst_voc_insight_radar_pause_20260511T142305.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/ops_dashboard_user_analyst_voc_insight_radar_pause_20260511T142305.json",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md"
+  ],
+  "related_files": {
+    "upstream_voc_insight_pause": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_node_result_20260511T141656_pause_radar_reminder.md",
+    "upstream_ops_dashboard_pause": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/ops_dashboard/output/voc_insight_ops_expert_radar_pause_20260511T1416.md",
+    "previous_permission_gap_dashboard": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/ops_dashboard_user_analyst_voc_insight_radar_20260511T1405.md"
+  },
+  "next_action": "保持重要沟通雷达暂停；只有在张欢完成OAuth授权且用户确认恢复后，才恢复该提醒。"
+}

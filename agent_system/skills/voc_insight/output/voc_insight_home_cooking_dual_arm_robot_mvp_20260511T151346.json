@@ -1,0 +1,229 @@
+{
+  "task_id": "insight_flow:voc_insight",
+  "flow_id": "insight_flow",
+  "node_id": "voc_insight",
+  "node_key": "voc_insight",
+  "display_name": "用户洞察",
+  "status": "completed",
+  "generated_at": "2026-05-11T15:13:46+08:00",
+  "expert_id": "user_analyst",
+  "expert_role": "primary",
+  "skill_id": "voc_insight",
+  "requested_skill_id": "voc_insight",
+  "source_materials_count": 1,
+  "source_signal": {
+    "raw_input": "从用户价值、用户体验验证标准和运营优先级角度，分析家庭自主做饭双臂机器人应如何定义 MVP。",
+    "input_type": "非传统VOC/产品MVP定义问题",
+    "intent_classification": "home_cooking_dual_arm_robot_mvp_definition",
+    "direct_voc_dataset_available": false
+  },
+  "structured_outputs": {
+    "user_insight_conclusion": "家庭自主做饭双臂机器人的MVP不应是任意厨房、任意菜谱的全自主厨师，而应是在标准化家庭厨房与预置食材约束下，安全稳定完成2-3个高频低风险家常烹饪闭环的可信任双臂做饭助手。核心要验证少操心、少站灶台、安全和稳定复现，而不是菜谱数量。",
+    "mvp_definition": "标准台面/标准炉具/标准锅具/预切预称重食材条件下，机器人完成取放、倒入、搅拌/翻炒、火候控制、装盘和基础收尾；用户只做一次性准备与异常授权。",
+    "target_scenario": "meal-kit/预置食材型家庭烹饪助手，优先验证炒蛋类、一锅炒/炒蔬菜、早餐轻食等高频低风险场景。",
+    "in_scope": [
+      "标准化厨房与锅具/容器位",
+      "预清洗、预切、预称重、分盒/分袋食材",
+      "2-3个高频低风险菜谱",
+      "双臂取放、扶持、倒入、刮取、搅拌、翻炒/翻面、装盘",
+      "急停、热区识别、异常提示与恢复",
+      "用户可理解的任务计划与进度反馈"
+    ],
+    "out_of_scope": [
+      "任意菜谱和开放式烹饪",
+      "随机食材清洗、复杂切配和开放刀具",
+      "开放明火、高温油炸、复杂肉类熟化",
+      "完整厨房清洁、洗碗、垃圾处理",
+      "大规模菜谱库和高度个性化口味"
+    ],
+    "user_value_rank": [
+      "P0: 安全与信任",
+      "P1: 注意力/看护时间节省",
+      "P1: 可入口且稳定复现的菜品结果",
+      "P2: 低准备/低清洁负担",
+      "P3: 菜谱扩展与个性化"
+    ],
+    "ux_validation_gates": {
+      "safety": [
+        "重大安全事故0起",
+        "急停响应≤1秒",
+        "热区/人手靠近误放行率0"
+      ],
+      "task_success": [
+        "实验室单菜谱50-100次成功率≥90%",
+        "家庭试点成功率≥80-85%",
+        "非计划人工介入≤2次/次"
+      ],
+      "user_value": [
+        "连续注意力释放≥15-20分钟或看护时间下降≥50%",
+        "前置准备≤5分钟",
+        "每周主动使用≥3次"
+      ],
+      "food_result": [
+        "口味评分≥3.8/5",
+        "熟度/温度达标",
+        "同菜谱结果稳定"
+      ]
+    },
+    "ops_priorities": [
+      {
+        "priority": "P0",
+        "action": "锁定标准厨房/标准厨具/标准食材包",
+        "reason": "先压缩变量，建立安全和复现能力"
+      },
+      {
+        "priority": "P0",
+        "action": "打穿安全、急停、热区识别和异常降级",
+        "reason": "家庭烹饪的信任门槛高于普通家电"
+      },
+      {
+        "priority": "P1",
+        "action": "用2-3个高频菜谱沉淀双臂操作基元",
+        "reason": "验证双臂不可替代价值并形成可复用能力"
+      },
+      {
+        "priority": "P1",
+        "action": "开展10-20户、2周控制家庭试点",
+        "reason": "验证真实复用、准备清洁成本和信任评分"
+      },
+      {
+        "priority": "P2",
+        "action": "核心闭环过门槛后再扩菜谱和食材自由度",
+        "reason": "避免开放能力过早拖垮可靠性"
+      }
+    ],
+    "roadmap": [
+      "MVP-0: 实验室闭环，2个菜谱，50-100次/菜谱成功率≥90%",
+      "MVP-1: 10-20户控制家庭试点，2周，每周主动使用≥3次",
+      "MVP-2: 扩展到5-8个菜谱并允许少量食材差异",
+      "Beta: 绑定食材包/智能厨具生态验证商业与服务成本"
+    ],
+    "risks": [
+      "演示成功不等于家庭可用",
+      "过早追求任意菜谱会牺牲安全与稳定",
+      "准备/清洁成本可能抵消节省时间",
+      "一次安全失败会显著破坏信任",
+      "若缺少双臂不可替代场景，硬件ROI难以成立"
+    ]
+  },
+  "skills_loaded": [
+    "voc_insight (local Agent System skill)",
+    "user_analyst EXPERT.md"
+  ],
+  "skill_weights": {
+    "voc_insight": 100,
+    "superpowers": 80,
+    "briefing": 70,
+    "ops_dashboard": 100
+  },
+  "primary_expert_skill_calls": [
+    {
+      "expert_id": "user_analyst",
+      "skill_id": "voc_insight",
+      "mode": "local_skill_file_plus_production_llm_subagent",
+      "status": "completed"
+    }
+  ],
+  "secondary_expert_skill_calls": [],
+  "real_skill_execution": true,
+  "skill_execution_modes": [
+    "local_agent_system_skill_execution",
+    "production_llm_subagent"
+  ],
+  "online_llm_api_calls": 1,
+  "max_spawn_depth": 3,
+  "human_review_required": "否",
+  "human_review_decision": "not_required",
+  "human_review_blocking": false,
+  "human_review_channel": "unavailable",
+  "human_input_summary": "",
+  "exceptions": [
+    {
+      "code": "direct_voc_dataset_missing",
+      "severity": "non_blocking",
+      "message": "源材料为产品定义问题而非直接VOC/评论数据；本节点按非传统VOC方法输出MVP洞察，不生成样本量或占比。"
+    }
+  ],
+  "missing_inputs": [
+    "目标用户分层与价格带",
+    "首批地区/菜系偏好",
+    "用户对预切食材/meal-kit的接受度",
+    "安全合规与责任边界",
+    "与智能锅/炒菜机/单臂机器人相比的替代和溢价证据"
+  ],
+  "audit_checks": {
+    "local_voc_insight_skill_loaded": true,
+    "user_analyst_boundary_checked": true,
+    "source_materials_count_valid": true,
+    "non_traditional_voc_boundary_declared": true,
+    "no_fabricated_sample_size_or_percentage": true,
+    "mvp_scope_defined": true,
+    "ux_validation_standards_defined": true,
+    "ops_priority_defined": true,
+    "node_scope_respected": true
+  },
+  "memory_access_policy": {
+    "system_level": {
+      "read": true,
+      "write": "Hermes 主代理 / 全局运行器",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/memory/system_mem/MEMORY.md"
+    },
+    "expert_level": {
+      "read": [
+        "user_analyst",
+        "ops_expert"
+      ],
+      "write": [
+        "user_analyst"
+      ],
+      "paths": {
+        "user_analyst": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md"
+      }
+    },
+    "skill_level": {
+      "read": [
+        "voc_insight",
+        "ops_dashboard",
+        "briefing",
+        "superpowers"
+      ],
+      "write": [
+        "voc_insight"
+      ],
+      "paths": {
+        "voc_insight": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md"
+      }
+    },
+    "write_boundary": "本节点只写 user_analyst 专家级经验和 voc_insight Skill 级经验，不写系统级经验。"
+  },
+  "experience_write_scope": {
+    "expert_level": [
+      "user_analyst"
+    ],
+    "skill_level": [
+      "voc_insight"
+    ],
+    "system_level": "not_written_by_subagent"
+  },
+  "experience_updates": [
+    {
+      "layer": "expert",
+      "owner": "user_analyst",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+      "reason": "记录家庭自主做饭双臂机器人MVP定义的专家判断边界。"
+    },
+    {
+      "layer": "skill",
+      "owner": "voc_insight",
+      "path": "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md",
+      "reason": "沉淀非传统VOC/产品MVP定义类输入的处理模式。"
+    }
+  ],
+  "files_created_or_modified": [
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/output/voc_insight_home_cooking_dual_arm_robot_mvp_20260511T151346.json",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/experts/user_analyst/expert_mem/MEMORY.md",
+    "/Users/frank/.hermes/hermes-agent-official/agent_system/skills/voc_insight/skill_mem/MEMORY.md"
+  ],
+  "next_action": "如需进入下一节点，可基于本MVP定义补充目标用户分层、首批菜谱和试点验证方案。"
+}
