@@ -22,7 +22,8 @@
           "ops_expert"
         ]
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "insight_flow",
@@ -46,7 +47,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "optional": true
+      "optional": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "dashboard_flow",
@@ -68,7 +70,8 @@
           "ops_expert"
         ]
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "dashboard_flow",
@@ -94,7 +97,8 @@
         ]
       },
       "user_gate": false,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "dashboard_flow",
@@ -118,7 +122,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "optional": true
+      "optional": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "html_flow",
@@ -140,7 +145,8 @@
           "ops_expert"
         ]
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "html_flow",
@@ -165,7 +171,8 @@
           "user_analyst"
         ]
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "html_flow",
@@ -189,7 +196,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "html_flow",
@@ -215,7 +223,8 @@
         ]
       },
       "user_gate": false,
-      "optional": true
+      "optional": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "artifact_status_flow",
@@ -235,7 +244,8 @@
         "primary_expert": null,
         "secondary_experts": []
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "artifact_status_flow",
@@ -259,7 +269,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "artifact_delivery_flow",
@@ -279,7 +290,8 @@
         "primary_expert": null,
         "secondary_experts": []
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "artifact_delivery_flow",
@@ -303,7 +315,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "doc_publish_flow",
@@ -323,7 +336,8 @@
         "primary_expert": null,
         "secondary_experts": []
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "doc_publish_flow",
@@ -347,7 +361,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "report_revision_flow",
@@ -368,7 +383,8 @@
         "secondary_experts": []
       },
       "user_gate": false,
-      "production_ready": false
+      "production_ready": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "report_revision_flow",
@@ -393,7 +409,8 @@
       },
       "user_gate": false,
       "final_output": true,
-      "production_ready": false
+      "production_ready": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "dashboard_from_artifact_flow",
@@ -413,7 +430,8 @@
         "primary_expert": null,
         "secondary_experts": []
       },
-      "user_gate": false
+      "user_gate": false,
+      "allowed_entrypoints": []
     },
     {
       "pipeline_id": "dashboard_from_artifact_flow",
@@ -437,7 +455,8 @@
         "secondary_experts": []
       },
       "user_gate": true,
-      "final_output": true
+      "final_output": true,
+      "allowed_entrypoints": []
     }
   ]
 }
