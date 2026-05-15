@@ -1648,3 +1648,121 @@ git diff --name-only --diff-filter=U
 ```
 
 如需重来，保留 `codex/dev-wip-snapshot-20260514-232334` 不删，删除并重建 `codex/integrate-dev-official` 工作区即可。
+
+---
+
+# Production Readiness 机制 (2026-05-15)
+
+## Goal
+在 integrate 建立可验证、可迁移、可发布的 agent-system production readiness 机制，
+让所有准入判断归一到 capability_readiness.py + readiness_manifest.json，
+消除散落多处的 flag 检查。
+
+## Scope
+- agent_system/readiness_manifest.json（新增，权威 manifest）
+- agent_system/capability_readiness.py（新增，统一 helper）
+- agent_system/cli_bridge.py（修改：gate 移到 Opus 前）
+- agent_system/runtime.py（修改：enforce 默认开启）
+- agent_system/scheduler/main_scheduler/routes.json（修改：allowed_entrypoints）
+- scripts/check_agent_system_readiness.py（新增，发布门禁）
+- tests/agent_system/test_production_readiness.py（扩展至 14 个测试）
+
+## Non-goals
+- 不修改 official 环境
+- 不重启 gateway（只给出建议命令）
+- 不实现真正 skill executor（保留 system executor 模型）
+- 不关闭 Opus planning_llm
+
+## Definition of Done
+1. 所有 route/skill 分类为 ready / non_ready / unknown（manifest 驱动）
+2. Feishu/gateway 普通入口对 unknown 默认 blocked（return None）
+3. Opus planning candidates 只包含 ready route
+4. runtime 默认阻断 non-executable skill
+5. 新增 route/skill 缺 readiness 元数据时 validate_readiness_manifest 报错
+6. 张嫄养马类消息不进入 report_revision_flow，不调用 Opus，不执行空 skill
+7. integrate 全量测试通过
+
+## Route Inventory（初始分类）
+- insight_flow → unknown
+- dashboard_flow → unknown
+- html_flow → unknown
+- artifact_status_flow → unknown
+- artifact_delivery_flow → unknown
+- doc_publish_flow → unknown
+- dashboard_from_artifact_flow → unknown
+- report_revision_flow → non_ready（stub skills）
+
+## Skill Inventory（初始分类）
+- voc_insight, ops_dashboard, dashboard_html, audit, briefing,
+  artifact_resolver, artifact_status, artifact_delivery, doc_publish,
+  superpowers → unknown
+- report_revision → non_ready
+
+## Milestones
+- [ ] M1: readiness_manifest.json created
+- [ ] M2: capability_readiness.py created
+- [ ] M3: routes.json updated with allowed_entrypoints
+- [ ] M4: test_production_readiness.py extended to 14 tests (RED)
+- [ ] M5: cli_bridge.py updated (gate before Opus)
+- [ ] M6: runtime.py updated (enforce by default)
+- [ ] M7: scripts/check_agent_system_readiness.py created
+- [ ] M8: test fixtures migrated, all tests GREEN
+
+---
+
+# Hermes Knowledge Sedimentation Governance Plane Phase 5（2026-05-15）
+
+## Goal
+
+在 integrate 环境建立 Knowledge Sedimentation Governance Plane：KnowledgeCandidate 数据契约、AssetRouter 分层路由、IdentityResolver 身份解析、ScopeResolver scope 分类、PendingCapture 扩展（list/mark_terminal）、SedimentationMetrics 指标观测。修复 cli_bridge 三大 bug（身份 + 枚举 + pending on failure）。
+
+## Scope
+
+- `agent/knowledge_models.py`（修改：+KnowledgeCandidate, +TerminalState, +CandidateType）
+- `agent/pending_capture.py`（修改：+platform/suggested_next_action/terminal_state, +list_pending, +mark_terminal）
+- `agent/identity_resolver.py`（新增）
+- `agent/scope_resolver.py`（新增）
+- `agent/asset_router.py`（新增）
+- `agent/sedimentation_metrics.py`（新增）
+- `agent_system/cli_bridge.py`（修复：session identity + 合法枚举 + pending on failure）
+
+## Non-goals
+
+- 不直接修改 official（只读参考）
+- 不重启线上 gateway
+- 不实现 pending→approved UI
+- 不迁移历史聊天全文
+- 不实现完整 Knowledge Background Review worker（deferred）
+
+## Baseline Evidence（2026-05-15）
+
+- cli_bridge.py:346 `cli:frank:default` 身份，Feishu session 丢失 → _get_user_default_product_line_id 返回空 → 沉淀静默跳过
+- cli_bridge.py:395 `confidence='high'/'medium'` 非法
+- cli_bridge.py:396 `knowledge_type='business_fact'` 非法
+- cli_bridge.py 未检查 knowledge_write 结果，失败静默（无 pending）
+- IdentityResolver / AssetRouter / ScopeResolver / Metrics 均不存在
+
+## Validation（2026-05-15）
+
+- 聚焦测试：48 passed（test_knowledge_candidate + test_identity_resolver + test_scope_resolver + test_asset_router + test_sedimentation_metrics + test_pending_capture_extended + test_cli_bridge_sedimentation）
+- 全量回归：201 passed, 1 skipped（无 regression）
+
+## Progress
+
+- [x] Task 1: KnowledgeCandidate + TerminalState + CandidateType（commit d4bf522ae，4 passed）
+- [x] Task 2: PendingCapture 扩展 list/mark_terminal/platform（commit 900ab42a4，16 passed）
+- [x] Task 3: IdentityResolver（commit 3f384ae5e，6 passed）
+- [x] Task 4: ScopeResolver（commit 24bafaea9，11 passed）
+- [x] Task 5: AssetRouter + Golden Tests（commit 716a3cc76，9 passed）
+- [x] Task 6: SedimentationMetrics（commit 26ad1e2df，5 passed）
+- [x] Task 7: cli_bridge 修复（commit e155e8249，18 passed）
+- [x] Task 8: 全量回归 + PLANS.md
+
+## Recovery
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-integrate
+git log --oneline -10
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv \
+  scripts/run_tests.sh tests/agent/test_asset_router.py tests/agent/test_identity_resolver.py -q
+```
