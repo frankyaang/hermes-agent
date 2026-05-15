@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from agent_system.capability_readiness import _invalidate_manifest_cache
 from agent_system.human_approval import APPROVAL_CHOICES
 from agent_system.cli_bridge import maybe_run_agent_system_from_message
 from agent_system.hermes_sdk import (
@@ -13,44 +12,6 @@ from agent_system.hermes_sdk import (
     HermesSkillManager,
 )
 from agent_system.planner import PlannerEngine
-
-
-def _write_ready_manifest(root: Path, pipeline_ids: list[str], skill_ids: list[str]) -> None:
-    """Write a readiness_manifest.json that marks all given pipelines and skills as ready."""
-    manifest_dir = root / "agent_system"
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    manifest = {
-        "version": "1.0",
-        "routes": [
-            {
-                "pipeline_id": pid,
-                "readiness_state": "ready",
-                "production_ready": True,
-                "allowed_entrypoints": ["gateway", "feishu", "cli", "test"],
-                "required_skills": [],
-                "output_contract": "test_output",
-                "readiness_reason": "test fixture",
-                "owner": "test",
-            }
-            for pid in pipeline_ids
-        ],
-        "skills": [
-            {
-                "skill_id": sid,
-                "readiness_state": "ready",
-                "executable": True,
-                "executor_type": "system",
-                "production_ready": True,
-                "output_contract": "test_output",
-                "readiness_reason": "test fixture",
-                "owner": "test",
-            }
-            for sid in skill_ids
-        ],
-    }
-    manifest_path = manifest_dir / "readiness_manifest.json"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    _invalidate_manifest_cache(root)
 
 
 class FakeParentAgent:
@@ -152,11 +113,6 @@ def _create_project(tmp_path: Path) -> Path:
                 "final_output": True,
             },
         ],
-    )
-    _write_ready_manifest(
-        root,
-        pipeline_ids=["dashboard_flow"],
-        skill_ids=["voc_insight", "ops_dashboard", "superpowers"],
     )
     return root
 
@@ -408,20 +364,6 @@ def _create_project_with_non_voc_skills(tmp_path: Path) -> Path:
                 "user_gate": True,
                 "final_output": True,
             },
-        ],
-    )
-    _write_ready_manifest(
-        root,
-        pipeline_ids=[
-            "artifact_status_flow",
-            "artifact_delivery_flow",
-            "doc_publish_flow",
-            "insight_flow",
-        ],
-        skill_ids=[
-            "voc_insight", "ops_dashboard", "artifact_resolver",
-            "artifact_status", "artifact_delivery", "doc_publish",
-            "report_revision", "briefing",
         ],
     )
     return root

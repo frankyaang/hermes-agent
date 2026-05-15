@@ -11,7 +11,6 @@ from typing import Any, Callable
 
 from agent_system.human_approval import normalize_approval_response
 from agent_system.planner import DynamicPipelineSpec
-from agent_system import capability_readiness as cr
 
 
 SkillExecutor = Callable[[dict[str, Any]], dict[str, Any]]
@@ -99,7 +98,7 @@ class HermesAgentSystemRuntime:
         now_fn: Callable[[], datetime] | None = None,
         max_spawn_depth: int = DEFAULT_MAX_SPAWN_DEPTH,
         progress_callback: Callable[[str, str], None] | None = None,
-        enforce_skill_readiness: bool = True,
+        enforce_skill_readiness: bool = False,
         _heartbeat_interval: float = _HEARTBEAT_INTERVAL,
         _heartbeat_min_elapsed: float = _HEARTBEAT_MIN_ELAPSED,
     ) -> None:
@@ -651,11 +650,20 @@ class HermesAgentSystemRuntime:
         return nodes
 
     def _check_skill_executable(self, skill_id: str) -> str:
-        """Return non-empty reason if skill is not executable per readiness manifest; '' if OK."""
-        result = cr.check_skill_readiness(self.project_root, skill_id)
-        if result.blocking:
-            return "; ".join(result.reasons) if result.reasons else f"{skill_id} not executable"
-        return ""
+        """Return non-empty reason if skill has no executable pipeline; '' if OK."""
+        pipeline_file = (
+            self.skills_root / skill_id / "pipeline" / f"{skill_id}_pipeline.json"
+        )
+        try:
+            if not pipeline_file.exists():
+                return f"{skill_id} has no executable pipeline or direct implementation"
+            data = json.loads(pipeline_file.read_text(encoding="utf-8"))
+            steps = data.get("steps") if isinstance(data, dict) else None
+            if not steps:
+                return f"{skill_id} has no executable pipeline or direct implementation"
+            return ""
+        except Exception as exc:
+            return f"{skill_id} pipeline load error: {exc}"
 
     def _non_executable_node_result(
         self,

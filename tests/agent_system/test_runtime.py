@@ -4,7 +4,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from agent_system.capability_readiness import _invalidate_manifest_cache
 from agent_system.hermes_sdk import (
     HermesExpertManager,
     HermesSchedulerManager,
@@ -12,44 +11,6 @@ from agent_system.hermes_sdk import (
 )
 from agent_system.planner import PlannerEngine
 from agent_system.runtime import HermesAgentSystemRuntime
-
-
-def _write_ready_manifest(root: Path, pipeline_ids: list[str], skill_ids: list[str]) -> None:
-    """Write a readiness_manifest.json making all given pipelines and skills ready."""
-    manifest_dir = root / "agent_system"
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    manifest = {
-        "version": "1.0",
-        "routes": [
-            {
-                "pipeline_id": pid,
-                "readiness_state": "ready",
-                "production_ready": True,
-                "allowed_entrypoints": ["gateway", "feishu", "cli", "test"],
-                "required_skills": [],
-                "output_contract": "test_output",
-                "readiness_reason": "test fixture",
-                "owner": "test",
-            }
-            for pid in pipeline_ids
-        ],
-        "skills": [
-            {
-                "skill_id": sid,
-                "readiness_state": "ready",
-                "executable": True,
-                "executor_type": "system",
-                "production_ready": True,
-                "output_contract": "test_output",
-                "readiness_reason": "test fixture",
-                "owner": "test",
-            }
-            for sid in skill_ids
-        ],
-    }
-    manifest_path = manifest_dir / "readiness_manifest.json"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    _invalidate_manifest_cache(root)
 
 
 def _fixed_now() -> datetime:
@@ -118,10 +79,6 @@ def _create_base_project(tmp_path: Path, routes: list[dict]) -> Path:
         decision_logging=True,
     )
     scheduler.initialize_routes(scheduler_name="main_scheduler", pipelines=routes)
-    # Derive pipeline_ids and skill_ids from routes for manifest
-    pipeline_ids = list({str(r.get("pipeline_id") or "") for r in routes if r.get("pipeline_id")})
-    skill_ids = ["voc_insight", "ops_dashboard", "briefing", "superpowers"]
-    _write_ready_manifest(root, pipeline_ids=pipeline_ids, skill_ids=skill_ids)
     return root
 
 
@@ -545,14 +502,6 @@ def _create_full_project(tmp_path: Path) -> Path:
                                 "primary_expert": "ops_expert", "secondary_experts": []},
                 "user_gate": False, "final_output": True,
             },
-        ],
-    )
-    _write_ready_manifest(
-        root,
-        pipeline_ids=["insight_flow", "artifact_status_flow", "dashboard_from_artifact_flow"],
-        skill_ids=[
-            "voc_insight", "ops_dashboard", "artifact_resolver", "artifact_status",
-            "artifact_delivery", "doc_publish", "report_revision", "briefing",
         ],
     )
     return root

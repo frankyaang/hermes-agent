@@ -132,19 +132,13 @@ def get_skin_tool_prefix() -> str:
     return "┊"
 
 
-_HARDCODED_TOOL_EMOJIS: dict[str, str] = {
-    "terminal": "💻",
-}
-
-
 def get_tool_emoji(tool_name: str, default: str = "⚡") -> str:
     """Get the display emoji for a tool.
 
     Resolution order:
     1. Active skin's ``tool_emojis`` overrides (if a skin is loaded)
     2. Tool registry's per-tool ``emoji`` field
-    3. Known-tool hardcoded fallback (registration-order-safe)
-    4. *default* fallback
+    3. *default* fallback
     """
     # 1. Skin override
     skin = _get_skin()
@@ -160,10 +154,7 @@ def get_tool_emoji(tool_name: str, default: str = "⚡") -> str:
             return emoji
     except Exception:
         pass
-    # 3. Known-tool fallback (stable regardless of import order)
-    if tool_name in _HARDCODED_TOOL_EMOJIS:
-        return _HARDCODED_TOOL_EMOJIS[tool_name]
-    # 4. Hardcoded fallback
+    # 3. Hardcoded fallback
     return default
 
 
