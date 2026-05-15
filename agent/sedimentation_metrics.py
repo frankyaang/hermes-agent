@@ -46,3 +46,7 @@ def increment(metric_name: str, count: int = 1) -> None:
 
 def snapshot() -> dict[str, int]:
     return _default_metrics.snapshot()
+
+
+def reset() -> None:
+    _default_metrics.reset()

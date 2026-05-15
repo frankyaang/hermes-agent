@@ -89,3 +89,27 @@ def test_auto_sedate_no_business_fact_knowledge_type(monkeypatch):
 
     assert "knowledge_type='business_fact'" not in captured[0]
     assert "business_fact" not in captured[0]
+
+
+def test_auto_sedate_permission_denied_marks_pending_terminal_state(tmp_path, monkeypatch):
+    def fake_delegate(goal, context, role, parent_agent):
+        return json.dumps({
+            "error": "permission_denied",
+            "reason": "product_line_not_authorized",
+            "next_action": "Add deebot permission",
+        })
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    monkeypatch.setattr("agent_system.cli_bridge._knowledge_toolset_available", lambda: True)
+    monkeypatch.setattr("agent_system.cli_bridge._get_user_default_product_line_id", lambda: "deebot")
+    monkeypatch.setattr("tools.delegate_tool.delegate_task", fake_delegate)
+
+    from agent_system.cli_bridge import _auto_sedate_knowledge
+    _auto_sedate_knowledge(
+        result={"status": "completed", "run_id": "run-pending"},
+        final_response="Business result", parent_agent=None, task_id="t3",
+    )
+
+    record = json.loads((tmp_path / "knowledge" / "pending_captures.jsonl").read_text())
+    assert record["terminal_state"] == "pending_created"
+    assert record["status"] == "pending"

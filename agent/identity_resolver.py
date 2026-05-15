@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class IdentitySource:
     SESSION = "session"
     CLI_FALLBACK = "cli_fallback"
+    UNRESOLVED = "unresolved"
 
 
 @dataclass
@@ -24,6 +25,7 @@ def resolve_identity() -> ResolvedIdentity:
 
     Feishu: platform=feishu, user_id=ou_xxx → feishu:ou_xxx
     CLI: fallback to cli:user:profile
+    Platform sessions with missing user_id: unresolved, never CLI fallback.
     """
     from gateway.session_context import get_session_env
     platform = get_session_env("HERMES_SESSION_PLATFORM", "").strip().lower()
@@ -39,6 +41,14 @@ def resolve_identity() -> ResolvedIdentity:
             platform=platform,
             raw_user_id=raw_user_id,
             source=IdentitySource.SESSION,
+        )
+
+    if platform and platform != "cli":
+        return ResolvedIdentity(
+            user_id="",
+            platform=platform,
+            raw_user_id="",
+            source=IdentitySource.UNRESOLVED,
         )
 
     profile = os.getenv("HERMES_PROFILE", "default")
@@ -60,7 +70,7 @@ def candidate_registry_ids(platform: str, raw_user_id: str) -> list[str]:
         if platform_key and ":" not in raw:
             candidates.append(f"{platform_key}:{raw}")
         candidates.append(raw)
-    else:
+    elif not platform_key or platform_key == "cli":
         profile = os.getenv("HERMES_PROFILE", "default")
         candidates.append(f"cli:{getpass.getuser()}:{profile}")
     return [c for c in dict.fromkeys(candidates) if c]

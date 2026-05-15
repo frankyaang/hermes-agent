@@ -21,8 +21,19 @@ class RoutingResult:
 
 def route_candidate(candidate: KnowledgeCandidate) -> RoutingResult:
     """Apply deterministic routing rules. Returns RoutingResult."""
+    try:
+        from agent import sedimentation_metrics
+        sedimentation_metrics.increment("candidate_detected")
+    except Exception:
+        pass
+
     # Rule 0: Raw chat log → no_action
     if candidate.source_type in _RAW_CHAT_SOURCES:
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("no_action_with_reason")
+        except Exception:
+            pass
         return RoutingResult(
             routing_decision="no_action",
             canonical_scope="",
@@ -33,6 +44,11 @@ def route_candidate(candidate: KnowledgeCandidate) -> RoutingResult:
     # Rule 1: User preference → memory
     if (candidate.asset_class in _MEMORY_ASSET_CLASSES
             or candidate.candidate_type == "memory"):
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("routed_to_memory")
+        except Exception:
+            pass
         return RoutingResult(
             routing_decision="route_to_memory",
             canonical_scope="",
@@ -43,6 +59,11 @@ def route_candidate(candidate: KnowledgeCandidate) -> RoutingResult:
     # Rule 2: Workflow / playbook → skill
     if (candidate.asset_class in _SKILL_ASSET_CLASSES
             or candidate.candidate_type == "skill"):
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("routed_to_skill")
+        except Exception:
+            pass
         return RoutingResult(
             routing_decision="route_to_skill",
             canonical_scope="",
@@ -52,6 +73,11 @@ def route_candidate(candidate: KnowledgeCandidate) -> RoutingResult:
 
     # Rule 3: Missing source_uri → pending
     if not candidate.source_uri:
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("pending_created")
+        except Exception:
+            pass
         return RoutingResult(
             routing_decision="pending",
             canonical_scope="",
@@ -66,6 +92,11 @@ def route_candidate(candidate: KnowledgeCandidate) -> RoutingResult:
     )
 
     # Rule 5: Route to knowledge (product_line, company, project all go here)
+    try:
+        from agent import sedimentation_metrics
+        sedimentation_metrics.increment("routed_to_knowledge")
+    except Exception:
+        pass
     return RoutingResult(
         routing_decision="route_to_knowledge",
         canonical_scope=canonical_scope,

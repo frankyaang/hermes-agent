@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from hermes_constants import get_hermes_home
+from gateway.session_context import get_session_env, set_session_vars
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,11 @@ def write_pending_capture(
         )
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(record)) + "\n")
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("pending_created")
+        except Exception:
+            pass
     except Exception as exc:
         logger.warning("write_pending_capture failed (non-fatal): %s", exc)
     return capture_id
@@ -115,6 +121,12 @@ def mark_terminal(
         for rec in records:
             if rec.get("capture_id") == capture_id:
                 rec["terminal_state"] = terminal_state
+                if terminal_state == "knowledge_saved":
+                    rec["status"] = "written"
+                elif terminal_state in ("blocked", "no_action_with_reason"):
+                    rec["status"] = terminal_state
+                elif terminal_state == "pending_created":
+                    rec["status"] = "pending"
                 updated = True
         if updated:
             with open(path, "w", encoding="utf-8") as f:
@@ -122,3 +134,104 @@ def mark_terminal(
                     f.write(json.dumps(rec) + "\n")
     except Exception as exc:
         logger.warning("mark_terminal failed (non-fatal): %s", exc)
+
+
+def read_pending(capture_id: str, hermes_home: Path | None = None) -> dict | None:
+    """Return one pending capture by id, or None when absent."""
+    for rec in list_pending(hermes_home=hermes_home):
+        if rec.get("capture_id") == capture_id:
+            return rec
+    return None
+
+
+def _replay_write_knowledge(record: dict) -> dict:
+    """Replay a pending knowledge record through the regular knowledge tool path."""
+    structured = {}
+    try:
+        raw_structured = record.get("structured_candidate") or "{}"
+        structured = json.loads(raw_structured) if isinstance(raw_structured, str) else raw_structured
+    except Exception:
+        structured = {}
+
+    from tools.knowledge_tool import _knowledge_write
+
+    previous_session = {
+        "platform": get_session_env("HERMES_SESSION_PLATFORM", ""),
+        "chat_id": get_session_env("HERMES_SESSION_CHAT_ID", ""),
+        "chat_name": get_session_env("HERMES_SESSION_CHAT_NAME", ""),
+        "thread_id": get_session_env("HERMES_SESSION_THREAD_ID", ""),
+        "user_id": get_session_env("HERMES_SESSION_USER_ID", ""),
+        "user_name": get_session_env("HERMES_SESSION_USER_NAME", ""),
+        "session_key": get_session_env("HERMES_SESSION_KEY", ""),
+    }
+    replay_session = {
+        **previous_session,
+        "platform": record.get("platform") or previous_session["platform"],
+        "user_id": record.get("user_id") or previous_session["user_id"],
+    }
+    set_session_vars(**replay_session)
+    try:
+        raw = _knowledge_write(
+            title=record.get("title", ""),
+            content=structured.get("content") or record.get("summary", ""),
+            product_line_id=record.get("scope_id", ""),
+            knowledge_type=structured.get("knowledge_type", "other"),
+            source_uri=record.get("source_uri", ""),
+            finance_flag=bool(structured.get("finance_flag", False)),
+            sensitivity_level=structured.get("sensitivity_level", "internal"),
+            confidence=structured.get("confidence") or record.get("confidence", "unverified"),
+            doc_slug=structured.get("doc_slug", ""),
+            task_id=record.get("session_id", ""),
+        )
+    finally:
+        set_session_vars(**previous_session)
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"error": "write_failed", "reason": str(raw)}
+
+
+def replay_pending(capture_id: str, hermes_home: Path | None = None) -> dict:
+    """Replay one pending knowledge capture and update its terminal_state."""
+    rec = read_pending(capture_id, hermes_home=hermes_home)
+    if rec is None:
+        return {"status": "not_found", "capture_id": capture_id}
+
+    if rec.get("candidate_type") != "knowledge":
+        mark_terminal(capture_id, "blocked", hermes_home=hermes_home)
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("replay_failed")
+        except Exception:
+            pass
+        return {
+            "status": "blocked",
+            "capture_id": capture_id,
+            "reason": "only knowledge captures can be replayed",
+        }
+
+    result = _replay_write_knowledge(rec)
+    if isinstance(result, dict) and result.get("success"):
+        mark_terminal(capture_id, "knowledge_saved", hermes_home=hermes_home)
+        try:
+            from agent import sedimentation_metrics
+            sedimentation_metrics.increment("replay_success")
+        except Exception:
+            pass
+        return {
+            "status": "replayed",
+            "capture_id": capture_id,
+            "result": result,
+        }
+
+    mark_terminal(capture_id, "blocked", hermes_home=hermes_home)
+    try:
+        from agent import sedimentation_metrics
+        sedimentation_metrics.increment("replay_failed")
+    except Exception:
+        pass
+    return {
+        "status": "blocked",
+        "capture_id": capture_id,
+        "result": result,
+    }

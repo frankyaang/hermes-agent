@@ -34,13 +34,15 @@ def test_cli_fallback_uses_getuser():
     assert identity.source == IdentitySource.CLI_FALLBACK
 
 
-def test_feishu_empty_user_id_falls_back_to_cli():
+def test_feishu_empty_user_id_returns_unresolved():
     tokens = set_session_vars(platform="feishu", user_id="", chat_id="oc_chat")
     try:
         identity = resolve_identity()
     finally:
         clear_session_vars(tokens)
-    assert not identity.user_id.startswith("feishu:")
+    assert identity.user_id == ""
+    assert identity.platform == "feishu"
+    assert identity.source == IdentitySource.UNRESOLVED
 
 
 def test_candidate_registry_ids_feishu():
@@ -49,8 +51,13 @@ def test_candidate_registry_ids_feishu():
     assert "ou_xyz" in ids
 
 
-def test_candidate_registry_ids_empty_falls_back_to_cli():
+def test_candidate_registry_ids_empty_cli_falls_back_to_cli():
     import getpass, os
     profile = os.getenv("HERMES_PROFILE", "default")
-    ids = candidate_registry_ids("", "")
+    ids = candidate_registry_ids("cli", "")
     assert f"cli:{getpass.getuser()}:{profile}" in ids
+
+
+def test_candidate_registry_ids_empty_feishu_does_not_fallback_cli():
+    ids = candidate_registry_ids("feishu", "")
+    assert ids == []

@@ -1,6 +1,7 @@
 """Tests for sedimentation_metrics — atomic counter observability."""
 from __future__ import annotations
 from agent.sedimentation_metrics import SedimentationMetrics, METRIC_NAMES
+from agent import sedimentation_metrics
 
 
 def test_increment_and_snapshot():
@@ -45,3 +46,10 @@ def test_required_metric_names():
         "no_action_with_reason", "replay_success", "replay_failed", "blocked",
     ]:
         assert name in METRIC_NAMES
+
+
+def test_module_level_reset_clears_counts():
+    sedimentation_metrics.increment("pending_created")
+    sedimentation_metrics.reset()
+
+    assert sedimentation_metrics.snapshot()["pending_created"] == 0

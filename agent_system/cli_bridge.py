@@ -363,9 +363,12 @@ def _knowledge_toolset_available() -> bool:
 
 def _get_user_default_product_line_id() -> str:
     try:
-        from agent.identity_resolver import resolve_identity, candidate_registry_ids
+        from agent.identity_resolver import resolve_identity, candidate_registry_ids, IdentitySource
         from agent.knowledge_user_registry import KnowledgeUserRegistry
         identity = resolve_identity()
+        if identity.source == IdentitySource.UNRESOLVED:
+            logger.warning("[knowledge-sedimentation] unresolved identity for platform=%s", identity.platform)
+            return ""
         platform = identity.platform if identity.platform not in ("cli", "") else ""
         candidates = candidate_registry_ids(platform, identity.raw_user_id)
         reg = KnowledgeUserRegistry()
@@ -444,10 +447,10 @@ def _auto_sedate_knowledge(
         try:
             result_data = json.loads(raw) if isinstance(raw, str) else (raw or {})
             if isinstance(result_data, dict) and result_data.get("error") == "permission_denied":
-                from agent.pending_capture import write_pending_capture
+                from agent.pending_capture import write_pending_capture, mark_terminal
                 from agent.identity_resolver import resolve_identity
                 identity = resolve_identity()
-                write_pending_capture(
+                capture_id = write_pending_capture(
                     title=f"[auto-sedate] {product_line_id}",
                     summary=str(result_data)[:500],
                     candidate_type="knowledge",
@@ -461,6 +464,12 @@ def _auto_sedate_knowledge(
                     platform=identity.platform,
                     suggested_next_action=result_data.get("next_action", ""),
                 )
+                mark_terminal(capture_id, "pending_created")
+                try:
+                    from agent import sedimentation_metrics
+                    sedimentation_metrics.increment("knowledge_write_failed")
+                except Exception:
+                    pass
                 logger.warning("[knowledge-sedimentation] permission_denied → pending capture written")
         except Exception as check_exc:
             logger.debug("[knowledge-sedimentation] result check non-fatal: %s", check_exc)

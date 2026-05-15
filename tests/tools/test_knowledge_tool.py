@@ -5,6 +5,7 @@ from __future__ import annotations
 import yaml
 
 from gateway.session_context import clear_session_vars, set_session_vars
+from agent.pending_capture import read_pending, write_pending_capture
 from tools import knowledge_tool
 
 
@@ -203,6 +204,11 @@ def test_acl_failure_creates_pending_capture(tmp_path, monkeypatch):
     assert pc_path.exists()
     record = _json.loads(pc_path.read_text(encoding="utf-8").strip())
     assert record["failure_reason"] == "product_line_not_authorized"
+    assert record["terminal_state"] == "pending_created"
+    assert record["status"] == "pending"
+    structured = _json.loads(record["structured_candidate"])
+    assert structured["content"] == "content"
+    assert structured["knowledge_type"] == "product_spec"
 
 
 def test_missing_source_uri_creates_pending_capture(tmp_path, monkeypatch):
@@ -231,6 +237,9 @@ def test_missing_source_uri_creates_pending_capture(tmp_path, monkeypatch):
     assert result["reason"] == "source_uri_required"
     assert "pending_capture_id" in result
     assert "source_uri" in result["next_action"]
+    pc_path = home / "knowledge" / "pending_captures.jsonl"
+    record = _json.loads(pc_path.read_text(encoding="utf-8").strip())
+    assert record["terminal_state"] == "pending_created"
 
 
 def test_no_product_line_creates_pending_capture(tmp_path, monkeypatch):
@@ -271,3 +280,113 @@ def test_no_product_line_creates_pending_capture(tmp_path, monkeypatch):
     assert pc_path.exists()
     record = _json.loads(pc_path.read_text(encoding="utf-8").strip())
     assert "product_line_id" in record["missing_fields"]
+    assert record["terminal_state"] == "pending_created"
+
+
+def test_knowledge_pending_lists_reads_and_replays_visible_capture(tmp_path, monkeypatch):
+    home = tmp_path / "hermes"
+    _write_registry_pl(home, "feishu:ou_pending", ["deebot"])
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    knowledge_tool._MANAGER_CACHE.clear()
+    provider = _mock_gbrain(monkeypatch, slug="pending-replayed")
+
+    capture_id = write_pending_capture(
+        title="Pending fact",
+        summary="Pending summary",
+        candidate_type="knowledge",
+        scope_id="deebot",
+        source_uri="feishu://doc/pending",
+        confidence="unverified",
+        missing_fields=[],
+        failure_reason="product_line_not_authorized",
+        session_id="sess-pending",
+        user_id="feishu:ou_pending",
+        platform="feishu",
+        structured_candidate={
+            "content": "Full pending content",
+            "knowledge_type": "meeting_conclusion",
+        },
+        hermes_home=home,
+    )
+
+    tokens = set_session_vars(platform="feishu", user_id="ou_pending", chat_id="oc_chat")
+    try:
+        listed = _json.loads(knowledge_tool._knowledge_pending(
+            action="list",
+            capture_id="",
+            status="pending",
+            limit=20,
+            task_id="pending-task",
+        ))
+        read = _json.loads(knowledge_tool._knowledge_pending(
+            action="read",
+            capture_id=capture_id,
+            status="",
+            limit=20,
+            task_id="pending-task",
+        ))
+        replayed = _json.loads(knowledge_tool._knowledge_pending(
+            action="replay",
+            capture_id=capture_id,
+            status="",
+            limit=20,
+            task_id="pending-task",
+        ))
+    finally:
+        clear_session_vars(tokens)
+        knowledge_tool._MANAGER_CACHE.clear()
+
+    assert listed["count"] == 1
+    assert listed["records"][0]["capture_id"] == capture_id
+    assert read["record"]["summary"] == "Pending summary"
+    assert replayed["status"] == "replayed"
+    assert read_pending(capture_id, hermes_home=home)["terminal_state"] == "knowledge_saved"
+    provider.write.assert_called_once()
+
+
+def test_knowledge_pending_hides_other_users_capture(tmp_path, monkeypatch):
+    home = tmp_path / "hermes"
+    _write_registry(home, [
+        _user("feishu:ou_owner", ["deebot"]),
+        _user("feishu:ou_other", ["deebot"]),
+    ])
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    knowledge_tool._MANAGER_CACHE.clear()
+
+    capture_id = write_pending_capture(
+        title="Private pending",
+        summary="summary",
+        candidate_type="knowledge",
+        scope_id="deebot",
+        source_uri="feishu://doc/private",
+        confidence="unverified",
+        missing_fields=[],
+        failure_reason="product_line_not_authorized",
+        session_id="sess-private",
+        user_id="feishu:ou_owner",
+        platform="feishu",
+        hermes_home=home,
+    )
+
+    tokens = set_session_vars(platform="feishu", user_id="ou_other", chat_id="oc_chat")
+    try:
+        listed = _json.loads(knowledge_tool._knowledge_pending(
+            action="list",
+            capture_id="",
+            status="",
+            limit=20,
+            task_id="pending-task",
+        ))
+        read = _json.loads(knowledge_tool._knowledge_pending(
+            action="read",
+            capture_id=capture_id,
+            status="",
+            limit=20,
+            task_id="pending-task",
+        ))
+    finally:
+        clear_session_vars(tokens)
+        knowledge_tool._MANAGER_CACHE.clear()
+
+    assert listed["count"] == 0
+    assert read["error"] == "access_denied"
