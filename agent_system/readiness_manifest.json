@@ -92,6 +92,47 @@
       "owner": ""
     }
   ],
+  "gstack_phases": [
+    {
+      "skill_id": "gstack.plan_eng_review",
+      "kind": "gstack_phase",
+      "readiness_state": "non_ready",
+      "registered": true,
+      "executable": false,
+      "production_ready": false,
+      "executor_type": "gstack_control",
+      "allowed_entrypoints": [],
+      "blocking": false,
+      "readiness_reason": "gstack_control protocol layer active; gstack CLI not installed — production_ready requires real CLI and benchmark",
+      "evidence": {}
+    },
+    {
+      "skill_id": "gstack.review",
+      "kind": "gstack_phase",
+      "readiness_state": "non_ready",
+      "registered": true,
+      "executable": false,
+      "production_ready": false,
+      "executor_type": "gstack_control",
+      "allowed_entrypoints": [],
+      "blocking": false,
+      "readiness_reason": "gstack_control protocol layer active; gstack CLI not installed — production_ready requires real CLI and benchmark",
+      "evidence": {}
+    },
+    {
+      "skill_id": "gstack.qa",
+      "kind": "gstack_phase",
+      "readiness_state": "non_ready",
+      "registered": true,
+      "executable": false,
+      "production_ready": false,
+      "executor_type": "gstack_control",
+      "allowed_entrypoints": [],
+      "blocking": false,
+      "readiness_reason": "gstack_control protocol layer active; gstack CLI not installed — production_ready requires real CLI and benchmark",
+      "evidence": {}
+    }
+  ],
   "skills": [
     {
       "skill_id": "voc_insight",

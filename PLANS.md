@@ -1,3 +1,53 @@
+# Hermes × gstack — Round 10 Final Decision Package
+
+## Goal
+
+将前九轮关于 GStack Control Protocol、performance governance、implementation contract、dry-run/sandbox/replay、feature flag、production readiness 的方案收束为最终决策包，产出 MVP skeleton 实现交接文档。
+
+## Scope
+
+- 只读调研：agent_system/ARCHITECTURE.md、runtime.py、cli_bridge.py、capability_readiness.py、readiness_manifest.json、hermes_constants.py、hermes_logging.py、hermes_cli/config.py、toolsets.py、tools/browser_tool.py、tools/delegate_tool.py、tests/conftest.py
+- 产出 RFC：docs/rfcs/RFC-gstack-final-decision-package-v0.md
+- 新建 agent_system/gstack_control/（16 个文件，MVP skeleton）
+- 追加 readiness_manifest.json 三个 gstack phase 条目
+- 新建测试文件：agent_system/tests/agent_system/test_gstack_control_*.py
+
+## Non-goals
+
+- 不调用真实 gstack CLI
+- 不启用 browser daemon / GBrain / telemetry / proactive mode
+- 不修改 Gateway / 用户 config / runtime.py / cli_bridge.py / capability_readiness.py
+- 不实现 blocking 模式（allow_blocking 默认 False）
+- 不执行 ship/canary/deploy 真实流程
+
+## Go / No-Go
+
+**决定：GO — 进入 MVP Skeleton 实现**
+
+理由：边界清晰、回滚简单（rm -rf gstack_control/ + git checkout readiness_manifest.json）、Hermes 行为在 enabled=False 时完全不变、现有 readiness gate / 路径管理 / 测试框架完备可复用。
+
+## Milestones
+
+- [x] 只读调研（Round 10 计划阶段）
+- [x] Go/No-Go 决策（已确认 GO）
+- [x] RFC 产出：docs/rfcs/RFC-gstack-final-decision-package-v0.md
+- [x] PLANS.md 追加本轮条目
+- [ ] MVP skeleton 实现（Round 11）
+- [ ] scripts/run_tests.sh 0 失败（Round 11 验收）
+
+## Validation
+
+- `scripts/run_tests.sh`（实现后）
+- `grep -r "~/.gstack" agent_system/gstack_control/ | wc -l` = 0
+- `git diff gateway/` 为空
+- 三个 gstack phase 条目在 readiness_manifest.json 中 production_ready=false
+
+## Rollback
+
+`rm -rf agent_system/gstack_control/ && git checkout agent_system/readiness_manifest.json && scripts/run_tests.sh`
+
+---
+
 # Builder Intent Layer And Context Prefill
 
 ## Goal

@@ -1,0 +1,90 @@
+# GStack Control Protocol — SDLC phase definitions
+# THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR ALL GSTACK PHASES.
+# phase_registry.py loads from here; specs.py must not duplicate KNOWN_PHASES.
+
+version: "0.2.0"
+description: "GStack SDLC phase protocol for Hermes integration"
+
+# Known gstack CLI commands (from garrytan/gstack upstream + .codex absorption core).
+# These are the real commands; the adapter uses this list for validation.
+# gstack CLI is not required to be installed; adapter falls back gracefully.
+known_commands:
+  - plan-eng-review
+  - plan-ceo-review
+  - plan-design-review
+  - design-consultation
+  - review
+  - qa
+  - retro
+  - document-release
+  - office-hours
+
+phases:
+  - id: gstack.plan_eng_review
+    label: "Plan / Engineering Review"
+    description: "Engineering review gate before implementation starts"
+    gstack_command: plan-eng-review
+    risk_level: medium
+    allowed_modes:
+      - shadow
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+
+  - id: gstack.review
+    label: "Code / Design Review"
+    description: "Code or design review gate"
+    gstack_command: review
+    risk_level: medium
+    allowed_modes:
+      - shadow
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+
+  - id: gstack.qa
+    label: "QA Gate"
+    description: "Quality assurance gate before release"
+    gstack_command: qa
+    risk_level: high
+    allowed_modes:
+      - shadow
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+
+risk_levels:
+  low:
+    default_mode: disabled
+    description: "No gstack intervention"
+  medium:
+    default_mode: shadow
+    description: "Record only, no intervention"
+  high:
+    default_mode: advisory
+    description: "Return suggestion, never block"
+
+mode_semantics:
+  disabled: "No-op. gstack_control has zero effect."
+  shadow: "Observe and record only. No user-visible output."
+  advisory: "Return a suggestion. Never block execution."
+  controlled: |
+    Execute under allowlist + kill_switch + budget_guard + dry_run.
+    Requires explicit human approval. MVP: dry_run_only=True.
+  quarantined: |
+    Failure isolation. Record evidence. Hermes original chain continues.
+    Requires manual human reset to exit quarantined state.
+
+constraints:
+  - "blocking is never a default response"
+  - "use_real_gstack is always false in MVP"
+  - "browser_daemon is always false in MVP"
+  - "gbrain is always false in MVP"
+  - "all paths must use get_hermes_home() from hermes_constants"
+  - "no hardcoded gstack home path — always use get_hermes_home()"
+  - "no token/cookie/Authorization/Bearer in metrics"
+  - "controlled requires allowlist + kill_switch + budget + human approval"
+  - "quarantined requires manual human reset"
