@@ -13411,6 +13411,23 @@ class AIAgent:
         # Determine if conversation completed successfully
         completed = final_response is not None and api_call_count < self.max_iterations
 
+        # ── Quality gate (QUALITY_LOOP_GATED) ────────────────────────────────
+        # All loop exit paths converge here. Gate runs after the loop, before
+        # session persist and plugin hooks — no message history is modified.
+        # QUALITY_LOOP_GATED=false (default) → zero-overhead noop.
+        # already_streamed=True → safe degradation: log only, no replacement.
+        if final_response and not interrupted:
+            try:
+                from agent_system.quality.gate import apply_quality_gate_if_enabled
+                _previewed = getattr(self, "_response_was_previewed", False)
+                final_response = apply_quality_gate_if_enabled(
+                    candidate=final_response,
+                    already_streamed=_previewed,
+                )
+            except Exception as _qg_exc:
+                logger.warning("quality_gate skipped (import/call error): %s", _qg_exc)
+        # ─────────────────────────────────────────────────────────────────────
+
         # Save trajectory if enabled.  ``user_message`` may be a multimodal
         # list of parts; the trajectory format wants a plain string.
         self._save_trajectory(messages, _summarize_user_message_for_log(user_message), completed)
