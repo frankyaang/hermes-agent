@@ -2367,3 +2367,62 @@ cd /Users/frank/.hermes/hermes-agent-integrate
 git status --short --branch
 HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
 ```
+
+---
+
+# Weekly Flow + Quality Gate 完整闭环 — Round 12
+
+## Goal
+
+让两条真实用户路径发生改变：
+1. Weekly flow：raw material → confirmed ExecutionContract（fake closure 永远被拒，ledger 持久幂等）
+2. Quality gate：final_response 被真实评估，低质量时真实改写（QUALITY_LOOP_GATED=true）
+
+## Scope
+
+新建：agent_system/weekly/（7 模块）、agent_system/quality/（4 模块）、14 个测试文件
+修改：run_agent.py（15 行）、PLANS.md
+
+## Status: COMPLETED ✅ (2026-05-18)
+
+### 新增文件
+- `agent_system/weekly/__init__.py` + `models.py` + `issue_extractor.py` + `decision_gate.py` + `confirmation.py` + `ledger.py` + `bridge.py`
+- `agent_system/quality/__init__.py` + `models.py` + `evaluator.py` + `gate.py`
+- `tests/agent_system/test_weekly_flow_runtime_e2e.py` (W1–W7, 7 passed)
+- `tests/run_agent/test_quality_gate_final_response.py` (Q1–Q7, 7 passed)
+
+### 关键行为验证
+- fake_closure_detected → gate returns None → no ExecutionContract ✅
+- missing fields → DecisionCard(status=incomplete) + follow_up list ✅
+- confirmed event → ExecutionContract written to HERMES_HOME/weekly/ledger.json ✅
+- repeated callback → idempotent, single ledger entry ✅
+- ledger recoverable: new WeeklyLedger() reads existing contracts ✅
+- QUALITY_LOOP_GATED=false → run_agent.py output unchanged ✅
+- QUALITY_LOOP_GATED=true, already_streamed=True → log only, no replace ✅
+- evaluator exception → original returned, warning logged ✅
+- rewrite = clean answer, NOT suggestions+original ✅
+
+### 测试结果
+- Weekly E2E: 7/7 passed
+- Quality Gate: 7/7 passed
+- tests/run_agent/ 全量回归: 1155 passed, 7 skipped, 0 failed
+- 安全扫描: secrets=0, hardcoded ~/.hermes=0
+- gateway diff: 0 行
+
+### production_ready 状态
+- Weekly flow 节点：仍为 non_ready（无 gstack CLI，ledger 逻辑已就绪但业务层需更多验证）
+- Quality gate：新增，默认关闭（QUALITY_LOOP_GATED=false），ready 标准：heuristic evaluator 已通过，LLM-backed rewrite 待接入
+
+### 阻塞原因记录（不设为 true 的理由）
+- weekly：production 场景需要真实 Feishu webhook 验证（本地 E2E mock only）
+- quality：heuristic evaluator 的 pass/rewrite 边界需要在真实流量中标定；LLM rewrite 未接入
+
+### 提交
+- `8e66b02e1` — feat(weekly+quality): close weekly flow and quality gate loops
+
+### 恢复
+```bash
+rm -rf agent_system/weekly/ agent_system/quality/
+git checkout run_agent.py
+scripts/run_tests.sh  # must show 0 new failures
+```
