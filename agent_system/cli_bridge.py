@@ -203,6 +203,43 @@ def _requests_agent_system(message: str) -> bool:
     return matches_any_task_keyword(cleaned)
 
 
+def _gstack_phase_gate(phase_id: str, entrypoint: str) -> None:
+    """
+    Minimal gstack control gate. Returns None (noop) in all default cases.
+
+    Safety contract:
+    - disabled (default): immediate return, 2-line noop
+    - config missing or any exception: return None (fail-closed)
+    - shadow: evaluate + write metric, no output change
+    - advisory: evaluate only, advisory note logged but not injected here
+    - controlled: requires kill_switch=False + allowlist (MVP: dry_run_only)
+    - adapter error: quarantined + logged, Hermes chain continues unchanged
+    """
+    from agent_system.gstack_control.feature_flags import is_enabled
+    if not is_enabled():
+        return
+    try:
+        from agent_system.gstack_control.state_machine import evaluate
+        from agent_system.gstack_control.modes import (
+            run_shadow, run_advisory, run_controlled, run_quarantined,
+        )
+        decision = evaluate(phase_id)
+        if decision.mode == "disabled":
+            return
+        elif decision.mode == "shadow":
+            run_shadow(phase_id, {"entrypoint": entrypoint})
+        elif decision.mode == "advisory":
+            run_advisory(phase_id, {"entrypoint": entrypoint})
+        elif decision.mode == "controlled":
+            run_controlled(phase_id, {"entrypoint": entrypoint})
+    except Exception as exc:  # noqa: BLE001
+        try:
+            from agent_system.gstack_control.modes import run_quarantined
+            run_quarantined(phase_id, exc)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def maybe_run_agent_system_from_message(
     user_message: str,
     *,
@@ -218,6 +255,7 @@ def maybe_run_agent_system_from_message(
     Otherwise PlannerEngine selects the primary expert and builds a dynamic
     pipeline from the current user intent.
     """
+    _gstack_phase_gate("gstack.plan_eng_review", "maybe_run_agent_system_from_message")
 
     if not isinstance(user_message, str):
         return None

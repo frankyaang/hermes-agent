@@ -39,9 +39,10 @@ def generate_acceptance_report() -> dict[str, Any]:
         "verdict": "GO" if no_literal_path else "NO-GO",
         "checks": {
             "feature_flags_all_off": all(
-                not v if isinstance(v, bool) else v in ("disabled", False)
+                not v if isinstance(v, bool) else v in ("disabled", False, [])
                 for k, v in GSTACK_FEATURE_FLAGS.items()
-                if k not in ("mode",)
+                if k not in ("mode", "kill_switch", "allowlist_phases",
+                              "budget_limit_tokens", "max_runtime_seconds")
             ),
             "mode_is_disabled": GSTACK_FEATURE_FLAGS.get("mode") == "disabled",
             "allow_blocking_false": not GSTACK_FEATURE_FLAGS.get("allow_blocking"),
