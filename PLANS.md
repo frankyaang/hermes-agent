@@ -2560,6 +2560,10 @@ scripts/run_tests.sh  # must show 0 new failures
 - Round 13: a39cd44cf（合同层骨架）
 - Round 14 main: 6db73843d（runtime wiring, 20 files changed）
 - Round 14 docs: fc5e27fec（RESTORE.md + readiness_manifest）
+- Round 14 post: c7afd7872（PLANS.md 记录）
+- Round 14 post: 371e5cbf5（knowledge_staging_ops tool entry point）
+- Round 14 post: 9e89318ca（knowledge_staging_ops 14 tests）
+- Round 14 post: d31354694（experience_card trigger_check injection wired）
 
 ### runtime wired 路径清单
 
@@ -2575,12 +2579,17 @@ scripts/run_tests.sh  # must show 0 new failures
 | skill_mem write | runtime.py → write_to_layer() ACL check | skill_mem (or staging if denied) |
 | system_mem write | runtime.py → write_to_layer() ACL check | system_mem (hermes_main only) |
 | gstack phase result | gstack_bridge.route_gstack_result() | by output_type (flag ON only) |
+| user message trigger | run_agent.py → trigger_check() → render_card() | ephemeral prompt injection |
+
+### staging ops（Gate 3 CLI 补完）
+
+- `knowledge_staging_ops` tool：list/stats/approve/reject/archive/migrate_pending
+- 14 个测试覆盖所有 action 路径和边界条件
 
 ### 仍 non_ready 的能力及原因
 
 - gstack phases（all）：real_gstack=false，gstack CLI 未安装
-- experience_card trigger：DAVID_CARD 已定义，但无自动触发点接入主 prompt
-- pending→staging 迁移：migrate_to_staging() 已实现但未被自动触发（需手动 ops）
+- pending→staging 迁移：migrate_to_staging() 已实现，可通过 knowledge_staging_ops(migrate_pending) 手动触发
 - production_ready：任何组件均需真实流量 smoke 验证才能升级
 
 ### Hermes 升级准入判断

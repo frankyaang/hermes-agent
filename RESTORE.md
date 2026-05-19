@@ -9,6 +9,9 @@
 |------|--------|------|
 | Round 13 | a39cd44cf | 合同测试骨架（S1-S12），14个新文件，feature flags OFF |
 | Round 14 | 6db73843d | Runtime 接线：run_agent/knowledge_tool/cli_bridge/runtime/memory_manager |
+| Round 14 post | 371e5cbf5 | knowledge_staging_ops tool entry point（Gate 3 CLI） |
+| Round 14 post | 9e89318ca | knowledge_staging_ops 14 tests |
+| Round 14 post | d31354694 | experience_card trigger_check prompt injection wired |
 | Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
 
 ## 快速回滚到 Round 12 状态
