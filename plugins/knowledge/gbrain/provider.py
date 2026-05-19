@@ -6,8 +6,19 @@ import subprocess
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from agent.knowledge_models import KnowledgeDoc
+from agent.knowledge_models import KnowledgeDoc, ProviderError
 from agent.knowledge_provider import KnowledgeProvider
+
+
+class ProviderUnavailableError(RuntimeError):
+    """Raised when gbrain is not installed or unreachable.
+
+    Callers can inspect ``error_code`` (a ``ProviderError`` class constant) to
+    classify the failure without parsing the message string.
+    """
+    def __init__(self, error_code: str, message: str):
+        super().__init__(message)
+        self.error_code = error_code
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +84,30 @@ class GBrainCLIKnowledgeProvider(KnowledgeProvider):
             return rc == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
+
+    def _assert_available(self) -> None:
+        """Raise ProviderUnavailableError with a specific error_code if gbrain is unreachable.
+
+        Called before every write so the caller gets a typed, classifiable error
+        instead of a raw FileNotFoundError or RuntimeError.
+        """
+        try:
+            _, _, rc = _run(["gbrain", "health"], cwd=self._cwd, timeout=10)
+            if rc != 0:
+                raise ProviderUnavailableError(
+                    ProviderError.UNAVAILABLE,
+                    f"gbrain health check failed (rc={rc})",
+                )
+        except FileNotFoundError:
+            raise ProviderUnavailableError(
+                ProviderError.EXECUTABLE_NOT_FOUND,
+                "gbrain executable not found — install gbrain CLI to enable knowledge writes",
+            )
+        except subprocess.TimeoutExpired:
+            raise ProviderUnavailableError(
+                ProviderError.LOCK_TIMEOUT,
+                "gbrain health check timed out",
+            )
 
     def _make_slug(self, product_line_id: str, finance_flag: bool, doc_slug: str) -> str:
         kind = "finance" if finance_flag else "general"
@@ -168,6 +203,7 @@ class GBrainCLIKnowledgeProvider(KnowledgeProvider):
         return docs
 
     def write(self, doc: KnowledgeDoc, actor_user_id: str) -> str:
+        self._assert_available()
         slug = self._make_slug(doc.product_line_id, doc.finance_flag, doc.slug)
         now = datetime.now(timezone.utc).isoformat()
         page_content = (

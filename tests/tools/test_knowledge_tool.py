@@ -139,6 +139,7 @@ def _write_registry_pl(home, user_id, product_line_ids):
 
 def _mock_gbrain(monkeypatch, slug="saved-slug"):
     provider = MagicMock()
+    provider.name = "gbrain_cli"
     provider.write.return_value = slug
     provider.query.return_value = []
     monkeypatch.setattr(
@@ -172,7 +173,17 @@ def test_alias_cleaning_robot_normalized_before_acl(tmp_path, monkeypatch):
 
     assert result.get("success") is True
     assert result.get("product_line_id") == "deebot"
+    assert result.get("transaction_id")
     provider.write.assert_called_once()
+    tx_logs = list((home / "knowledge" / "audit").glob("*/tx_audit.jsonl"))
+    assert tx_logs, "knowledge_write tool must emit transaction audit events"
+    tx_events = [
+        _json.loads(line)
+        for path in tx_logs
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert any(event["event_type"] == "provider_succeeded" for event in tx_events)
 
 
 def test_acl_failure_creates_pending_capture(tmp_path, monkeypatch):
@@ -206,6 +217,8 @@ def test_acl_failure_creates_pending_capture(tmp_path, monkeypatch):
     assert record["failure_reason"] == "product_line_not_authorized"
     assert record["terminal_state"] == "pending_created"
     assert record["status"] == "pending"
+    assert record["transaction_id"], "ACL-denied writes must keep transaction context"
+    assert record["original_user_id"] == "feishu:ou_acl"
     structured = _json.loads(record["structured_candidate"])
     assert structured["content"] == "content"
     assert structured["knowledge_type"] == "product_spec"
