@@ -1,0 +1,9 @@
+{
+  "name": "issue_extractor",
+  "display_name": "议题提取",
+  "description": "从自由格式周报原材料中提取结构化议题列表，缺失字段保留 None，禁止推断",
+  "type": "extraction",
+  "pipeline": "weekly_flow",
+  "private_memory": false,
+  "root": "skills/issue_extractor"
+}

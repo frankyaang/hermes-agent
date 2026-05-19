@@ -1,0 +1,9 @@
+{
+  "name": "decision_gate",
+  "display_name": "决策准入",
+  "description": "对提取的议题进行准入路由：decision_agenda / need_more_info / fake_closure_detected / async_pre_read",
+  "type": "evaluation",
+  "pipeline": "weekly_flow",
+  "private_memory": false,
+  "root": "skills/decision_gate"
+}

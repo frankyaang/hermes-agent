@@ -2419,6 +2419,10 @@ class FeishuAdapter(BasePlatformAdapter):
         action_value = getattr(action, "value", {}) or {}
         hermes_action = action_value.get("hermes_action") if isinstance(action_value, dict) else None
 
+        if isinstance(action_value, dict) and action_value.get("type") == "weekly_confirmation":
+            self._submit_on_loop(loop, self._handle_weekly_confirmation_action(action_value))
+            return P2CardActionTriggerResponse() if P2CardActionTriggerResponse else None
+
         if hermes_action:
             return self._handle_approval_card_action(event=event, action_value=action_value, loop=loop)
 
@@ -2436,6 +2440,71 @@ class FeishuAdapter(BasePlatformAdapter):
         """Schedule background work on the adapter loop with shared failure logging."""
         future = asyncio.run_coroutine_threadsafe(coro, loop)
         future.add_done_callback(self._log_background_failure)
+
+    async def _handle_weekly_confirmation_action(self, action_value: Dict[str, Any]) -> None:
+        """Handle weekly_confirmation card action: parse → store → ledger."""
+        try:
+            from agent_system.adapters.weekly_confirmation_handler import (
+                handle_weekly_confirmation_payload,
+            )
+            from agent_system.stores.weekly_ledger_store import WeeklyLedgerStore
+
+            issue_id = action_value.get("issue_id", "")
+            issue_lookup = await self._load_weekly_issue_lookup(issue_id)
+            store = WeeklyLedgerStore()
+            payload = {"action": {"value": action_value}}
+            contract = handle_weekly_confirmation_payload(
+                payload, issue_lookup=issue_lookup, store=store
+            )
+            if contract is not None:
+                logger.info(
+                    "[Feishu] weekly_confirmation: contract=%s status=%s",
+                    contract.contract_id, contract.current_status,
+                )
+            else:
+                logger.info(
+                    "[Feishu] weekly_confirmation: ignored or intercepted (issue_id=%s)", issue_id
+                )
+        except Exception as exc:
+            logger.warning("[Feishu] weekly_confirmation handler failed: %s", exc)
+
+    async def _load_weekly_issue_lookup(self, issue_id: str) -> dict:
+        """Load issue from persistent ledger for confirmation lookup.
+
+        Returns {issue_id: Issue} dict. Falls back to empty dict on error so
+        that confirmation failure is non-fatal.
+        """
+        try:
+            from agent_system.stores.weekly_ledger_store import WeeklyLedgerStore
+            from agent_system.schemas.weekly_schemas import Issue
+            store = WeeklyLedgerStore()
+            ledger = store.load()
+            result = {}
+            for contract in ledger.confirmed_contracts + ledger.pending_contracts:
+                if getattr(contract, "issue_id", "") == issue_id:
+                    # Prefer original_recommended_option (preserved from IssueExtractor output);
+                    # fall back to decision field for confirmed contracts.
+                    recommended_option = (
+                        getattr(contract, "original_recommended_option", None)
+                        or contract.decision
+                        or None
+                    )
+                    issue = Issue(
+                        issue_id=contract.issue_id,
+                        title=contract.title,
+                        background="",
+                        recommended_option=recommended_option,
+                        options=[],
+                        owner_candidate=contract.execution_owner,
+                        urgency="high",
+                        source_ref="",
+                        acceptance_criteria=getattr(contract, "acceptance_criteria", None),
+                    )
+                    result[issue_id] = issue
+                    break
+            return result
+        except Exception:
+            return {}
 
     def _handle_approval_card_action(self, *, event: Any, action_value: Dict[str, Any], loop: Any) -> Any:
         """Schedule approval resolution and build the synchronous callback response."""

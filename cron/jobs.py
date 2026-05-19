@@ -873,3 +873,25 @@ def save_job_output(job_id: str, output: str):
         raise
     
     return output_file
+
+
+def create_weekly_shannon_job(
+    raw_material: str,
+    schedule: str = "0 9 * * 1",
+    **kwargs,
+) -> dict:
+    """触发 weekly_flow pipeline 的 cron job 创建入口。
+
+    Args:
+        raw_material: 周报原材料文本，将被注入到 prompt 中。
+        schedule: cron 表达式，默认周一 09:00。
+
+    Returns:
+        create_job 返回的 job 字典。
+    """
+    prompt = (
+        "运行 weekly_flow pipeline，从以下周报原材料中提取议题、评估决策准入、"
+        "生成执行合同。\n\n"
+        f"原材料：\n{raw_material}"
+    )
+    return create_job(prompt=prompt, schedule=schedule, **kwargs)

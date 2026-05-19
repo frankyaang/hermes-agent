@@ -1,0 +1,9 @@
+{
+  "name": "execution_contract",
+  "display_name": "执行合同",
+  "description": "生成 DecisionCard 并通过 artifact_delivery 发送飞书；等待人工回调后置 confirmed_by_human=True",
+  "type": "delivery",
+  "pipeline": "weekly_flow",
+  "private_memory": false,
+  "root": "skills/execution_contract"
+}
