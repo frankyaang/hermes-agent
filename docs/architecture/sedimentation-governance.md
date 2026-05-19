@@ -1,6 +1,6 @@
 # Sedimentation Governance Architecture
 
-> Version: 1.0 | Date: 2026-05-19 | Status: Implemented (Round 13)
+> Version: 1.1 | Date: 2026-05-19 | Status: Implemented (Round 13 + Round 14)
 
 ## Overview
 
@@ -136,3 +136,27 @@ gstack 不可直接写 system_mem / expert_mem / skill_mem
 - audit/evidence 不等于 expert_mem
 - 运行日志不等于经验
 - 所有路径必须经过 get_hermes_home()，禁止硬编码
+
+## Round 14 Runtime Wiring Evidence（2026-05-19）
+
+| 组件 | 状态 | runtime 触发点 |
+|------|------|----------------|
+| memory_event + dispatcher | wired | session_capture / knowledge_tool / cli_bridge |
+| staging_store ops | wired | knowledge_staging_ops tool + approve/reject/archive |
+| session_capture | wired | run_agent.py SESSION_CAPTURE_AUTO_ENABLED gate |
+| usage_hint | wired | memory_manager + knowledge_query（flag OFF by default） |
+| experience_layer ACL | wired | runtime._append_private_memory 非破坏性包装 |
+| experience_card injection | wired | run_agent.py trigger_check+render_card，ephemeral 注入 |
+| gstack_bridge | wired | route_gstack_result（GSTACK_SEDIMENTATION_ENABLED gate） |
+
+**Smoke Evidence（acceptance closure 2026-05-19）：**
+- memory_events/events.jsonl: 2 行（session + write_failure）
+- staging/staging.jsonl: 15 行（14 retry_write + 1 needs_user_confirmation）
+- pending_captures.jsonl: 14 行，terminal_state=migrated_to_staging（14/14）
+- project_process/records.jsonl: 1 行（smoke 触发验证）
+- experience_cards/cards.jsonl: 不存在（设计正确——ephemeral 注入，无 runtime write）
+
+**升级判断：wired 但不 production_ready。剩余 blocker：**
+1. 无真实流量 smoke（SESSION_CAPTURE_AUTO_ENABLED=OFF）
+2. gstack CLI 未安装（phases non_ready）
+3. routes production_ready=0

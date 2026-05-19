@@ -243,3 +243,19 @@ def test_migrate_nonexistent_pending_returns_empty(tmp_path):
     from agent.pending_capture import migrate_to_staging
     result = migrate_to_staging("no-such-id", hermes_home=tmp_path)
     assert result == ""
+
+
+def test_migrate_to_staging_sets_terminal_state(tmp_path):
+    """migrate_to_staging must update terminal_state to migrated_to_staging — both branches."""
+    from agent.pending_capture import migrate_to_staging, read_pending
+    cids = _seed_pending(tmp_path)
+
+    # First call: new migration
+    migrate_to_staging(cids[0], hermes_home=tmp_path)
+    rec = read_pending(cids[0], hermes_home=tmp_path)
+    assert rec["terminal_state"] == "migrated_to_staging", "first migration must set terminal_state"
+
+    # Second call: idempotent branch — terminal_state must still be set
+    migrate_to_staging(cids[0], hermes_home=tmp_path)
+    rec2 = read_pending(cids[0], hermes_home=tmp_path)
+    assert rec2["terminal_state"] == "migrated_to_staging", "idempotent branch must also set terminal_state"

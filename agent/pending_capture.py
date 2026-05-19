@@ -212,6 +212,7 @@ def migrate_to_staging(capture_id: str, hermes_home: Path | None = None) -> str:
         return ""
     existing_staging_id = rec.get("staging_id", "")
     if existing_staging_id:
+        mark_terminal(capture_id, "migrated_to_staging", hermes_home=hermes_home)
         return existing_staging_id
 
     from agent.staging_store import write_staging
@@ -235,6 +236,7 @@ def migrate_to_staging(capture_id: str, hermes_home: Path | None = None) -> str:
                 f.write(json.dumps(r) + "\n")
     except Exception as exc:
         logger.warning("migrate_to_staging write-back failed (non-fatal): %s", exc)
+    mark_terminal(capture_id, "migrated_to_staging", hermes_home=hermes_home)
     return staging_id
 
 

@@ -1,7 +1,16 @@
 # RESTORE — Sedimentation Runtime Wiring 回滚指令
 
 生成时间: 2026-05-19  
-适用轮次: Round 13 + Round 14 (Contract Layer + Runtime Wiring)
+适用轮次: Round 13 + Round 14 (Contract Layer + Runtime Wiring) + 验收收口
+
+## 当前状态
+
+| 项目 | 值 |
+|------|-----|
+| local HEAD | 55582309a（Round 14 docs） |
+| fork remote HEAD | **55582309a**（push 已完成 2026-05-19） |
+| branch | snapshot/hermes-local-20260514-224006 |
+| acceptance closure commit | 待提交（pending_capture fix + smoke + docs） |
 
 ## 恢复点
 
@@ -12,6 +21,8 @@
 | Round 14 post | 371e5cbf5 | knowledge_staging_ops tool entry point（Gate 3 CLI） |
 | Round 14 post | 9e89318ca | knowledge_staging_ops 14 tests |
 | Round 14 post | d31354694 | experience_card trigger_check prompt injection wired |
+| Round 14 post | 55582309a | docs: PLANS.md + RESTORE.md post-Round14 completions |
+| 验收收口 | TBD | 验收收口：pending fix + smoke + docs（本次提交） |
 | Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
 
 ## 快速回滚到 Round 12 状态

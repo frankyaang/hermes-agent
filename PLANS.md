@@ -2592,7 +2592,20 @@ scripts/run_tests.sh  # must show 0 new failures
 - pending→staging 迁移：migrate_to_staging() 已实现，可通过 knowledge_staging_ops(migrate_pending) 手动触发
 - production_ready：任何组件均需真实流量 smoke 验证才能升级
 
-### Hermes 升级准入判断
+### Hermes 升级准入判断（2026-05-19 Final）
 
-不建议基于本轮升级 Hermes gateway/runtime。本轮 evidence 级别为 wired（有 runtime 接线，无真实产物）。
-下一步：在 staging 环境打开 SESSION_CAPTURE_AUTO_ENABLED，积累 events.jsonl 产物，验证无回归后方可 production 升级。
+**当前结论：不建议升级 gateway/runtime。**
+
+evidence 级别：wired（接线完成，真实流量 smoke 不足）
+
+**剩余 blocker（按优先级）：**
+1. 无真实流量 smoke — SESSION_CAPTURE_AUTO_ENABLED=OFF，events.jsonl 仅 2 行（手动触发）
+2. gstack CLI 未安装 — gstack phases 保持 non_ready
+3. routes production_ready=0 — 无生产入口证据
+4. sedimentation_components 全部 wired，无一 smoke_tested 或 production_ready
+
+**获得升级权的前提：**
+- staging 环境开启 SESSION_CAPTURE_AUTO_ENABLED=true
+- 积累 ≥50 条 events.jsonl 真实产物
+- 跑完整 smoke suite + full suite 无回归
+- 至少 1 个 sedimentation 组件升级至 smoke_tested
