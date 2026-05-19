@@ -4677,12 +4677,31 @@ class AIAgent:
             from agent.session_capture import _extract_text, capture_turn
             _text = _extract_text(original_user_message)
             if _text:
-                capture_turn(
+                captured = capture_turn(
                     _text,
                     session_id=self.session_id or "",
                     actor_user_id=self._user_id or "",
                     platform=self.platform or "",
                 )
+                if captured:
+                    event_id, routing_hint = captured
+                    working_memory = getattr(self, "_working_memory", None)
+                    if routing_hint and working_memory is not None:
+                        try:
+                            from agent.working_memory import MemoryEntry
+                            working_memory.add_pending(MemoryEntry(
+                                content=routing_hint,
+                                memory_type="experience",
+                                confidence=1.0,
+                                metadata={
+                                    "source": "experience_card",
+                                    "event_id": event_id,
+                                    "usage_hint": "action_rule_for_next_task",
+                                    "producer_runtime_path": "run_agent.AIAgent._capture_session_memory",
+                                },
+                            ))
+                        except Exception:
+                            pass
         except Exception:
             pass
 

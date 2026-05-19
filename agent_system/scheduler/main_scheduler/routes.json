@@ -457,6 +457,82 @@
       "user_gate": true,
       "final_output": true,
       "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "weekly_flow",
+      "pipeline_name": "香农 Weekly 决策流程",
+      "priority": "normal",
+      "step": 1,
+      "node": "issue_extractor",
+      "display_name": "议题提取",
+      "constraints": {
+        "input_type": "自由格式周报原材料文本",
+        "output_type": "结构化议题列表 List[Issue]",
+        "max_runtime": 180
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "production_ready": false,
+      "readiness_reason": "readiness_manifest.json is the production source of truth; weekly_flow remains shadow/advisory until real Feishu runtime evidence is available",
+      "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "weekly_flow",
+      "pipeline_name": "香农 Weekly 决策流程",
+      "priority": "normal",
+      "step": 2,
+      "node": "decision_gate",
+      "display_name": "决策准入",
+      "depends_on": [
+        "issue_extractor"
+      ],
+      "constraints": {
+        "input_type": "结构化议题列表 List[Issue]",
+        "output_type": "路由结果映射表 Dict[issue_id, DecisionRoute]",
+        "max_runtime": 30
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "production_ready": false,
+      "readiness_reason": "readiness_manifest.json is the production source of truth; weekly_flow remains shadow/advisory until real Feishu runtime evidence is available",
+      "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "weekly_flow",
+      "pipeline_name": "香农 Weekly 决策流程",
+      "priority": "normal",
+      "step": 3,
+      "node": "execution_contract",
+      "display_name": "执行合同",
+      "depends_on": [
+        "decision_gate"
+      ],
+      "constraints": {
+        "input_type": "路由为 decision_agenda 的议题 + DecisionCard",
+        "output_type": "ExecutionContract（等待人工确认）",
+        "max_runtime": 60
+      },
+      "supervision": {
+        "scheduler_monitor": true,
+        "expert_required": true,
+        "primary_expert": "ops_expert",
+        "secondary_experts": []
+      },
+      "user_gate": true,
+      "final_output": true,
+      "production_ready": false,
+      "readiness_reason": "readiness_manifest.json is the production source of truth; weekly_flow remains shadow/advisory until real Feishu runtime evidence is available",
+      "allowed_entrypoints": []
     }
   ]
 }

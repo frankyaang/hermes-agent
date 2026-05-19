@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List
 
 from hermes_constants import get_hermes_home
+from agent.runtime_artifact_evidence import sanitize_summary
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ class MemoryEvent:
     recommended_destination: str  # DESTINATIONS 之一
     raw_excerpt_ref: str        # 可为空，指向原始内容片段
     created_at: str
+    status: str = "captured"
+    producer_runtime_path: str = "agent.memory_event.write_event"
+    source_capability: str = "memory_event"
+    sanitized_summary: str = ""
 
 
 def create_event(
@@ -83,6 +88,10 @@ def create_event(
     current_task: str = "",
     raw_excerpt_ref: str = "",
     timestamp: str = "",
+    status: str = "captured",
+    producer_runtime_path: str = "agent.memory_event.write_event",
+    source_capability: str = "memory_event",
+    sanitized_summary: str = "",
 ) -> MemoryEvent:
     """创建 MemoryEvent，自动填充 id 和 created_at。"""
     now = datetime.now(timezone.utc).isoformat()
@@ -102,12 +111,20 @@ def create_event(
         recommended_destination=recommended_destination,
         raw_excerpt_ref=raw_excerpt_ref,
         created_at=now,
+        status=status,
+        producer_runtime_path=producer_runtime_path,
+        source_capability=source_capability,
+        sanitized_summary=sanitized_summary or sanitize_summary(subject, current_task, source_uri),
     )
 
 
 def write_event(event: MemoryEvent, hermes_home: Path | None = None) -> str:
     """将 MemoryEvent 追加写入 JSONL 文件，返回 event.id，never raises。"""
     try:
+        if not event.sanitized_summary:
+            event.sanitized_summary = sanitize_summary(
+                event.subject, event.current_task, event.source_uri
+            )
         base = hermes_home or get_hermes_home()
         path = base / "memory_events" / "events.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)

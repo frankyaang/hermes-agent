@@ -1,3 +1,107 @@
+# Phase 9 — Cognitive Governance 证据收口（2026-05-19）
+
+## Goal
+
+把 Phase 8 的“模块合入 + 初步 smoke”推进为可审计的生产准入证据闭环。当前目标不是新增概念能力，而是修正事实源、补齐 runtime artifact schema、证明 ExperienceCard 行为注入、让 readiness/routes 口径一致，并留下可恢复的测试与交付记录。
+
+## Scope
+
+- `/Users/frank/.hermes/hermes-agent-dev` 是唯一最终生产候选。
+- 修正 MemoryOps / Cognitive runtime artifact 写入字段，使真实 `HERMES_HOME` 产物具备 `status`、`producer_runtime_path`、`source_capability`、`sanitized_summary`。
+- 让 ExperienceCard 命中后进入 session working memory / routing hint，而不是只返回文本。
+- 让 `readiness_manifest.json` 成为唯一 production readiness 事实源；`routes.json` 不再单独声明 weekly production_ready。
+- 增加/更新 smoke 与 readiness 检查，输出可复核报告。
+
+## Non-goals
+
+- 不安装 gstack；当前 `command -v gstack` 为空，保持 `deferred/non_ready`。
+- 不要求真实发送 Feishu 消息；Weekly 只能在 Feishu 外部依赖不可用时保持 shadow/advisory。
+- 不做大规模 rebase 或同步 `origin/main`。
+- 不清空真实 `~/.hermes` 数据；如需修补旧 JSONL 字段，必须保留备份并幂等。
+
+## Context
+
+- 当前 dev 已有 Phase 8 相关提交：MemoryOps/Cognitive 模块已进入 dev。
+- 当前工作树仍有 modified/untracked 文件，分支 `codex/dev-env` 仍 `ahead 80, behind 1273`。
+- 当前真实 artifacts 已存在，但多数旧记录缺 `status`，外部统计会显示 `unknown`。
+- 当前 `routes.json` 中 weekly 三个节点标 `production_ready=true`，但 manifest 的 `weekly_flow` 能力仍 `production_ready=false`，存在口径冲突。
+
+## Milestones
+
+1. 修正 artifact schema 与 smoke 生成路径。
+2. 补齐 ExperienceCard → working memory 注入。
+3. 修正 readiness/routes 口径，并补 manifest 缺失的 weekly route/skills。
+4. 运行真实 `HERMES_HOME` smoke，必要时备份并 backfill 旧记录字段。
+5. 运行 `scripts/run_tests.sh` 聚焦回归与 readiness 检查。
+6. 分组提交、推送；若 push 被远端状态阻塞，记录阻塞原因和恢复方式。
+
+## Risks / Unknowns
+
+- 真实 `~/.hermes` JSONL 中存在历史记录，不能删除；字段 backfill 必须保留原始内容。
+- `routes.json` 从 `production_ready=true` 改为 false 会要求更新旧测试口径。
+- Feishu/gstack 外部依赖不可用时不能声明 production ready。
+
+## Validation
+
+```bash
+scripts/run_tests.sh tests/agent/test_memory_event.py tests/agent/test_staging_store.py tests/agent/test_experience_card.py tests/agent/test_session_capture.py tests/agent/test_memory_dispatcher.py tests/agent/test_usage_hint.py
+scripts/run_tests.sh tests/run_agent/test_experience_card_working_memory.py tests/agent_system/test_production_readiness.py tests/agent_system/test_weekly_flow_entrypoints.py
+python scripts/check_agent_system_readiness.py
+python scripts/cognitive_governance_smoke.py --write-smoke --backfill-legacy-status
+```
+
+## Recovery
+
+```bash
+# 查看本轮提交
+git log --oneline -8
+
+# 如需撤回本轮代码提交但保留文件内容
+git reset --soft HEAD~<n>
+
+# 真实 HERMES_HOME JSONL backfill 会创建 *.bak_20260519_phase9 备份；
+# 如需回滚 artifact 字段修补，可用对应 backup 覆盖原文件。
+```
+
+## Progress
+
+- [x] Gate 0 只读复核：核心模块已在 dev，真实 artifacts 已存在但旧记录 status 多为 unknown。
+- [x] Gate 1 runtime artifact schema 与 smoke 修正：新增 `status`、`producer_runtime_path`、`source_capability`、`sanitized_summary`。
+- [x] Gate 2 ExperienceCard working memory 注入：`_capture_session_memory` 将 routing hint 写入 session working memory。
+- [x] Gate 3 readiness/routes 一致性修正：weekly route 不再在 `routes.json` 绕过 manifest 标 ready；manifest 补齐 `weekly_flow` 与 3 个 weekly skills。
+- [x] Gate 4 聚焦测试与 smoke 验证：核心验收 225 passed；artifact smoke 全部有状态；readiness check passed。
+- [ ] Gate 5 commit/push/recovery 收口。
+
+## Phase 9 Verification Results
+
+- `python -m py_compile agent/runtime_artifact_evidence.py agent/memory_event.py agent/staging_store.py agent/experience_card.py agent/project_process_store.py scripts/cognitive_governance_smoke.py agent_system/capability_readiness.py` → passed
+- `scripts/run_tests.sh tests/agent/test_memory_event.py tests/agent/test_staging_store.py tests/agent/test_experience_card.py tests/agent/test_project_process_store.py tests/run_agent/test_experience_card_working_memory.py tests/scripts/test_cognitive_governance_smoke.py -q` → 58 passed
+- `scripts/run_tests.sh tests/agent_system/test_production_readiness.py tests/agent_system/test_weekly_flow_entrypoints.py -q` → 19 passed
+- `python scripts/check_agent_system_readiness.py` → READINESS CHECK PASSED
+- `python scripts/cognitive_governance_smoke.py --write-smoke --backfill-legacy-status --json` → smoke passed, backups created with suffix `.bak_20260519_phase9`
+- Core closure set: `scripts/run_tests.sh ... -q` → 225 passed
+- Broad regression: `scripts/run_tests.sh tests/agent/ tests/integration/ tests/tools/ -q` → 6564 passed, 44 skipped, 2 failed in `tests/tools/test_resolve_path.py`; isolated rerun `scripts/run_tests.sh tests/tools/test_resolve_path.py -q` → 6 passed, so failures are classified as existing xdist/environment-sensitive behavior rather than Phase 9 regression.
+- `git diff --check` → passed
+- Secret literal scan across changed Python files → passed; historical Feishu identifiers in `PLANS.md` were redacted.
+
+## Phase 9 Runtime Artifact Report
+
+| Artifact | Lines | Status counts | Producer evidence |
+|---|---:|---|---|
+| `memory_events/events.jsonl` | 5 | `captured: 5` | `agent.memory_event.write_event`, `scripts.cognitive_governance_smoke.write_smoke` |
+| `staging/staging.jsonl` | 17 | `staged: 17` | `agent.staging_store.write_staging` |
+| `experience_cards/cards.jsonl` | 2 | `active: 2` | `agent.experience_card.write_card` |
+| `project_process/records.jsonl` | 3 | `recorded: 3` | `agent.project_process_store.write_record` |
+| `knowledge/pending_captures.jsonl` | 14 | `archived: 14` | `agent.pending_capture` |
+
+Backups were created at the corresponding `*.bak_20260519_phase9` paths before legacy backfill.
+
+## Decision Log
+
+- `readiness_manifest.json` 是唯一 production readiness 事实源。
+- Weekly 在没有真实 Feishu 可用证据时保持 non_ready/shadow，不进入 production candidates。
+- gstack binary 不存在时不做安装，保持 deferred。
+
 # Phase 8 — 生产准入收口（2026-05-19）
 
 ## 目标
@@ -1729,12 +1833,12 @@ tail -n 120 /Users/frank/.hermes/logs/gateway.log
 
 ## Context
 
-- 目标文档 `CU52dwMADoqCBkxDtxFcpDGwn1c` 的 `raw_content` 只有标题。
+- 目标文档 `<redacted_feishu_doc_id>` 的 `raw_content` 只有标题。
 - 通过 `GET /open-apis/docx/v1/documents/:document_id/blocks` 已确认该 doc 的主体是一个 `sheet` block，而不是普通正文段落。
 - 飞书官方 FAQ 已说明：文档中嵌入电子表格时，该块 token 为 `spreadsheetToken_sheetId` 格式。
-- 直接拆分 `RX8hsMOachgMz2tL2TrcIcKEnjg_5cfRcx` 后，使用：
-  - `spreadsheet_token = RX8hsMOachgMz2tL2TrcIcKEnjg`
-  - `sheet_id = 5cfRcx`
+- 直接拆分 `<redacted_spreadsheet_token>_<redacted_sheet_id>` 后，使用：
+  - `spreadsheet_token = <redacted_spreadsheet_token>`
+  - `sheet_id = <redacted_sheet_id>`
   可以成功读到该嵌入表格的真实内容。
 
 ## Milestones

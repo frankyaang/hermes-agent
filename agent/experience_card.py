@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from hermes_constants import get_hermes_home
+from agent.runtime_artifact_evidence import sanitize_summary
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,10 @@ class ExperienceCard:
     source_case: str                    # 来源 case
     created_at: str
     last_verified_at: str
+    status: str = "active"
+    producer_runtime_path: str = "agent.experience_card.write_card"
+    source_capability: str = "experience_card"
+    sanitized_summary: str = ""
 
 
 # ─── David 样例卡（模块常量，不依赖文件系统）─────────────────────────────────
@@ -133,6 +138,8 @@ def render_card(card: ExperienceCard) -> str:
 def write_card(card: ExperienceCard, hermes_home: Path | None = None) -> str:
     """将 ExperienceCard 追加写入 JSONL，返回 card.id，never raises。"""
     try:
+        if not card.sanitized_summary:
+            card.sanitized_summary = sanitize_summary(card.trigger, card.scope, card.source_case)
         base = hermes_home or get_hermes_home()
         path = base / "experience_cards" / "cards.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,6 +180,12 @@ def _dict_to_card(d: dict) -> ExperienceCard:
         source_case=d.get("source_case", ""),
         created_at=d.get("created_at", ""),
         last_verified_at=d.get("last_verified_at", ""),
+        status=d.get("status", "active"),
+        producer_runtime_path=d.get(
+            "producer_runtime_path", "agent.experience_card.write_card"
+        ),
+        source_capability=d.get("source_capability", "experience_card"),
+        sanitized_summary=d.get("sanitized_summary", ""),
     )
 
 
@@ -202,4 +215,5 @@ def create_card(
         source_case=source_case,
         created_at=now,
         last_verified_at=now,
+        sanitized_summary=sanitize_summary(trigger, scope, source_case),
     )

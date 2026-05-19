@@ -54,6 +54,21 @@ def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> l
         pid = str(route.get("pipeline_id") or "")
         if pid and pid not in manifest_pipeline_ids:
             errors.append(f"MANIFEST_MISSING: pipeline {pid!r} not in readiness_manifest.json")
+        if pid:
+            manifest_route = next(
+                (r for r in manifest.get("routes", []) if r.get("pipeline_id") == pid),
+                None,
+            )
+            if (
+                route.get("production_ready") is True
+                and manifest_route is not None
+                and manifest_route.get("production_ready") is not True
+            ):
+                errors.append(
+                    "MANIFEST_CONFLICT: route "
+                    f"{pid!r} has production_ready=true in routes.json but "
+                    "readiness_manifest.json does not mark it production_ready"
+                )
 
     skills_root = Path(root) / "agent_system" / "skills"
     if skills_root.exists():

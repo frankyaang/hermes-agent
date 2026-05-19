@@ -691,7 +691,47 @@ def test_validate_readiness_manifest_reports_missing_pipeline(tmp_path: Path) ->
 
 
 # ---------------------------------------------------------------------------
-# Test 12: 张嫄养马回归测试
+# Test 12: routes.json 不能绕过 manifest 标 production_ready
+# ---------------------------------------------------------------------------
+
+def test_validate_readiness_manifest_reports_route_manifest_conflict(tmp_path: Path) -> None:
+    """routes.json 标 ready 但 manifest 非 ready 时必须报冲突。"""
+    import json as _json
+
+    manifest_dir = tmp_path / "agent_system"
+    manifest_dir.mkdir(parents=True)
+    manifest = {
+        "version": "1.0",
+        "routes": [
+            {
+                "pipeline_id": "weekly_flow",
+                "readiness_state": "non_ready",
+                "production_ready": False,
+                "allowed_entrypoints": [],
+                "required_skills": [],
+                "output_contract": "",
+                "readiness_reason": "shadow only",
+                "owner": "agent_system",
+            }
+        ],
+        "skills": [],
+    }
+    (manifest_dir / "readiness_manifest.json").write_text(
+        _json.dumps(manifest), encoding="utf-8"
+    )
+
+    routes_payload = {
+        "pipelines": [
+            {"pipeline_id": "weekly_flow", "production_ready": True},
+        ]
+    }
+
+    errors = validate_readiness_manifest(tmp_path, routes_payload)
+    assert any("MANIFEST_CONFLICT" in e and "weekly_flow" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Test 13: 张嫄养马回归测试
 # ---------------------------------------------------------------------------
 
 def test_zhangyuan_yangma_message_does_not_call_planning_llm(tmp_path: Path) -> None:

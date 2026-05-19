@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from hermes_constants import get_hermes_home
+from agent.runtime_artifact_evidence import sanitize_summary
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,11 @@ def write_record(
             "source_uri": source_uri,
             "actor_user_id": actor_user_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "status": "recorded",
+            "producer_runtime_path": "agent.project_process_store.write_record",
+            "source_capability": "project_process_store",
+            "usage_hint": "project_material_usable",
+            "sanitized_summary": sanitize_summary(subject, project_hint, source_uri),
         }
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")

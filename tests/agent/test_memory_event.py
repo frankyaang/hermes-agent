@@ -144,6 +144,10 @@ class TestWriteEvent:
         record = json.loads(path.read_text(encoding="utf-8").strip())
         assert record["id"] == evt.id
         assert record["risk_flags"] == ["private_chat"]
+        assert record["status"] == "captured"
+        assert record["producer_runtime_path"] == "agent.memory_event.write_event"
+        assert record["source_capability"] == "memory_event"
+        assert record["sanitized_summary"]
 
     def test_appends_multiple(self, tmp_path):
         for i in range(3):

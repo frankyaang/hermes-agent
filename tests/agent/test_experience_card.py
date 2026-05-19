@@ -128,6 +128,10 @@ class TestWriteCard:
         record = json.loads(path.read_text(encoding="utf-8").strip())
         assert record["id"] == "david-001"
         assert "避免" in " ".join(record["avoid_actions"]) or "私聊" in " ".join(record["avoid_actions"])
+        assert record["status"] == "active"
+        assert record["producer_runtime_path"] == "agent.experience_card.write_card"
+        assert record["source_capability"] == "experience_card"
+        assert record["sanitized_summary"]
 
     def test_never_raises_on_bad_home(self, monkeypatch):
         monkeypatch.setenv("HERMES_HOME", "/nonexistent/path/never")

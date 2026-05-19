@@ -90,6 +90,16 @@
       "output_contract": "",
       "readiness_reason": "report_revision skill has no executor implementation; stub only",
       "owner": ""
+    },
+    {
+      "pipeline_id": "weekly_flow",
+      "readiness_state": "non_ready",
+      "production_ready": false,
+      "allowed_entrypoints": [],
+      "required_skills": ["issue_extractor", "decision_gate", "execution_contract"],
+      "output_contract": "raw weekly material -> Issue[] -> DecisionRoute map -> pending/confirmed ExecutionContract ledger",
+      "readiness_reason": "contract and shadow E2E verified; real Feishu runtime dependency is not available in this environment, so production entrypoints remain blocked",
+      "owner": "agent_system"
     }
   ],
   "capabilities": [
@@ -298,6 +308,36 @@
       "output_contract": "",
       "readiness_reason": "stub skill with no executor implementation; part of non-ready report_revision_flow",
       "owner": ""
+    },
+    {
+      "skill_id": "issue_extractor",
+      "readiness_state": "non_ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": false,
+      "output_contract": "free-form weekly material -> List[Issue]",
+      "readiness_reason": "runtime contract tests pass, but production readiness is gated by weekly_flow's real Feishu and release evidence",
+      "owner": "agent_system"
+    },
+    {
+      "skill_id": "decision_gate",
+      "readiness_state": "non_ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": false,
+      "output_contract": "List[Issue] -> Dict[issue_id, DecisionRoute]",
+      "readiness_reason": "pure function tests pass, but production readiness is gated by weekly_flow's real Feishu and release evidence",
+      "owner": "agent_system"
+    },
+    {
+      "skill_id": "execution_contract",
+      "readiness_state": "non_ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": false,
+      "output_contract": "decision_agenda Issue + optional ConfirmationEvent -> pending/confirmed ExecutionContract",
+      "readiness_reason": "ledger and callback contract tests pass, but production readiness is gated by real Feishu runtime evidence",
+      "owner": "agent_system"
     },
     {
       "skill_id": "superpowers",

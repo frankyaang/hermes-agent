@@ -64,6 +64,10 @@ class TestWriteStaging:
         assert record["event_id"] == "evt-2"
         assert record["next_action"] == "retry_write"
         assert record["raw_content"] == "临时保存的内容"
+        assert record["status"] == "staged"
+        assert record["producer_runtime_path"] == "agent.staging_store.write_staging"
+        assert record["source_capability"] == "staging_store"
+        assert record["sanitized_summary"]
 
     def test_never_raises_on_bad_home(self, monkeypatch):
         monkeypatch.setenv("HERMES_HOME", "/nonexistent/path/never")

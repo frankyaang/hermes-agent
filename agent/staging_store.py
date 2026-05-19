@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from hermes_constants import get_hermes_home
+from agent.runtime_artifact_evidence import sanitize_summary
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,10 @@ class StagingEntry:
     created_at: str
     source_uri: str
     raw_content: str       # 暂存原文内容
+    status: str = "staged"
+    producer_runtime_path: str = "agent.staging_store.write_staging"
+    source_capability: str = "staging_store"
+    sanitized_summary: str = ""
 
 
 def write_staging(
@@ -79,6 +84,7 @@ def write_staging(
             created_at=datetime.now(timezone.utc).isoformat(),
             source_uri=source_uri,
             raw_content=raw_content,
+            sanitized_summary=sanitize_summary(reason, source_uri, raw_content),
         )
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
