@@ -1569,6 +1569,11 @@ class AIAgent:
         self._session_messages: List[Dict[str, Any]] = []
         self._memory_write_origin = "assistant_tool"
         self._memory_write_context = "foreground"
+
+        # Understanding Quality Loop — session-scoped state (dies with session)
+        from agent.understanding.schemas import UnderstandingState
+        self._session_understanding_state: UnderstandingState = UnderstandingState()
+        self._session_boundary_memory: list = []  # list[BoundaryMemory]
         
         # Cached system prompt -- built once per session, only rebuilt on compression
         self._cached_system_prompt: Optional[str] = None
@@ -3427,6 +3432,10 @@ class AIAgent:
                         credential_pool=getattr(self, "_credential_pool", None),
                         parent_session_id=self.session_id,
                         enabled_toolsets=enabled_toolsets,
+                        # Inherit the parent session's platform user_id so that
+                        # knowledge writes in the background review use the original
+                        # Feishu/Telegram identity, not a CLI fallback (#identity-drift).
+                        user_id=self._user_id,
                     )
                     review_agent._memory_write_origin = "background_review"
                     review_agent._memory_write_context = "background_review"
@@ -3491,7 +3500,16 @@ class AIAgent:
                 except Exception:
                     pass
 
-        t = threading.Thread(target=_run_review, daemon=True, name="bg-review")
+        # Capture the parent's ContextVar state so the background thread
+        # inherits the Feishu/Telegram user_id instead of falling back to
+        # os.environ (which yields cli:frank:default for gateway sessions).
+        import contextvars as _cv
+        _parent_ctx = _cv.copy_context()
+
+        def _run_review_in_ctx():
+            _parent_ctx.run(_run_review)
+
+        t = threading.Thread(target=_run_review_in_ctx, daemon=True, name="bg-review")
         t.start()
 
     def _build_memory_write_metadata(
@@ -4604,6 +4622,116 @@ class AIAgent:
         except Exception:
             pass
 
+    def _is_anthropic_compatible_provider(self) -> bool:
+        """Return True if the current provider uses Anthropic-compatible response structure."""
+        base_url = getattr(self, "_base_url", None) or ""
+        # Non-Anthropic providers route through OpenAI-compat layer or have explicit base_url
+        if base_url and "anthropic.com" not in base_url and "amazonaws.com" not in base_url:
+            return False
+        provider = getattr(self, "_provider", None) or ""
+        non_anthropic = {"openai", "azure", "ollama", "groq", "together", "deepseek", "mistral"}
+        if any(p in provider.lower() for p in non_anthropic):
+            return False
+        return True
+
+    def _do_quality_rewrite(self, original: str, guidance: str) -> str:
+        """单次轻量 LLM call 重写 original。不进入 session history。
+
+        仅在 Anthropic 兼容 provider 下执行；其他 provider 抛 RuntimeError
+        使 apply_quality_gate 自动 fallback 到原始答案。
+        """
+        if not self._is_anthropic_compatible_provider():
+            raise RuntimeError(
+                "quality_rewrite: non-Anthropic provider detected; skipping rewrite (evaluate-only)"
+            )
+        rewrite_prompt = (
+            f"{guidance}\n\n"
+            "请根据以上修复建议，重写以下回答（只输出重写后的干净答案，不要输出建议本身）：\n"
+            f"{original}"
+        )
+        resp = self._anthropic_messages_create({
+            "model": getattr(self, "_model", None) or "claude-haiku-4-5-20251001",
+            "max_tokens": max(len(original) * 2, 512),
+            "messages": [{"role": "user", "content": rewrite_prompt}],
+        })
+        return resp.content[0].text.strip()
+
+    def _capture_session_memory(
+        self,
+        *,
+        original_user_message: object,
+        interrupted: bool,
+    ) -> None:
+        """在会话轮次结束后自动捕获记忆事件（非阻塞、never raises）。
+
+        只在检测到 risk pattern（用户纠正、ExperienceCard 关键词）时写入，
+        不在每轮强制触发。不修改任何 API 消息，不影响 prompt cache。
+        内部通过 capture_turn 调用 experience_card.trigger_check，
+        实现 David 相关对话的自动 ExperienceCard 触发。
+        """
+        if interrupted:
+            return
+        if not original_user_message:
+            return
+        try:
+            from agent.session_capture import _extract_text, capture_turn
+            _text = _extract_text(original_user_message)
+            if _text:
+                capture_turn(
+                    _text,
+                    session_id=self.session_id or "",
+                    actor_user_id=self._user_id or "",
+                    platform=self.platform or "",
+                )
+        except Exception:
+            pass
+
+    def _classify_and_log_correction(self, user_message: str) -> None:
+        """Shadow + gated hook: classify correction type; log in shadow mode, update state in gated mode."""
+        import os
+        shadow = os.getenv("UNDERSTANDING_LOOP_SHADOW", "").lower() == "true"
+        gated = os.getenv("UNDERSTANDING_LOOP_ENABLED", "").lower() == "true"
+        if not shadow and not gated:
+            return
+        try:
+            from agent.understanding.correction_classifier import classify_correction
+            result = classify_correction(
+                user_message,
+                turn_index=len(self._session_messages),
+                prior_corrections=[
+                    bm for bm in getattr(self, "_session_boundary_memory", [])
+                ] if hasattr(self, "_session_boundary_memory") else None,
+            )
+            if result.correction_type != "none":
+                logger.info(
+                    "understanding_shadow correction_type=%s confidence=%.2f scope=%s",
+                    result.correction_type,
+                    result.confidence,
+                    result.scope,
+                )
+            if gated and result.correction_type != "none":
+                # Update session understanding state
+                state = getattr(self, "_session_understanding_state", None)
+                if state is not None:
+                    state.update_from_correction(result)
+                # Write negative correction to BoundaryMemory (scope forced local by default)
+                _neg_types = {"fact_correction", "scope_correction", "frame_correction",
+                              "separation_correction", "generalization_correction", "regression_correction"}
+                if result.correction_type in _neg_types:
+                    from agent.understanding.schemas import BoundaryMemory
+                    bm = BoundaryMemory(
+                        boundary_type="negative",
+                        content=user_message[:200],
+                        source_turn=len(self._session_messages),
+                        session_id=getattr(self, "session_id", "unknown"),
+                        scope=result.scope,  # already constrained by classifier
+                    )
+                    mem = getattr(self, "_session_boundary_memory", None)
+                    if mem is not None:
+                        mem.append(bm)
+        except Exception:
+            pass  # Hook is strictly best-effort, never blocks main flow
+
     def _sync_external_memory_for_turn(
         self,
         *,
@@ -4965,6 +5093,18 @@ class AIAgent:
         platform_key = (self.platform or "").lower().strip()
         if platform_key in PLATFORM_HINTS:
             prompt_parts.append(PLATFORM_HINTS[platform_key])
+
+        import os as _os
+        if _os.getenv("UNDERSTANDING_LOOP_ENABLED", "").lower() == "true":
+            try:
+                from agent.understanding.boundary_formatter import format_boundary_block
+                _boundary_block = format_boundary_block(
+                    getattr(self, "_session_boundary_memory", [])
+                )
+                if _boundary_block:
+                    prompt_parts.append(_boundary_block)
+            except Exception:
+                pass  # Never block prompt building
 
         return "\n\n".join(p.strip() for p in prompt_parts if p.strip())
 
@@ -6293,6 +6433,27 @@ class AIAgent:
 
         def _call():
             try:
+                import os as _os
+                if _os.getenv("PRE_ANSWER_EVAL_ENABLED", "").lower() == "true":
+                    try:
+                        from agent.understanding.pre_answer_evaluator import evaluate_pre_answer
+                        _eval = evaluate_pre_answer(
+                            draft_messages=api_kwargs.get("messages", []),
+                            understanding_state=getattr(self, "_session_understanding_state", None),
+                            boundary_memory=getattr(self, "_session_boundary_memory", []),
+                        )
+                        if not _eval.overall_pass:
+                            _failed = [k for k, v in {
+                                "mixed_questions": _eval.check_mixed_questions,
+                                "boundary_violation": _eval.check_boundary_violation,
+                                "scope_regression": _eval.check_scope_regression,
+                                "synonym_paraphrase": _eval.check_synonym_paraphrase,
+                            }.items() if v]
+                            logger.info("pre_answer_eval failed checks=%s", _failed)
+                            # Phase 3: log only; rewrite injection deferred to Phase 4
+                    except Exception:
+                        pass  # Eval gate is best-effort, never blocks API call
+
                 if self.api_mode == "codex_responses":
                     request_client_holder["client"] = self._create_request_openai_client(
                         reason="codex_stream_request",
@@ -13318,8 +13479,57 @@ class AIAgent:
                         length_continue_retries = 0
                     
                     final_response = self._strip_think_blocks(final_response).strip()
-                    
+
+                    import os as _os
+                    if _os.getenv("QUALITY_LOOP_GATED", "").lower() == "true":
+                        try:
+                            from agent.understanding.quality_loop_gated import apply_quality_gate
+                            from agent.understanding.user_quality_function import derive_quality_function
+                            _was_streamed = bool(getattr(self, "_current_streamed_assistant_text", ""))
+                            _q_state = getattr(self, "_session_understanding_state", None)
+                            _q_mem = getattr(self, "_session_boundary_memory", [])
+                            if _q_state is None:
+                                from agent.understanding.schemas import UnderstandingState
+                                _q_state = UnderstandingState()
+                            _q_fn = derive_quality_function(_q_state, _q_mem)
+                            _prior = next(
+                                (m.get("content", "") for m in reversed(messages[:-1])
+                                 if isinstance(m, dict) and m.get("role") == "assistant"
+                                 and isinstance(m.get("content"), str)),
+                                "",
+                            )
+                            if _was_streamed:
+                                _, _gate_eval = apply_quality_gate(
+                                    candidate_answer=final_response,
+                                    prior_response=_prior,
+                                    understanding_state=_q_state,
+                                    boundary_memory=_q_mem,
+                                    quality_fn=_q_fn,
+                                )
+                            else:
+                                final_response, _gate_eval = apply_quality_gate(
+                                    candidate_answer=final_response,
+                                    prior_response=_prior,
+                                    understanding_state=_q_state,
+                                    boundary_memory=_q_mem,
+                                    quality_fn=_q_fn,
+                                    llm_rewrite_fn=getattr(self, "_do_quality_rewrite", None),
+                                )
+                            if not _gate_eval.overall_pass:
+                                logger.info(
+                                    "quality_gate: checks_failed=%s streaming=%s",
+                                    _gate_eval.failed_checks, _was_streamed,
+                                )
+                        except Exception:
+                            pass  # best-effort; never block main flow
+
                     final_msg = self._build_assistant_message(assistant_message, finish_reason)
+
+                    # Sync quality-gate rewrite into the stored message so that
+                    # messages[-1]["content"], SQLite, and post_llm_call all see
+                    # the rewritten answer, not the original assistant content.
+                    if final_msg.get("content") != final_response:
+                        final_msg["content"] = final_response
 
                     # Pop thinking-only prefill message(s) before appending
                     # the final response.  This avoids consecutive assistant
@@ -13549,6 +13759,20 @@ class AIAgent:
             final_response=final_response,
             interrupted=interrupted,
         )
+
+        # Session memory capture: detect risk patterns and write MemoryEvent.
+        self._capture_session_memory(
+            original_user_message=original_user_message,
+            interrupted=interrupted,
+        )
+
+        # Understanding Quality Loop shadow: classify correction type and log.
+        # UNDERSTANDING_LOOP_SHADOW=true to enable; never affects main flow.
+        if original_user_message:
+            self._classify_and_log_correction(
+                str(original_user_message) if not isinstance(original_user_message, str)
+                else original_user_message
+            )
 
         # Background asset review — runs AFTER the response is delivered
         # so it never competes with the user's task for model attention.

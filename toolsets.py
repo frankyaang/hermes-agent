@@ -270,6 +270,15 @@ TOOLSETS = {
         "includes": []
     },
 
+    "cognitive_governance": {
+        "description": "认知治理工具 — CognitiveState 快照持久化和 InsightDelta 记录（含读取工具）",
+        "tools": [
+            "cognitive_state_snapshot", "insight_delta_record",
+            "cognitive_state_query", "insight_delta_query",
+        ],
+        "includes": []
+    },
+
 
     # Scenario-specific toolsets
     
