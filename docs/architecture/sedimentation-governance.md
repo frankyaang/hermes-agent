@@ -151,10 +151,10 @@ gstack 不可直接写 system_mem / expert_mem / skill_mem
 
 **Smoke Evidence（acceptance closure 2026-05-19）：**
 - memory_events/events.jsonl: 2 行（session + write_failure）
-- staging/staging.jsonl: 15 行（14 retry_write + 1 needs_user_confirmation）
+- staging/staging.jsonl: 16 行（15 retry_write + 1 needs_user_confirmation）
 - pending_captures.jsonl: 14 行，terminal_state=migrated_to_staging（14/14）
-- project_process/records.jsonl: 1 行（smoke 触发验证）
-- experience_cards/cards.jsonl: 不存在（设计正确——ephemeral 注入，无 runtime write）
+- project_process/records.jsonl: 2 行（smoke 触发验证）
+- experience_cards/cards.jsonl: 1 行（手动 smoke/seed 产物）；runtime 设计仍为 ephemeral prompt injection，不自动 write_card
 
 **升级判断：wired 但不 production_ready。剩余 blocker：**
 1. 无真实流量 smoke（SESSION_CAPTURE_AUTO_ENABLED=OFF）

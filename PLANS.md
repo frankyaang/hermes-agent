@@ -2611,9 +2611,10 @@ evidence 级别：wired（接线完成，真实流量 smoke 不足）
 - 至少 1 个 sedimentation 组件升级至 smoke_tested
 
 **验收收口状态（2026-05-19）：**
-- Gate 0 push: ✅ fork remote HEAD = ac3b04511
-- Gate 1 experience_card: ✅ 设计边界 — ephemeral injection，persistent_store_enabled=false，cards.jsonl 缺失为预期
-- Gate 2 readiness: ✅ manifest 无虚假 production_ready；sedimentation 8/8 wired，routes 0/8，gstack 0/3
-- Gate 3 docs: ✅ ARCHITECTURE.md stale labels 修正；governance.md v1.1；RESTORE.md remote HEAD 准确
-- Gate 4 tests: ✅ Batch 1+2 141 passed；full suite 17864 passed（见最近一次 full suite run）
-- smoke: events.jsonl=2，staging.jsonl=16，pending=14（migrated_to_staging），project_process=2，cards.jsonl=不存在（设计）
+- Gate 0 push: ✅ fork remote HEAD = d6078ebc3（`git -c http.proxy= -c https.proxy= ls-remote ...` 实时确认）
+- Gate 1 pending/staging: ✅ pending 14/14 已 `migrated_to_staging` 且 `status=archived`；staging 16 行
+- Gate 2 experience_card: ✅ 设计边界 — runtime 为 ephemeral injection；`persistent_store_enabled=false`；`cards.jsonl` 仅有 1 行手动 smoke/seed 产物，不代表自动 runtime authoring
+- Gate 3 project_process: ✅ `project_process/records.jsonl` 2 行 smoke 产物
+- Gate 4 readiness: ✅ manifest 无虚假 production_ready；sedimentation 8/8 wired，routes 0/8，gstack 0/3
+- Gate 5 docs/tests: ✅ ARCHITECTURE.md / governance.md / RESTORE.md 对齐到 d6078ebc3；本轮聚焦验证 71 passed + 46 passed；full suite 17864 passed（见最近一次 full suite run）
+- smoke: events.jsonl=2，staging.jsonl=16，pending=14（migrated_to_staging），project_process=2，cards.jsonl=1（手动 smoke/seed，非自动 runtime authoring）

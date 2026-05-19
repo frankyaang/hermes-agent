@@ -7,8 +7,8 @@
 
 | 项目 | 值 |
 |------|-----|
-| local HEAD | ac3b04511（验收收口：Gate 0-4 全部关闭） |
-| fork remote HEAD | **ac3b04511**（push 已完成 2026-05-19，proxy override） |
+| local HEAD | 以最终报告中的 `git rev-parse HEAD` 为准（最终验收文档一致性收口） |
+| fork remote HEAD | 以最终报告中的 `git ls-remote --heads fork snapshot/hermes-local-20260514-224006` 为准（实时远端确认需通过） |
 | branch | snapshot/hermes-local-20260514-224006 |
 
 ## 恢复点
@@ -22,8 +22,7 @@
 | Round 14 post | d31354694 | experience_card trigger_check prompt injection wired |
 | Round 14 post | 55582309a | docs: PLANS.md + RESTORE.md post-Round14 completions |
 | 验收收口 | ac3b04511 | fix: pending terminal_state + project_process smoke + docs 对齐 |
-| 验收收口 post | TBD | 本次：manifest experience_card persistent_store_enabled=false + docs final |
-| Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
+| 验收收口 post | d6078ebc3 | manifest experience_card persistent_store_enabled=false + docs final |
 | Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
 
 ## 快速回滚到 Round 12 状态

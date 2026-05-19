@@ -186,7 +186,7 @@ gstack output → gstack_bridge.route(output_type)
 | memory_dispatcher.py | 10规则5目的地分流 | wired — session_capture/knowledge_tool/cli_bridge 调用 |
 | staging_store.py | StagingEntry + approve/reject/archive/stats | wired + ops tool |
 | usage_hint.py | 6类 hint，wrap_with_hint | wired — memory_manager + knowledge_query (flag OFF) |
-| experience_card.py | ExperienceCard，DAVID_CARD，ephemeral injection | wired — trigger_check+render_card 接入 run_agent.py |
+| experience_card.py | ExperienceCard，DAVID_CARD，ephemeral injection | wired — trigger_check+render_card 接入 run_agent.py；cards.jsonl 仅手动 smoke/seed，不代表自动 runtime authoring |
 | session_capture.py | 会话风险探测，emit MemoryEvent | wired — run_agent.py SESSION_CAPTURE_AUTO_ENABLED gate |
 | sedimentation/experience_layer.py | 三层 ACL（system/expert/skill） | wired — runtime._append_private_memory 非破坏性包装 |
 | sedimentation/gstack_bridge.py | gstack → 沉淀链 | wired — route_gstack_result 接线（flag OFF by default） |
