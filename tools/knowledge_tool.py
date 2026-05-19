@@ -529,3 +529,100 @@ registry.register(
         task_id=kw.get("task_id", ""),
     ),
 )
+
+
+def _staging_ops(
+    action: str,
+    staging_id: str,
+    reason: str,
+    limit: int,
+    task_id: str,
+) -> str:
+    """Operate on the sedimentation staging store.
+
+    Actions: list, stats, approve, reject, archive, migrate_pending
+    """
+    action = (action or "list").strip().lower()
+
+    if action == "list":
+        from agent.staging_store import list_staging
+        records = list_staging()
+        safe = [
+            {
+                "staging_id": r.get("staging_id", ""),
+                "event_id": (r.get("event_id", "") or "")[:12] + "...",
+                "next_action": r.get("next_action", ""),
+                "reason": r.get("reason", ""),
+                "source_uri": r.get("source_uri", ""),
+                "created_at": r.get("created_at", ""),
+                "usage_hint": r.get("usage_hint", ""),
+            }
+            for r in records[-limit:]
+        ]
+        return json.dumps({"total": len(records), "showing": len(safe), "entries": safe})
+
+    if action == "stats":
+        from agent.staging_store import stats as staging_stats
+        from agent.pending_capture import stats as pending_stats
+        return json.dumps({"staging": staging_stats(), "pending": pending_stats()})
+
+    if action in {"approve", "reject", "archive"} and not staging_id:
+        return json.dumps({"error": "missing_staging_id", "reason": "staging_id required"})
+
+    if action == "approve":
+        from agent.staging_store import approve
+        return json.dumps({"success": approve(staging_id), "staging_id": staging_id, "action": "approved"})
+
+    if action == "reject":
+        from agent.staging_store import reject
+        return json.dumps({"success": reject(staging_id, reason=reason), "staging_id": staging_id, "action": "rejected"})
+
+    if action == "archive":
+        from agent.staging_store import archive
+        return json.dumps({"success": archive(staging_id), "staging_id": staging_id, "action": "archived"})
+
+    if action == "migrate_pending":
+        from agent.pending_capture import list_pending, migrate_to_staging
+        pending = list_pending()
+        migrated = 0
+        for rec in pending:
+            cid = rec.get("capture_id", "")
+            if cid and migrate_to_staging(cid):
+                migrated += 1
+        return json.dumps({"migrated": migrated, "total": len(pending)})
+
+    return json.dumps({"error": "invalid_action", "reason": "action must be: list, stats, approve, reject, archive, migrate_pending"})
+
+
+registry.register(
+    name="knowledge_staging_ops",
+    toolset="knowledge",
+    schema={
+        "name": "knowledge_staging_ops",
+        "description": (
+            "Operate on the sedimentation staging queue. "
+            "list/stats to inspect staged items; approve/reject/archive to process them; "
+            "migrate_pending to move pending knowledge captures into staging."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["list", "stats", "approve", "reject", "archive", "migrate_pending"],
+                    "description": "Operation. Default: list.",
+                },
+                "staging_id": {"type": "string", "description": "Required for approve/reject/archive."},
+                "reason": {"type": "string", "description": "Rejection reason (reject action)."},
+                "limit": {"type": "integer", "description": "Max entries for list. Default 20, max 100."},
+            },
+        },
+    },
+    handler=lambda args, **kw: _staging_ops(
+        action=args.get("action", "list"),
+        staging_id=args.get("staging_id", ""),
+        reason=args.get("reason", ""),
+        limit=min(int(args.get("limit", 20) or 20), 100),
+        task_id=kw.get("task_id", ""),
+    ),
+)
