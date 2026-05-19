@@ -38,16 +38,20 @@ def main() -> int:
 
     try:
         _create_project(project_root)
+        source_report = project_root / "input_report.md"
+        source_report.write_text("# Existing Report\n\nVOC baseline\n", encoding="utf-8")
+        source_report_resolved = source_report.resolve()
         runtime = HermesAgentSystemRuntime(
             root_dir=project_root,
             skill_executor=_contract_executor(project_root),
             now_fn=lambda: datetime(2026, 5, 19, 10, 0, 0, tzinfo=timezone.utc),
         )
         results = {}
-        for pipeline_id in ("insight_flow", "dashboard_flow", "html_flow"):
+        for pipeline_id in ("insight_flow", "dashboard_flow", "html_flow", "dashboard_from_artifact_flow"):
             run = runtime.run_pipeline(
                 pipeline_id=pipeline_id,
-                input_payload={"source_materials": ["VOC smoke sample"], "task": pipeline_id},
+                input_payload={"source_materials": ["VOC smoke sample", str(source_report_resolved)], "task": pipeline_id},
+                human_inputs={"ops_dashboard": "人工确认使用该报告生成看板"},
                 parallel=False,
             )
             results[pipeline_id] = {
@@ -59,7 +63,13 @@ def main() -> int:
                     for node in run.get("results", [])
                 ],
                 "quality_flags_present": all(
-                    bool(node.get("output", {}).get("quality_flags"))
+                    node.get("node_id") == "artifact_resolver"
+                    or bool(node.get("output", {}).get("quality_flags"))
+                    for node in run.get("results", [])
+                ),
+                "artifact_input_resolved": any(
+                    node.get("node_id") == "artifact_resolver"
+                    and Path(str(node.get("output", {}).get("artifact_path"))).resolve() == source_report_resolved
                     for node in run.get("results", [])
                 ),
             }
@@ -72,6 +82,7 @@ def main() -> int:
             or not rec["review_summary_exists"]
             or not all(rec["artifact_paths"])
             or not rec["quality_flags_present"]
+            or (pid == "dashboard_from_artifact_flow" and not rec["artifact_input_resolved"])
         ]
         payload = {
             "work_dir": str(tmp),
@@ -96,6 +107,7 @@ def _create_project(root: Path) -> None:
         ("dashboard_html", "看板渲染"),
         ("audit", "核查"),
         ("briefing", "过程汇报"),
+        ("artifact_resolver", "产物定位"),
     ]:
         skill_manager.create_skill(
             name=name,
@@ -142,6 +154,17 @@ def _create_project(root: Path) -> None:
             _route("html_flow", 2, "ops_dashboard", "运营看板", "ops_expert", ["voc_insight"]),
             _route("html_flow", 3, "dashboard_html", "看板渲染", "render_expert", ["ops_dashboard"], final=True),
             _route("html_flow", "quality_gate", "audit", "核查", "audit_expert", ["dashboard_html"], optional=True),
+            _route("dashboard_from_artifact_flow", 1, "artifact_resolver", "产物定位", None),
+            _route(
+                "dashboard_from_artifact_flow",
+                2,
+                "ops_dashboard",
+                "运营看板",
+                "ops_expert",
+                ["artifact_resolver"],
+                final=True,
+                user_gate=True,
+            ),
         ],
     )
     _write_manifest(root)
@@ -157,6 +180,7 @@ def _route(
     *,
     optional: bool = False,
     final: bool = False,
+    user_gate: bool = False,
 ) -> dict:
     route = {
         "pipeline_id": pipeline_id,
@@ -171,7 +195,7 @@ def _route(
             "primary_expert": primary_expert,
             "secondary_experts": [],
         },
-        "user_gate": False,
+        "user_gate": user_gate,
     }
     if depends_on:
         route["depends_on"] = depends_on
@@ -188,6 +212,7 @@ def _write_manifest(root: Path) -> None:
         "insight_flow": ["voc_insight", "briefing"],
         "dashboard_flow": ["voc_insight", "ops_dashboard", "briefing"],
         "html_flow": ["voc_insight", "ops_dashboard", "dashboard_html", "audit"],
+        "dashboard_from_artifact_flow": ["artifact_resolver", "ops_dashboard"],
     }
     manifest = {
         "version": "1.1",
@@ -196,7 +221,7 @@ def _write_manifest(root: Path) -> None:
                 "pipeline_id": pid,
                 "readiness_state": "ready",
                 "production_ready": True,
-                "executor_type": "delegate_task",
+                "executor_type": "system+delegate_task" if pid == "dashboard_from_artifact_flow" else "delegate_task",
                 "allowed_entrypoints": ["gateway", "feishu", "cli", "test"],
                 "required_skills": reqs,
                 "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
@@ -219,6 +244,19 @@ def _write_manifest(root: Path) -> None:
                 "evidence": {"local_smoke": "scripts/smoke_agent_system_business_routes.py"},
             }
             for sid in skills
+        ]
+        + [
+            {
+                "skill_id": "artifact_resolver",
+                "readiness_state": "ready",
+                "executable": True,
+                "executor_type": "system",
+                "production_ready": True,
+                "output_contract": "artifact_path",
+                "readiness_reason": "smoke manifest",
+                "owner": "smoke",
+                "evidence": {"local_smoke": "scripts/smoke_agent_system_business_routes.py"},
+            }
         ],
     }
     (root / "readiness_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")

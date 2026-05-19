@@ -58,6 +58,18 @@ def _write_business_manifest(root: Path) -> None:
                 "owner": "test",
                 "evidence": {"tests": "test fixture"},
             },
+            {
+                "pipeline_id": "dashboard_from_artifact_flow",
+                "readiness_state": "ready",
+                "production_ready": True,
+                "executor_type": "system+delegate_task",
+                "allowed_entrypoints": ["gateway", "feishu", "cli", "test"],
+                "required_skills": ["artifact_resolver", "ops_dashboard"],
+                "output_contract": "artifact path resolved by system executor then dashboard package from delegate_task",
+                "readiness_reason": "test fixture",
+                "owner": "test",
+                "evidence": {"tests": "test fixture"},
+            },
         ],
         "skills": [
             {
@@ -72,6 +84,19 @@ def _write_business_manifest(root: Path) -> None:
                 "evidence": {"tests": "test fixture"},
             }
             for sid in skills
+        ]
+        + [
+            {
+                "skill_id": "artifact_resolver",
+                "readiness_state": "ready",
+                "executable": True,
+                "executor_type": "system",
+                "production_ready": True,
+                "output_contract": "artifact_path",
+                "readiness_reason": "test fixture",
+                "owner": "test",
+                "evidence": {"tests": "test fixture"},
+            }
         ],
     }
     (root / "readiness_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -87,6 +112,7 @@ def _create_business_project(tmp_path: Path) -> Path:
         ("dashboard_html", "看板渲染", "render"),
         ("audit", "核查", "audit"),
         ("briefing", "过程汇报", "status_report"),
+        ("artifact_resolver", "产物定位", "analysis"),
     ]:
         skill_manager.create_skill(
             name=name,
@@ -148,6 +174,8 @@ def _create_business_project(tmp_path: Path) -> Path:
             _route("html_flow", 2, "ops_dashboard", "运营看板", "用户洞察结论", "产品运营报告与Dashboard结构", "ops_expert", depends_on=["voc_insight"]),
             _route("html_flow", 3, "dashboard_html", "看板渲染", "产品运营报告与Dashboard结构", "HTML/PDF", "render_expert", depends_on=["ops_dashboard"], final_output=True),
             _route("html_flow", "quality_gate", "audit", "核查", "运营看板输出与渲染结果", "核查结论", "audit_expert", depends_on=["dashboard_html"], optional=True),
+            _route("dashboard_from_artifact_flow", 1, "artifact_resolver", "产物定位", "用户消息/报告路径", "已有报告内容", None),
+            _route("dashboard_from_artifact_flow", 2, "ops_dashboard", "运营看板", "已有报告/洞察结论", "产品运营报告与Dashboard结构", "ops_expert", depends_on=["artifact_resolver"], final_output=True, user_gate=True),
         ],
     )
     _write_business_manifest(root)
@@ -166,6 +194,7 @@ def _route(
     depends_on: list[str] | None = None,
     optional: bool = False,
     final_output: bool = False,
+    user_gate: bool = False,
 ) -> dict:
     route = {
         "pipeline_id": pipeline_id,
@@ -180,7 +209,7 @@ def _route(
             "primary_expert": primary_expert,
             "secondary_experts": [],
         },
-        "user_gate": False,
+        "user_gate": user_gate,
     }
     if depends_on:
         route["depends_on"] = depends_on
@@ -281,10 +310,17 @@ def test_business_routes_e2e_generate_artifacts_audit_review_and_skill_memory(tm
         now_fn=_fixed_now,
     )
 
-    for pipeline_id in ("insight_flow", "dashboard_flow", "html_flow"):
+    source_report = root / "input_report.md"
+    source_report.write_text("# Existing Report\n\nVOC baseline\n", encoding="utf-8")
+
+    for pipeline_id in ("insight_flow", "dashboard_flow", "html_flow", "dashboard_from_artifact_flow"):
         result = runtime.run_pipeline(
             pipeline_id=pipeline_id,
-            input_payload={"source_materials": ["VOC 样本"], "task": pipeline_id},
+            input_payload={
+                "source_materials": ["VOC 样本", str(source_report)],
+                "task": pipeline_id,
+            },
+            human_inputs={"ops_dashboard": "人工确认使用该报告生成看板"},
             parallel=False,
         )
         assert result["status"] == "completed"
@@ -296,7 +332,10 @@ def test_business_routes_e2e_generate_artifacts_audit_review_and_skill_memory(tm
             assert output["artifact_path"]
             assert output["main_report_path"]
             assert output["result_summary"]
-            assert output["quality_flags"]
+            if node_result["node_id"] == "artifact_resolver":
+                assert output["artifact_path"] == str(source_report)
+            else:
+                assert output["quality_flags"]
 
     assert (root / "skills" / "voc_insight" / "skill_mem" / "MEMORY.md").exists()
     assert (root / "skills" / "ops_dashboard" / "skill_mem" / "MEMORY.md").exists()

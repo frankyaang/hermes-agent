@@ -71,6 +71,63 @@ scripts/run_tests.sh tests/agent_system/ -q
 python3 -m agent_system.gstack_control.ops status
 ```
 
+# Dashboard Artifact Route And Operational Evidence — Round 17
+
+## Goal
+
+继续推进 Round 16 后的剩余可闭环项：为 `dashboard_from_artifact_flow` 补 artifact 输入路径 smoke 并晋级；同时把真实 Feishu/Gateway smoke 与 50 条沉淀事件采集做成可检查的证据门，避免口头说“已验证”。
+
+## Scope
+
+- `agent_system/readiness_manifest.json`：`dashboard_from_artifact_flow` 从 unknown 晋级 ready，声明 mixed executor contract。
+- `scripts/smoke_agent_system_business_routes.py` 与 `tests/agent_system/test_business_route_contracts.py`：补 artifact path 输入、artifact_resolver system executor、ops_dashboard delegate contract 和 human gate smoke。
+- 新增 operational evidence checker：读取 HERMES_HOME 中真实 memory events / staging / project_process / gateway smoke evidence，输出是否满足 production 启用门槛。
+
+## Non-goals
+
+- 不把 `report_revision_flow` 晋级。
+- 不伪造真实 Feishu 群聊 50 条事件；只提供检查器和门槛报告。
+- 不自动安装 gstack 到 Claude/Codex skills。
+
+## Milestones
+
+- [x] M1：dashboard_from_artifact_flow manifest 晋级。
+- [x] M2：业务 route smoke 覆盖 artifact 输入路径。
+- [x] M3：新增真实运行证据检查脚本。
+- [x] M4：运行 readiness、business smoke、sedimentation evidence check、agent_system 测试。
+
+## Validation
+
+- `python3 scripts/check_agent_system_readiness.py`
+- `python3 scripts/smoke_agent_system_business_routes.py`
+- `python3 scripts/check_agent_system_operational_evidence.py --hermes-home /Users/frank/.hermes`
+- `scripts/run_tests.sh tests/agent_system/ -q`
+- `git diff --check`
+
+## Progress
+
+- [x] 2026-05-19 只读确认：`dashboard_from_artifact_flow` 已在 routes 中，节点为 `artifact_resolver` → `ops_dashboard`，第二步 `user_gate=true`。
+- [x] 2026-05-19 `dashboard_from_artifact_flow` 晋级 ready，executor_type=`system+delegate_task`。
+- [x] 2026-05-19 business smoke 覆盖 artifact path 输入，`artifact_resolver` resolves `/private/var/.../input_report.md`，`ops_dashboard` 返回 contract output，结果 ok。
+- [x] 2026-05-19 新增 operational evidence checker；当前 `/Users/frank/.hermes` 为 `not_ready`：event_count=5，gateway_smoke evidence missing，gstack external evidence missing，未达到 50 条真实事件门槛。
+- [x] 2026-05-19 验证完成：`python3 scripts/check_agent_system_readiness.py` 通过，routes=`7 ready | 1 non-ready | 0 unknown`；`scripts/run_tests.sh tests/agent_system/ -q` → `292 passed`；business smoke ok；sedimentation smoke ok；gstack smoke fail-closed。
+
+## Decision Log
+
+- `dashboard_from_artifact_flow` 采用 mixed executor，因为 artifact 解析必须留在 deterministic system executor，业务看板生成继续走 delegate_task。
+- operational evidence checker 只读，不写 evidence，也不伪造 Feishu/Gateway 结果；缺失项以 `not_ready` 报告。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+python3 scripts/check_agent_system_readiness.py
+python3 scripts/smoke_agent_system_business_routes.py
+scripts/run_tests.sh tests/agent_system/test_business_route_contracts.py -q
+```
+
 # Hermes × gstack — Round 10 Final Decision Package
 
 ## Goal

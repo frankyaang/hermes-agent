@@ -191,13 +191,19 @@
     },
     {
       "pipeline_id": "dashboard_from_artifact_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "executor_type": "system+delegate_task",
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "ops_dashboard"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "artifact_resolver resolves artifact_path via system executor; ops_dashboard returns artifact_path, main_report_path, result_summary, quality_flags via delegate_task; user_gate requires explicit approval/confirmation",
+      "readiness_reason": "Round 17: artifact input path smoke covers artifact_resolver → ops_dashboard with human gate confirmation.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "mixed system+delegate_task route",
+        "tests": "tests/agent_system/test_business_route_contracts.py",
+        "local_smoke": "scripts/smoke_agent_system_business_routes.py"
+      }
     },
     {
       "pipeline_id": "report_revision_flow",
