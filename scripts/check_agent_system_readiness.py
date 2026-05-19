@@ -59,8 +59,11 @@ def main() -> int:
         pid = r.get("pipeline_id", "?")
         state = r.get("readiness_state", "unknown")
         ep = r.get("allowed_entrypoints") or []
+        etype = r.get("executor_type", "unknown")
+        evidence = r.get("evidence") or {}
         flag = "✓" if state == "ready" else ("✗" if state == "non_ready" else "?")
-        print(f"  {flag} [{state:10s}] {pid}  entrypoints={ep}")
+        evidence_flag = "evidence=yes" if evidence else "evidence=no"
+        print(f"  {flag} [{state:10s}] {pid}  executor_type={etype}  entrypoints={ep}  {evidence_flag}")
 
     print("\n--- Skill Summary ---")
     for s in skills_list:
@@ -68,8 +71,10 @@ def main() -> int:
         state = s.get("readiness_state", "unknown")
         exe = s.get("executable", False)
         etype = s.get("executor_type", "unknown")
+        evidence = s.get("evidence") or {}
         flag = "✓" if state == "ready" else ("✗" if state == "non_ready" else "?")
-        print(f"  {flag} [{state:10s}] {sid}  executable={exe}  executor_type={etype}")
+        evidence_flag = "evidence=yes" if evidence else "evidence=no"
+        print(f"  {flag} [{state:10s}] {sid}  executable={exe}  executor_type={etype}  {evidence_flag}")
 
     # Rule 5: unknown/non-ready routes must not appear in production candidates
     production_candidates = ready_route_candidates(root, routes_payload, entrypoint="gateway")

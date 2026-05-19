@@ -1130,12 +1130,11 @@ def _make_delegate_skill_executor(parent_agent: Any):
         summary = str(first.get("summary") or first.get("error") or "")
         api_calls = _safe_int(first.get("api_calls"))
         from agent_system.output_selector import extract_report_path
+        from agent_system.output_contracts import normalize_business_delegate_output
         main_report_path = extract_report_path(summary)
-        return {
-            "status": "completed" if completed else "failed",
-            "output_quality": 90 if completed else 30,
-            "execution_mode": "production_delegate_task",
-            "output": {
+        contract_output = normalize_business_delegate_output(
+            skill_id=context["skill_id"],
+            output={
                 "result_summary": summary or f"{context['skill_id']} 已通过 delegate_task 执行",
                 "main_report_path": main_report_path,
                 "skill_id": context["skill_id"],
@@ -1147,6 +1146,17 @@ def _make_delegate_skill_executor(parent_agent: Any):
                 "online_agent_probe": credential_probe,
                 "online_llm_api_calls": api_calls,
             },
+            completed=completed,
+            main_report_path=main_report_path,
+            child_status=child_status,
+            api_calls=api_calls,
+            credential_status=str(credential_probe.get("credential_status") or ""),
+        )
+        return {
+            "status": "completed" if completed else "failed",
+            "output_quality": 90 if completed else 30,
+            "execution_mode": "production_delegate_task",
+            "output": contract_output,
             "audit_checks": {
                 "real_delegate_task_executed": True,
                 "production_llm_required": True,
@@ -1171,17 +1181,28 @@ def _make_delegate_skill_executor(parent_agent: Any):
 
 
 def _delegate_failure(context: dict[str, Any], message: str) -> dict[str, Any]:
-    return {
-        "status": "failed",
-        "output_quality": 0,
-        "execution_mode": "production_delegate_task_failed",
-        "output": {
+    from agent_system.output_contracts import normalize_business_delegate_output
+
+    output = normalize_business_delegate_output(
+        skill_id=str(context.get("skill_id") or "unknown"),
+        output={
             "result_summary": message,
             "skill_id": context.get("skill_id"),
             "expert_id": context.get("expert_id"),
             "real_skill_execution": False,
             "production_llm_required": True,
         },
+        completed=False,
+        main_report_path="",
+        child_status="failed",
+        api_calls=0,
+        credential_status="unknown",
+    )
+    return {
+        "status": "failed",
+        "output_quality": 0,
+        "execution_mode": "production_delegate_task_failed",
+        "output": output,
         "exceptions": [
             {
                 "event": "skill_execution_failed",

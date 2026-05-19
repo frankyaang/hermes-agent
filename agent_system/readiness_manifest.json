@@ -98,63 +98,96 @@
   "routes": [
     {
       "pipeline_id": "insight_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "executor_type": "delegate_task",
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["voc_insight", "briefing"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "business insight package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
+      "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "agent_system.output_contracts.BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py",
+        "local_smoke": "scripts/smoke_agent_system_business_routes.py"
+      }
     },
     {
       "pipeline_id": "dashboard_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "executor_type": "delegate_task",
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["voc_insight", "ops_dashboard", "briefing"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "dashboard package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
+      "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "agent_system.output_contracts.BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py",
+        "local_smoke": "scripts/smoke_agent_system_business_routes.py"
+      }
     },
     {
       "pipeline_id": "html_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "executor_type": "delegate_task",
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["voc_insight", "ops_dashboard", "dashboard_html", "audit"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "HTML package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
+      "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "agent_system.output_contracts.BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py",
+        "local_smoke": "scripts/smoke_agent_system_business_routes.py"
+      }
     },
     {
       "pipeline_id": "artifact_status_flow",
       "readiness_state": "ready",
       "production_ready": true,
+      "executor_type": "system",
       "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "artifact_status"],
       "output_contract": "status report containing artifact_path, file_meta, artifact_status",
       "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_status; no external side effects.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "readiness": "Round 15 readiness check passed"
+      }
     },
     {
       "pipeline_id": "artifact_delivery_flow",
       "readiness_state": "ready",
       "production_ready": true,
+      "executor_type": "system",
       "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "artifact_delivery"],
       "output_contract": "artifact_path plus inline text preview when safe, otherwise path-only delivery",
       "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_delivery; text preview capped and binary files delivered by path.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "readiness": "Round 15 readiness check passed"
+      }
     },
     {
       "pipeline_id": "doc_publish_flow",
       "readiness_state": "ready",
       "production_ready": true,
+      "executor_type": "system",
       "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "doc_publish"],
       "output_contract": "local fallback publish package with artifact_path, file_meta, content_preview, requires_external_publish=true",
       "readiness_reason": "Round 15: deterministic local doc publish fallback package; does not call Feishu API.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "readiness": "Round 15 readiness check passed"
+      }
     },
     {
       "pipeline_id": "dashboard_from_artifact_flow",
@@ -221,53 +254,73 @@
   "skills": [
     {
       "skill_id": "voc_insight",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "delegate_task",
+      "production_ready": true,
+      "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
+      "readiness_reason": "Round 16: executed through production delegate_task with normalized business output contract.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py"
+      }
     },
     {
       "skill_id": "ops_dashboard",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "delegate_task",
+      "production_ready": true,
+      "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
+      "readiness_reason": "Round 16: executed through production delegate_task with normalized business output contract.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py"
+      }
     },
     {
       "skill_id": "dashboard_html",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "delegate_task",
+      "production_ready": true,
+      "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
+      "readiness_reason": "Round 16: executed through production delegate_task with normalized business output contract.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py"
+      }
     },
     {
       "skill_id": "audit",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "delegate_task",
+      "production_ready": true,
+      "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
+      "readiness_reason": "Round 16: executed through production delegate_task with normalized business output contract; audit phase routes to GPT-5.5 audit model.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py"
+      }
     },
     {
       "skill_id": "briefing",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "delegate_task",
+      "production_ready": true,
+      "output_contract": "artifact_path, main_report_path, result_summary, quality_flags",
+      "readiness_reason": "Round 16: executed through production delegate_task with normalized business output contract; briefing phase routes to GPT-5.5 audit model.",
+      "owner": "agent_system",
+      "evidence": {
+        "contract": "BUSINESS_DELEGATE_OUTPUT_CONTRACT",
+        "tests": "tests/agent_system/test_business_route_contracts.py"
+      }
     },
     {
       "skill_id": "artifact_resolver",
@@ -277,7 +330,11 @@
       "production_ready": true,
       "output_contract": "artifact_path: local file path or task_id resolved from user context",
       "readiness_reason": "system executor; resolves artifact path from local file system or context without delegate_task",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "implementation": "agent_system/system_skill_executor.py"
+      }
     },
     {
       "skill_id": "artifact_status",
@@ -287,7 +344,11 @@
       "production_ready": true,
       "output_contract": "status report containing artifact_path, file_meta, artifact_status",
       "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor with deterministic local file stat behavior.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "implementation": "agent_system/system_skill_executor.py"
+      }
     },
     {
       "skill_id": "artifact_delivery",
@@ -297,7 +358,11 @@
       "production_ready": true,
       "output_contract": "artifact_path plus capped content_preview for text files; path-only for binary files",
       "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor with capped preview and no external side effects.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "implementation": "agent_system/system_skill_executor.py"
+      }
     },
     {
       "skill_id": "doc_publish",
@@ -307,7 +372,11 @@
       "production_ready": true,
       "output_contract": "local fallback publish package; requires_external_publish=true when external API publish is needed",
       "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor as local fallback package; Feishu API publish remains out of scope.",
-      "owner": "agent_system"
+      "owner": "agent_system",
+      "evidence": {
+        "tests": "tests/agent_system/test_system_skill_executor.py",
+        "implementation": "agent_system/system_skill_executor.py"
+      }
     },
     {
       "skill_id": "report_revision",

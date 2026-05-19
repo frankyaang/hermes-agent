@@ -84,6 +84,7 @@ def _invalidate_manifest_cache(root: Path) -> None:
 def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     manifest = load_readiness_manifest(root)
+    strict_promotion_gates = str(manifest.get("version") or "0") >= "1.1"
     manifest_pipeline_ids = {r["pipeline_id"] for r in manifest.get("routes", [])}
     manifest_skill_ids = {s["skill_id"] for s in manifest.get("skills", [])}
 
@@ -104,10 +105,14 @@ def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> l
         pid = route_entry.get("pipeline_id", "")
         state = route_entry.get("readiness_state", "unknown")
         if state == "ready":
+            if strict_promotion_gates and not route_entry.get("executor_type"):
+                errors.append(f"MANIFEST_INVALID: ready route {pid!r} missing executor_type")
             if not route_entry.get("allowed_entrypoints"):
                 errors.append(f"MANIFEST_INVALID: ready route {pid!r} missing allowed_entrypoints")
             if not route_entry.get("output_contract"):
                 errors.append(f"MANIFEST_INVALID: ready route {pid!r} missing output_contract")
+            if strict_promotion_gates and not route_entry.get("evidence"):
+                errors.append(f"MANIFEST_INVALID: ready route {pid!r} missing evidence")
             for req_skill in route_entry.get("required_skills", []):
                 skill_entry = next(
                     (s for s in manifest.get("skills", []) if s["skill_id"] == req_skill), None
@@ -122,9 +127,17 @@ def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> l
         sid = skill_entry.get("skill_id", "")
         state = skill_entry.get("readiness_state", "unknown")
         if state == "ready" or skill_entry.get("executable"):
+            if strict_promotion_gates and not skill_entry.get("executor_type"):
+                errors.append(
+                    f"MANIFEST_INVALID: executable skill {sid!r} missing executor_type"
+                )
             if not skill_entry.get("output_contract"):
                 errors.append(
                     f"MANIFEST_INVALID: executable skill {sid!r} missing output_contract"
+                )
+            if strict_promotion_gates and skill_entry.get("production_ready") and not skill_entry.get("evidence"):
+                errors.append(
+                    f"MANIFEST_INVALID: production-ready skill {sid!r} missing evidence"
                 )
 
     return errors
@@ -263,6 +276,7 @@ def check_pipeline_readiness(
 
     state: Literal["ready", "non_ready", "unknown"] = route_entry.get("readiness_state", "unknown")
     production_ready = bool(route_entry.get("production_ready", False))
+    executor_type = str(route_entry.get("executor_type") or "unknown")
     allowed_entrypoints = list(route_entry.get("allowed_entrypoints") or [])
     reasons = []
 
@@ -275,7 +289,7 @@ def check_pipeline_readiness(
             registered=True,
             executable=False,
             production_ready=False,
-            executor_type="unknown",
+            executor_type=executor_type,
             allowed_entrypoints=allowed_entrypoints,
             blocking=True,
             reasons=reasons,
@@ -291,7 +305,7 @@ def check_pipeline_readiness(
             registered=True,
             executable=False,
             production_ready=False,
-            executor_type="unknown",
+            executor_type=executor_type,
             allowed_entrypoints=allowed_entrypoints,
             blocking=True,
             reasons=reasons,
@@ -309,7 +323,7 @@ def check_pipeline_readiness(
             registered=True,
             executable=False,
             production_ready=production_ready,
-            executor_type="unknown",
+            executor_type=executor_type,
             allowed_entrypoints=allowed_entrypoints,
             blocking=True,
             reasons=reasons,
@@ -330,7 +344,7 @@ def check_pipeline_readiness(
             registered=True,
             executable=False,
             production_ready=production_ready,
-            executor_type="unknown",
+            executor_type=executor_type,
             allowed_entrypoints=allowed_entrypoints,
             blocking=True,
             reasons=reasons,
@@ -344,7 +358,7 @@ def check_pipeline_readiness(
         registered=True,
         executable=True,
         production_ready=production_ready,
-        executor_type="system",
+        executor_type=executor_type,
         allowed_entrypoints=allowed_entrypoints,
         blocking=False,
         reasons=[],

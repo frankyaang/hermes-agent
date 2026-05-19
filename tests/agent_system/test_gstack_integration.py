@@ -141,3 +141,43 @@ def test_redact_string_strips_bearer():
     result = redact_string(s)
     assert "secret_token_12345" not in result
     assert "Bearer" in result  # keyword preserved, value redacted
+
+
+def test_advisory_routes_external_evidence_without_direct_memory(tmp_path, monkeypatch):
+    """gstack advisory output enters the evidence bridge, not private memory."""
+    monkeypatch.setenv("GSTACK_SEDIMENTATION_ENABLED", "true")
+
+    import importlib
+    import agent_system.sedimentation.feature_flags as ff
+    importlib.reload(ff)
+
+    from agent_system.gstack_control.adapter import GstackResult
+    import agent_system.gstack_control.adapter as adapter
+    from agent_system.gstack_control.modes import run_advisory
+
+    monkeypatch.setattr(
+        adapter,
+        "run_gstack_advisory",
+        lambda phase_id, ctx: GstackResult(
+            available=True,
+            command="gstack review --advisory",
+            exit_code=0,
+            stdout="Review evidence: keep QA non-blocking.",
+            stderr="",
+            blocked_reason="",
+            duration_ms=12,
+        ),
+    )
+
+    result = run_advisory(
+        "gstack.review",
+        {"hermes_home": str(tmp_path), "project_hint": "agent_system"},
+    )
+
+    evidence = result.evidence["external_expert_evidence"]
+    assert result.success is True
+    assert evidence["destination"] == "audit_evidence"
+    assert evidence["direct_memory_write"] is False
+    assert (tmp_path / "memory_events" / "events.jsonl").exists()
+    assert not (tmp_path / "experience_cards" / "cards.jsonl").exists()
+    assert not (tmp_path / "memory" / "system_mem" / "MEMORY.md").exists()

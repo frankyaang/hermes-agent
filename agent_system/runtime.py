@@ -1545,6 +1545,7 @@ class HermesAgentSystemRuntime:
                     "publish_mode",
                     "requires_external_publish",
                     "file_meta",
+                    "quality_flags",
                     "top15_count",
                     "risk_adjustment_status",
                     "competitor_coverage",

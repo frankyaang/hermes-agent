@@ -1,3 +1,76 @@
+# Agent-System Complete Readiness Closure — Round 16
+
+## Goal
+
+把当前 Hermes Agent-System 从“artifact 三条低风险入口 ready”推进到“业务生成入口有明确晋级制度、delegate 输出契约、gstack shadow/advisory 证据边界、沉淀系统 staging smoke 入口”。成功标准不是把所有功能都硬标 production ready，而是：可用入口可执行、未知/高风险入口明确阻断、每个晋级动作有测试和审计证据。
+
+## Scope
+
+- `agent_system/readiness_manifest.json`：只晋级 `insight_flow`、`dashboard_flow`、`html_flow` 及其业务生成 Skill；`report_revision_flow` 和 `dashboard_from_artifact_flow` 保持阻断。
+- `agent_system/cli_bridge.py`：统一 delegate_task Skill 输出合约，补齐 `artifact_path/main_report_path/result_summary/quality_flags`，失败路径也给出可审计质量标记。
+- `agent_system/capability_readiness.py` 和 `scripts/check_agent_system_readiness.py`：把 readiness 从声明表加强为晋级 gate，校验 ready route/skill 的 executor、output_contract、evidence。
+- `agent_system/gstack_control` / `agent_system/sedimentation`：保持 shadow/advisory、fail-closed、外部专家证据，不给 gstack 直接写私域 memory。
+- `scripts/` 和 `tests/agent_system/`：新增业务 route、本地沉淀 smoke、gstack 证据边界测试。
+
+## Non-goals
+
+- 不把 `report_revision_flow` 晋级；没有真实修订执行器前继续 non_ready。
+- 不让 gstack 接管 Hermes 记忆系统，也不共享或读取独立 gstack 私域目录。
+- 不默认开启生产沉淀写卡；experience_card 仍然是 ephemeral injection，持久写卡需要人工 review 后手动操作。
+- 不在本轮要求真实 Feishu 群聊 50 条流量；本轮补可重复的 staging smoke 入口并明确真实流量门槛。
+
+## Milestones
+
+- [x] M1：更新 readiness 晋级 gate 和 manifest 证据字段。
+- [x] M2：补齐 delegate_task 业务 Skill 输出契约和测试。
+- [x] M3：新增业务 route E2E smoke，验证 artifact、audit、review_summary、skill memory。
+- [x] M4：补 gstack shadow/advisory 外部证据边界测试和 smoke 输出。
+- [x] M5：新增 sedimentation staging smoke 脚本，验证 session/tool/gstack/card 路径均不越权。
+- [x] M6：运行 readiness check 与 `scripts/run_tests.sh tests/agent_system/ -q`。
+
+## Risks / Unknowns
+
+- gstack upstream 当前更像 Claude/Codex skill 包，不一定提供 PATH 上的 `gstack` CLI；适配器必须继续 fail-closed。
+- 真实 Feishu smoke 和 50 条事件采集依赖外部运行环境，不能用单测替代；完成后只能把沉淀系统从 wired 推到本地 smoke/staging smoke，不能冒充真实 production_ready。
+- 业务 delegate_task 的真实 LLM 调用成本较高，自动测试应 mock delegate_task，只验证 Hermes 构造与合约归一。
+
+## Validation
+
+- `python3 scripts/check_agent_system_readiness.py`
+- `scripts/run_tests.sh tests/agent_system/ -q`
+- `python3 -m agent_system.gstack_control.ops smoke`
+- `python3 scripts/smoke_agent_system_sedimentation.py --hermes-home /tmp/hermes_sedimentation_smoke`
+- `git diff --check`
+
+## Progress
+
+- [x] 2026-05-19 只读确认：artifact 三条 route ready；业务 route/skills 仍 unknown；gstack CLI unavailable；沉淀组件 wired 但未 smoke_tested。
+- [x] 2026-05-19 Round 16 实现完成：`insight_flow`、`dashboard_flow`、`html_flow` 晋级 ready；`dashboard_from_artifact_flow` 继续 unknown；`report_revision_flow` 继续 non_ready。
+- [x] 2026-05-19 delegate_task 业务输出统一为 `artifact_path/main_report_path/result_summary/quality_flags`，runtime merge 层也保留 `quality_flags`。
+- [x] 2026-05-19 gstack advisory/shadow 输出进入 `external_expert_evidence`，默认 flag off 时 no-op；flag on 时走沉淀桥，不直接写私域 memory。
+- [x] 2026-05-19 staging smoke 通过：事件、staging、project_process、gstack bridge、ExperienceCard ephemeral injection 均可验证。
+- [x] 2026-05-19 验证通过：`python3 scripts/check_agent_system_readiness.py`；`scripts/run_tests.sh tests/agent_system/ -q` → `290 passed`；business smoke ok；sedimentation smoke ok；gstack smoke fail-closed（CLI not found）。
+- [x] 2026-05-19 gstack upstream 隔离检查：GitHub 页面确认官方安装方式是 clone 到 `~/.claude/skills/gstack` 后跑 `./setup`，本机 PATH 没有 `gstack` CLI；临时 git clone 因本机代理/网络中断失败，未污染本地 Claude/Codex skill 目录。
+
+## Decision Log
+
+- 业务生成 Skill 统一标记为 `executor_type=delegate_task`，因为真实生产执行仍由 delegate_task 子智能体承担；Hermes runtime 只负责合约归一和审计。
+- `dashboard_from_artifact_flow` 暂不晋级，因为它依赖 artifact 输入路径的 `ops_dashboard` 真实 smoke，不能借 dashboard_flow 的 source-material smoke 冒充。
+- gstack 仍不作为独立 memory system。它的输出只作为 `external_expert_evidence` 进入沉淀链，且默认 flag 关闭；无 CLI 时保持 fail-closed。
+- 本轮不自动执行 gstack `./setup`，因为官方安装路径会写入 Claude skill 目录；Hermes 侧只集成 shadow/advisory 证据入口，避免未经确认改变用户 Claude Code 环境。
+- 沉淀系统本轮达到 staging smoke，可重复验证；真实 Feishu 50 条事件采集仍是生产启用前的外部运行门槛。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+python3 scripts/check_agent_system_readiness.py
+scripts/run_tests.sh tests/agent_system/ -q
+python3 -m agent_system.gstack_control.ops status
+```
+
 # Hermes × gstack — Round 10 Final Decision Package
 
 ## Goal

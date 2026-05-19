@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -38,11 +39,13 @@ def run_shadow(phase_id: str, context: dict | None = None) -> ModeResult:
 
         ctx = context or {}
         result = run_gstack_shadow(phase_id, ctx)
+        bridge_evidence = _route_external_expert_evidence(phase_id, result, ctx)
         write_metric("shadow", {
             "phase_id": phase_id,
             "available": result.available,
             "blocked_reason": result.blocked_reason,
             "duration_ms": result.duration_ms,
+            "external_expert_evidence": bridge_evidence,
         })
         return ModeResult(
             mode="shadow",
@@ -54,7 +57,7 @@ def run_shadow(phase_id: str, context: dict | None = None) -> ModeResult:
                 "exit_code": result.exit_code,
                 "blocked_reason": result.blocked_reason,
                 "duration_ms": result.duration_ms,
-            }},
+            }, "external_expert_evidence": bridge_evidence},
         )
     except Exception:  # noqa: BLE001
         return run_quarantined(phase_id, traceback.format_exc(), context)
@@ -72,6 +75,7 @@ def run_advisory(phase_id: str, context: dict | None = None) -> ModeResult:
 
         ctx = context or {}
         result = run_gstack_advisory(phase_id, ctx)
+        bridge_evidence = _route_external_expert_evidence(phase_id, result, ctx)
         phase_spec = get_phase(phase_id)
         label = phase_spec.label if phase_spec else phase_id
 
@@ -88,6 +92,7 @@ def run_advisory(phase_id: str, context: dict | None = None) -> ModeResult:
             "available": result.available,
             "blocked_reason": result.blocked_reason,
             "duration_ms": result.duration_ms,
+            "external_expert_evidence": bridge_evidence,
         })
         return ModeResult(
             mode="advisory",
@@ -95,6 +100,7 @@ def run_advisory(phase_id: str, context: dict | None = None) -> ModeResult:
             success=True,
             advisory_note=note,
             blocked_reason=result.blocked_reason,
+            evidence={"external_expert_evidence": bridge_evidence},
         )
     except Exception:  # noqa: BLE001
         return run_quarantined(phase_id, traceback.format_exc(), context)
@@ -192,3 +198,34 @@ def run_quarantined(
         blocked_reason="quarantined — manual human reset required",
         evidence={"error_summary": error_str[:200]},
     )
+
+
+def _route_external_expert_evidence(phase_id: str, adapter_result: object, context: dict) -> dict[str, Any]:
+    """Route gstack output as external expert evidence without direct memory writes."""
+    try:
+        from agent_system.sedimentation.gstack_bridge import route_gstack_result
+
+        hermes_home_value = context.get("hermes_home")
+        hermes_home = Path(hermes_home_value) if hermes_home_value else None
+        bridge = route_gstack_result(
+            phase_id=phase_id,
+            gstack_result=adapter_result,
+            project_hint=str(context.get("project_hint") or ""),
+            hermes_home=hermes_home,
+        )
+        return {
+            "output_type": bridge.output_type,
+            "destination": bridge.destination,
+            "event_id": bridge.event_id,
+            "staging_id": bridge.staging_id,
+            "reason": bridge.reason,
+            "skipped": bridge.skipped,
+            "direct_memory_write": False,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "destination": "noop",
+            "reason": f"external_evidence_bridge_error: {exc}",
+            "skipped": True,
+            "direct_memory_write": False,
+        }
