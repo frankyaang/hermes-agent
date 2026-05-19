@@ -2426,3 +2426,74 @@ rm -rf agent_system/weekly/ agent_system/quality/
 git checkout run_agent.py
 scripts/run_tests.sh  # must show 0 new failures
 ```
+
+---
+
+## Round 13 — Sedimentation Governance Backbone + gstack 专家层接入
+
+> Date: 2026-05-19 | Status: ✅ COMPLETE
+
+### 目标
+
+构建完整沉淀治理主干：统一入口（MemoryEvent）、5目的地分流（MemoryDispatcher）、
+暂存区状态机（StagingStore）、回读标注（UsageHint）、结构化行动卡（ExperienceCard）、
+三层经验 ACL（experience_layer）、gstack 专家层接入（gstack_bridge）。
+
+### 产出文件
+
+**新建（14个）：**
+- `agent/memory_event.py` — MemoryEvent 统一入口
+- `agent/memory_relations.py` — 10种强关系
+- `agent/staging_store.py` — StagingEntry + next_action 状态机（5状态）
+- `agent/usage_hint.py` — 6类 UsageHint，wrap_with_hint()
+- `agent/experience_card.py` — ExperienceCard + DAVID_CARD
+- `agent/project_process_store.py` — 项目流程存储
+- `agent/memory_dispatcher.py` — 10规则5目的地分流器
+- `agent/session_capture.py` — 会话风险探测
+- `agent_system/sedimentation/__init__.py`
+- `agent_system/sedimentation/feature_flags.py` — 全部默认 OFF
+- `agent_system/sedimentation/experience_layer.py` — 三层 ACL
+- `agent_system/sedimentation/gstack_bridge.py` — gstack → 沉淀链
+- `docs/architecture/sedimentation-governance.md` — 架构决策记录
+- `tests/agent/test_sedimentation_governance.py` — S1–S12 治理契约测试
+- `RESTORE.md` — 回滚指令
+
+### 测试结果
+
+- S1–S12（治理契约）：12/12 passed ✅
+- shadow mode 验证：GSTACK_SEDIMENTATION_ENABLED=false OK ✅
+- secret scan：0 ✅
+- path safety：0 ✅
+- 全量回归：1155+ passed（待全量测试完成确认）
+
+### 关键治理契约（均有测试覆盖）
+
+- David 私聊 → staging（不进 knowledge）
+- PBI → project_process（有 project_hint）
+- 私聊→项目 → 需用户确认
+- 用户纠正（有 scope）→ personal_memory + user_correction 关系
+- tool_failure → staging(retry_write)，不丢失
+- permission_unclear → staging，不丢失
+- 所有回读携带 usage_hint
+- expert_mem 仅 expert 自身可写
+- skill_mem 仅 skill 自身可写
+- gstack review → audit_evidence only
+- gstack playbook → skill_asset（feature flag 守卫）
+- gstack lesson → expert_mem_candidate（不直接写）
+
+### production_ready 状态
+
+- MemoryEvent/Dispatcher/Staging/UsageHint/ExperienceCard：new，non_ready（heuristic 层已通，需真实流量标定）
+- gstack_bridge：new，non_ready（feature flag OFF，shadow mode）
+- experience_layer ACL：new，有测试覆盖，non_ready（待 expert workflow 接入验证）
+
+### 阻塞原因
+
+- gstack sedimentation：GSTACK_SEDIMENTATION_ENABLED 默认 false，需生产验证
+- usage_hint 注入：USAGE_HINT_INJECTION_ENABLED 默认 false，需知识库 E2E 验证
+- 三层经验：经验写入工作流尚未接入真实 expert 执行路径
+
+### 恢复
+
+参见 RESTORE.md（Round 13 专用回滚指令）
+
