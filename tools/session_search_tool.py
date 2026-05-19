@@ -590,6 +590,7 @@ def session_search(
                 preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
                 entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
 
+            entry["usage_hint"] = "needs_source_check"
             summaries.append(entry)
 
         return json.dumps({

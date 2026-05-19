@@ -306,6 +306,7 @@ class TestBuiltinDiscovery:
             "tools.file_tools",
             "tools.homeassistant_tool",
             "tools.image_generation_tool",
+            "tools.cognitive_tool",
             "tools.knowledge_tool",
             "tools.memory_tool",
             "tools.mixture_of_agents_tool",

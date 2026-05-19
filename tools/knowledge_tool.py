@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
 from tools.registry import registry
 from gateway.session_context import get_session_env
 from agent.knowledge_alias import resolve_product_line_alias
@@ -157,8 +156,8 @@ def _knowledge_write(
     doc_slug: str,
     task_id: str,
 ) -> str:
-    from agent.knowledge_manager import PermissionDenied
-    from agent.knowledge_models import KnowledgeDoc
+    from agent.knowledge_models import TransactionState
+    from agent.knowledge_ops import KnowledgeOpsOrchestrator
 
     mgr = _get_manager(task_id)
     if mgr is None:
@@ -201,71 +200,104 @@ def _knowledge_write(
     if not doc_slug:
         doc_slug = re.sub(r"[^a-z0-9]+", "-", title.lower())[:50].strip("-")
 
-    now = datetime.now(timezone.utc).isoformat()
-    doc = KnowledgeDoc(
-        slug=doc_slug, title=title, content=content,
-        product_line_id=product_line_id, finance_flag=finance_flag,
-        source_uri=source_uri, knowledge_type=knowledge_type,
-        sensitivity_level=sensitivity_level, confidence=confidence,
-        owner=mgr._ctx.user_id, created_at=now, updated_at=now,
-        updated_by=mgr._ctx.user_id,
+    orchestrator = KnowledgeOpsOrchestrator(
+        ctx=mgr._ctx,
+        provider=mgr._provider,
+        acl=mgr._acl,
+        audit=mgr._audit,
     )
-    try:
-        slug = mgr.write(doc)
+    result = orchestrator.write(
+        original_user_id=mgr._ctx.user_id,
+        source_session_id=task_id or get_session_env("HERMES_SESSION_KEY", ""),
+        root_session_id=get_session_env("HERMES_SESSION_KEY", "") or task_id,
+        parent_session_id="",
+        platform=get_session_env("HERMES_SESSION_PLATFORM", ""),
+        chat_id=get_session_env("HERMES_SESSION_CHAT_ID", ""),
+        chat_name=get_session_env("HERMES_SESSION_CHAT_NAME", ""),
+        chat_type="",
+        title=title,
+        content=content,
+        product_line_id=product_line_id,
+        knowledge_type=knowledge_type,
+        source_uri=source_uri,
+        finance_flag=finance_flag,
+        sensitivity_level=sensitivity_level,
+        confidence=confidence,
+        doc_slug=doc_slug,
+    )
+
+    if result.get("success"):
         try:
             from agent import sedimentation_metrics
             sedimentation_metrics.increment("knowledge_write_success")
         except Exception:
             pass
-        return json.dumps({"success": True, "slug": slug, "product_line_id": product_line_id})
-    except PermissionDenied as exc:
-        reason = str(exc)
-        capture_id = write_pending_capture(
-            title=title, summary=content[:500], candidate_type="knowledge",
-            scope_id=product_line_id, source_uri=source_uri, confidence=confidence,
-            missing_fields=[], failure_reason=reason,
-            session_id=task_id, user_id=mgr._ctx.user_id,
-            platform=get_session_env("HERMES_SESSION_PLATFORM", ""),
-            structured_candidate=_structured_write_candidate(
-                content, knowledge_type, finance_flag, sensitivity_level, confidence, doc_slug
-            ),
-        )
-        mark_terminal(capture_id, "pending_created")
+        return json.dumps({
+            "success": True,
+            "slug": result.get("slug", ""),
+            "product_line_id": product_line_id,
+            "transaction_id": result.get("transaction_id", ""),
+            "current_state": result.get("current_state", ""),
+        })
+
+    failure_reason = result.get("failure_reason") or result.get("failure_category") or "unknown"
+    failure_category = result.get("failure_category") or failure_reason
+    capture_id = result.get("pending_capture_id", "")
+    try:
+        from agent import sedimentation_metrics
+        sedimentation_metrics.increment("knowledge_write_failed")
+    except Exception:
+        pass
+
+    if failure_category in {
+        "product_line_not_authorized",
+        "source_uri_required",
+        "finance_write_not_authorized",
+        "user_identity_unknown",
+    }:
         try:
-            from agent import sedimentation_metrics
-            sedimentation_metrics.increment("knowledge_write_failed")
+            from agent.memory_dispatcher import dispatch_tool_failure
+            dispatch_tool_failure(
+                title=title,
+                source_uri=source_uri,
+                actor_user_id=mgr._ctx.user_id,
+                session_id=task_id,
+                product_line_hint=product_line_id,
+            )
         except Exception:
             pass
         return json.dumps({
             "error": "permission_denied",
-            "reason": reason,
+            "reason": failure_reason,
+            "failure_reason": failure_reason,
+            "failure_category": failure_category,
             "pending_capture_id": capture_id,
-            "next_action": _next_action_hint(reason, product_line_id, task_id),
+            "transaction_id": result.get("transaction_id", ""),
+            "current_state": result.get("current_state", ""),
+            "next_action": _next_action_hint(failure_category, product_line_id, task_id),
         })
-    except Exception as exc:
-        logger.error("knowledge write failed: %s", exc)
-        capture_id = write_pending_capture(
-            title=title, summary=content[:500], candidate_type="knowledge",
-            scope_id=product_line_id, source_uri=source_uri, confidence=confidence,
-            missing_fields=[], failure_reason=f"write_failed:{type(exc).__name__}",
-            session_id=task_id, user_id=mgr._ctx.user_id,
-            platform=get_session_env("HERMES_SESSION_PLATFORM", ""),
-            structured_candidate=_structured_write_candidate(
-                content, knowledge_type, finance_flag, sensitivity_level, confidence, doc_slug
-            ),
-        )
-        mark_terminal(capture_id, "pending_created")
-        try:
-            from agent import sedimentation_metrics
-            sedimentation_metrics.increment("knowledge_write_failed")
-        except Exception:
-            pass
+
+    if result.get("current_state") == TransactionState.IDENTITY_BLOCKED:
         return json.dumps({
-            "error": "write_failed",
-            "reason": str(exc),
-            "pending_capture_id": capture_id,
-            "next_action": "Check pending captures at ~/.hermes/knowledge/pending_captures.jsonl",
+            "error": "identity_blocked",
+            "reason": failure_reason,
+            "failure_reason": failure_reason,
+            "failure_category": failure_category,
+            "transaction_id": result.get("transaction_id", ""),
+            "current_state": result.get("current_state", ""),
+            "next_action": "Restore the original platform user identity before retrying knowledge_write",
         })
+
+    return json.dumps({
+        "error": "write_failed",
+        "failure_reason": failure_reason,
+        "failure_category": failure_category,
+        "reason": failure_reason,
+        "pending_capture_id": capture_id,
+        "transaction_id": result.get("transaction_id", ""),
+        "current_state": result.get("current_state", ""),
+        "next_action": "Check pending captures at ~/.hermes/knowledge/pending_captures.jsonl",
+    })
 
 
 def _pending_visible_to_manager(record: dict, mgr) -> bool:
