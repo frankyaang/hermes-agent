@@ -43,6 +43,12 @@ _PLANNING_LLM_ALLOWED_TASK_TYPES = frozenset({
     "generic",
 })
 
+_DETERMINISTIC_SYSTEM_PIPELINES = frozenset({
+    "artifact_status_flow",
+    "artifact_delivery_flow",
+    "doc_publish_flow",
+})
+
 def _parse_internal_skill_call(message: str) -> dict[str, str] | None:
     """Detect internal agent-system skill execution messages.
 
@@ -910,8 +916,21 @@ def _summarize_node_results_for_planning(results: list[dict[str, Any]]) -> list[
 def _make_planning_react_callback(routes_payload: dict[str, Any]):
     def _callback(payload: dict[str, Any]) -> dict[str, Any]:
         stage = str(payload.get("stage") or "post_audit_react")
+        pipeline_id = str(payload.get("pipeline_id") or "")
+        if (
+            stage == "post_audit_react"
+            and payload.get("status") == "completed"
+            and pipeline_id in _DETERMINISTIC_SYSTEM_PIPELINES
+        ):
+            return {
+                "llm_used": False,
+                "stage": stage,
+                "pipeline_id": pipeline_id,
+                "reason": "deterministic_system_pipeline",
+                "react_decision": "none",
+            }
         limited_payload = {
-            "pipeline_id": payload.get("pipeline_id"),
+            "pipeline_id": pipeline_id,
             "status": payload.get("status"),
             "review_summary": payload.get("review_summary", {}),
             "planning_meta": payload.get("planning_meta", {}),

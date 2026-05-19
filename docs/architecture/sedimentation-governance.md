@@ -159,4 +159,4 @@ gstack 不可直接写 system_mem / expert_mem / skill_mem
 **升级判断：wired 但不 production_ready。剩余 blocker：**
 1. 无真实流量 smoke（SESSION_CAPTURE_AUTO_ENABLED=OFF）
 2. gstack CLI 未安装（phases non_ready）
-3. routes production_ready=0
+3. routes production_ready=3/8：artifact_status_flow、artifact_delivery_flow、doc_publish_flow 已具备本地 system executor；VOC/ops/dashboard/report_revision 仍 unknown/non_ready

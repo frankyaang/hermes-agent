@@ -128,33 +128,33 @@
     },
     {
       "pipeline_id": "artifact_status_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "artifact_status"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "status report containing artifact_path, file_meta, artifact_status",
+      "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_status; no external side effects.",
+      "owner": "agent_system"
     },
     {
       "pipeline_id": "artifact_delivery_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "artifact_delivery"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "artifact_path plus inline text preview when safe, otherwise path-only delivery",
+      "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_delivery; text preview capped and binary files delivered by path.",
+      "owner": "agent_system"
     },
     {
       "pipeline_id": "doc_publish_flow",
-      "readiness_state": "unknown",
-      "production_ready": false,
-      "allowed_entrypoints": [],
+      "readiness_state": "ready",
+      "production_ready": true,
+      "allowed_entrypoints": ["gateway", "feishu", "cli"],
       "required_skills": ["artifact_resolver", "doc_publish"],
-      "output_contract": "",
-      "readiness_reason": "executor_type and output_contract not yet declared; pending evidence review",
-      "owner": ""
+      "output_contract": "local fallback publish package with artifact_path, file_meta, content_preview, requires_external_publish=true",
+      "readiness_reason": "Round 15: deterministic local doc publish fallback package; does not call Feishu API.",
+      "owner": "agent_system"
     },
     {
       "pipeline_id": "dashboard_from_artifact_flow",
@@ -281,33 +281,33 @@
     },
     {
       "skill_id": "artifact_status",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": true,
+      "output_contract": "status report containing artifact_path, file_meta, artifact_status",
+      "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor with deterministic local file stat behavior.",
+      "owner": "agent_system"
     },
     {
       "skill_id": "artifact_delivery",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": true,
+      "output_contract": "artifact_path plus capped content_preview for text files; path-only for binary files",
+      "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor with capped preview and no external side effects.",
+      "owner": "agent_system"
     },
     {
       "skill_id": "doc_publish",
-      "readiness_state": "unknown",
-      "executable": false,
-      "executor_type": "unknown",
-      "production_ready": false,
-      "output_contract": "",
-      "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
-      "owner": ""
+      "readiness_state": "ready",
+      "executable": true,
+      "executor_type": "system",
+      "production_ready": true,
+      "output_contract": "local fallback publish package; requires_external_publish=true when external API publish is needed",
+      "readiness_reason": "Round 15: implemented in agent_system.system_skill_executor as local fallback package; Feishu API publish remains out of scope.",
+      "owner": "agent_system"
     },
     {
       "skill_id": "report_revision",

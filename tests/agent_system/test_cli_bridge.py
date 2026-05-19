@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from agent_system.capability_readiness import _invalidate_manifest_cache
 from agent_system.human_approval import APPROVAL_CHOICES
-from agent_system.cli_bridge import maybe_run_agent_system_from_message
+from agent_system.cli_bridge import _make_planning_react_callback, maybe_run_agent_system_from_message
 from agent_system.hermes_sdk import (
     HermesExpertManager,
     HermesSchedulerManager,
@@ -693,6 +693,43 @@ def test_initial_planning_llm_uses_configured_opus(tmp_path: Path, monkeypatch) 
     assert call_args[0]["max_tokens"] == 1200
     assert captured[0].planning_llm["llm_used"] is True
     assert captured[0].planning_llm["stage"] == "initial_plan"
+
+
+def test_post_audit_react_skips_llm_for_deterministic_artifact_pipeline(monkeypatch) -> None:
+    calls: list[dict] = []
+
+    def fake_load_config():
+        return {
+            "agent_system": {
+                "planning_llm": {
+                    "enabled": True,
+                    "provider": "xiamiapi",
+                    "model": "claude-opus-4-7",
+                }
+            }
+        }
+
+    def fake_call_llm(**kwargs):
+        calls.append(kwargs)
+        raise AssertionError("planning LLM should be skipped")
+
+    monkeypatch.setattr("hermes_cli.config.load_config", fake_load_config)
+    monkeypatch.setattr("agent.auxiliary_client.call_llm", fake_call_llm)
+
+    callback = _make_planning_react_callback({"pipelines": []})
+    result = callback(
+        {
+            "stage": "post_audit_react",
+            "pipeline_id": "artifact_status_flow",
+            "status": "completed",
+            "results": [],
+            "review_summary": {},
+        }
+    )
+
+    assert result["llm_used"] is False
+    assert result["reason"] == "deterministic_system_pipeline"
+    assert calls == []
 
 
 def test_run_conversation_invokes_agent_system_bridge(monkeypatch) -> None:

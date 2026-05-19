@@ -28,3 +28,4 @@
 - 2026-05-14T11:08:04.666851+00:00 `Run_doc_publish_flow_20260514T110756` Skill级经验: skill=artifact_resolver; calls=0; completed=0; average_quality=0.0; exceptions=0; 写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。
 - 2026-05-14T11:10:33.996371+00:00 `Run_doc_publish_flow_20260514T111023` Skill级经验: skill=artifact_resolver; calls=0; completed=0; average_quality=0.0; exceptions=0; 写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。
 - 2026-05-14T11:16:43.796508+00:00 `Run_report_revision_flow_20260514T111632` Skill级经验: skill=artifact_resolver; calls=0; completed=0; average_quality=0.0; exceptions=0; 写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。
+- 2026-05-19T13:40:33.131107+00:00 `Run_artifact_status_flow_20260519T134033` Skill级经验: skill=artifact_resolver; calls=0; completed=0; average_quality=0.0; exceptions=0; 写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。

@@ -1087,7 +1087,23 @@ class HermesAgentSystemRuntime:
         }
         started_at = self.now_fn().isoformat()
         try:
-            raw_result = self.skill_executor(context)
+            readiness = cr.check_skill_readiness(self.project_root, skill_id)
+            if readiness.executor_type == "system" and readiness.executable:
+                from agent_system.system_skill_executor import (
+                    can_execute_system_skill,
+                    execute_system_skill,
+                )
+
+                if can_execute_system_skill(skill_id):
+                    raw_result = execute_system_skill(
+                        skill_id=skill_id,
+                        context=context,
+                        project_root=self.project_root,
+                    )
+                else:
+                    raw_result = self.skill_executor(context)
+            else:
+                raw_result = self.skill_executor(context)
             if not isinstance(raw_result, dict):
                 raw_result = {"result_summary": str(raw_result)}
             status = raw_result.get("status", "completed")
@@ -1522,6 +1538,13 @@ class HermesAgentSystemRuntime:
             )
             if isinstance(output, dict):
                 for field_name in (
+                    "artifact_path",
+                    "main_report_path",
+                    "artifact_status",
+                    "delivery_mode",
+                    "publish_mode",
+                    "requires_external_publish",
+                    "file_meta",
                     "top15_count",
                     "risk_adjustment_status",
                     "competitor_coverage",

@@ -102,6 +102,27 @@ git checkout agent_system/cli_bridge.py
 scripts/run_tests.sh
 ```
 
+## 选择性回滚 Round 15（artifact readiness / system executor）
+
+```bash
+git checkout HEAD~1 -- \
+  agent_system/capability_readiness.py \
+  agent_system/cli_bridge.py \
+  agent_system/runtime.py \
+  agent_system/readiness_manifest.json \
+  agent_system/skills/artifact_status/pipeline/artifact_status_pipeline.json \
+  agent_system/skills/artifact_delivery/pipeline/artifact_delivery_pipeline.json \
+  agent_system/skills/doc_publish/pipeline/doc_publish_pipeline.json \
+  tests/agent_system/test_cli_bridge.py \
+  tests/agent_system/test_runtime.py
+
+rm -f agent_system/system_skill_executor.py
+rm -f tests/agent_system/test_system_skill_executor.py
+
+python3 scripts/check_agent_system_readiness.py
+scripts/run_tests.sh tests/agent_system/ -q
+```
+
 ## 不影响的已有文件
 
 - run_agent.py（quality gate 在 Round 12 已集成，本轮不动）

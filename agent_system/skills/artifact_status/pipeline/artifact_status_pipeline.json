@@ -1,1 +1,18 @@
-{"name":"artifact_status_pipeline","version":1,"steps":[],"status":"empty_example_pipeline"}
+{
+  "name": "artifact_status_pipeline",
+  "version": 1,
+  "executor_type": "system",
+  "steps": [
+    {
+      "id": "resolve_artifact",
+      "executor": "agent_system.system_skill_executor",
+      "output": "artifact_path"
+    },
+    {
+      "id": "read_file_status",
+      "executor": "agent_system.system_skill_executor",
+      "output": "artifact_path, file_meta, artifact_status"
+    }
+  ],
+  "status": "ready"
+}

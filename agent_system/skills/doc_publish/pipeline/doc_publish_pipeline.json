@@ -1,1 +1,18 @@
-{"name":"doc_publish_pipeline","version":1,"steps":[],"status":"empty_example_pipeline"}
+{
+  "name": "doc_publish_pipeline",
+  "version": 1,
+  "executor_type": "system",
+  "steps": [
+    {
+      "id": "resolve_artifact",
+      "executor": "agent_system.system_skill_executor",
+      "output": "artifact_path"
+    },
+    {
+      "id": "prepare_local_publish_package",
+      "executor": "agent_system.system_skill_executor",
+      "output": "artifact_path, file_meta, content_preview, requires_external_publish"
+    }
+  ],
+  "status": "ready_local_fallback"
+}

@@ -134,3 +134,4 @@
 - 2026-05-14T11:08:04.666851+00:00 `Run_doc_publish_flow_20260514T110756` 系统级经验: pipeline=doc_publish_flow; success_rate=100.0%; review_triggers=biweekly_review,key_node_completion; 写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。
 - 2026-05-14T11:10:33.996371+00:00 `Run_doc_publish_flow_20260514T111023` 系统级经验: pipeline=doc_publish_flow; success_rate=100.0%; review_triggers=biweekly_review,key_node_completion; 写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。
 - 2026-05-14T11:16:43.796508+00:00 `Run_report_revision_flow_20260514T111632` 系统级经验: pipeline=report_revision_flow; success_rate=100.0%; review_triggers=biweekly_review,key_node_completion; 写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。
+- 2026-05-19T13:40:33.131107+00:00 `Run_artifact_status_flow_20260519T134033` 系统级经验: pipeline=artifact_status_flow; success_rate=100.0%; review_triggers=key_node_completion; 写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。

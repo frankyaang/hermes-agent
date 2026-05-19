@@ -2601,7 +2601,7 @@ evidence 级别：wired（接线完成，真实流量 smoke 不足）
 **剩余 blocker（按优先级）：**
 1. 无真实流量 smoke — SESSION_CAPTURE_AUTO_ENABLED=OFF，events.jsonl 仅 2 行（手动触发）
 2. gstack CLI 未安装 — gstack phases 保持 non_ready
-3. routes production_ready=0 — 无生产入口证据
+3. routes production_ready=0 — 无生产入口证据（Round 15 前状态；artifact 低风险入口后续已推进）
 4. sedimentation_components 全部 wired，无一 smoke_tested 或 production_ready
 
 **获得升级权的前提：**
@@ -2615,6 +2615,72 @@ evidence 级别：wired（接线完成，真实流量 smoke 不足）
 - Gate 1 pending/staging: ✅ pending 14/14 已 `migrated_to_staging` 且 `status=archived`；staging 16 行
 - Gate 2 experience_card: ✅ 设计边界 — runtime 为 ephemeral injection；`persistent_store_enabled=false`；`cards.jsonl` 仅有 1 行手动 smoke/seed 产物，不代表自动 runtime authoring
 - Gate 3 project_process: ✅ `project_process/records.jsonl` 2 行 smoke 产物
-- Gate 4 readiness: ✅ manifest 无虚假 production_ready；sedimentation 8/8 wired，routes 0/8，gstack 0/3
+- Gate 4 readiness: ✅ manifest 无虚假 production_ready；sedimentation 8/8 wired，routes 0/8，gstack 0/3（Round 15 前状态）
 - Gate 5 docs/tests: ✅ ARCHITECTURE.md / governance.md / RESTORE.md 对齐到 d6078ebc3；本轮聚焦验证 71 passed + 46 passed；full suite 17864 passed（见最近一次 full suite run）
 - smoke: events.jsonl=2，staging.jsonl=16，pending=14（migrated_to_staging），project_process=2，cards.jsonl=1（手动 smoke/seed，非自动 runtime authoring）
+
+---
+
+## Round 15 — Agent-System Readiness Root Fix + Artifact Route Execution
+
+> Date: 2026-05-19 | Status: complete
+
+### Goal
+
+修复真实运行时 readiness manifest 路径误判，并把低风险 artifact 链路从空壳 route 晋级为可执行闭环。
+成功标准是：`agent_system/` 作为 root 时能读取同一份 `readiness_manifest.json`；
+`artifact_status_flow`、`artifact_delivery_flow`、`doc_publish_flow` 至少具备本地系统执行器和 manifest readiness；
+显式 agent-system 调用不再因为 manifest 路径错误被误报为 missing pipeline。
+
+### Scope
+
+- `agent_system/capability_readiness.py`：兼容 repo root 和 `agent_system/` root。
+- `agent_system/runtime.py`：当 skill manifest 声明 `executor_type=system` 时走本地系统执行器。
+- 新增 artifact 系统技能执行器：`artifact_resolver`、`artifact_status`、`artifact_delivery`、`doc_publish`。
+- `agent_system/readiness_manifest.json`：晋级低风险 artifact skills/routes，保留重分析类流程为 unknown/non_ready。
+- artifact pipeline JSON：从 empty marker 改为可读步骤说明。
+- 测试覆盖 root 归一化、system executor、production candidates。
+
+### Non-goals
+
+- 不安装或调用真实 gstack CLI。
+- 不把 VOC/ops/dashboard/report_revision 晋级为 production_ready。
+- 不绕过 readiness gate；只为有本地确定性执行器的 artifact route 晋级。
+- 不重启 Gateway，不改用户运行态 config。
+
+### Validation
+
+- `python3 scripts/check_agent_system_readiness.py`
+- `scripts/run_tests.sh tests/agent_system/test_production_readiness.py tests/agent_system/test_artifact_resolver.py tests/agent_system/test_system_skill_executor.py -q`
+- `git diff --check`
+
+### Progress
+
+- [x] 发现真实运行时 root 为 `agent_system/` 时会查找 `agent_system/agent_system/readiness_manifest.json`，导致 manifest missing 误判。
+- [x] 修复 root/readiness_manifest 路径归一化：repo root 和 `agent_system/` root 均可读取同一 manifest。
+- [x] 实现 artifact 系统技能执行器：`artifact_resolver`、`artifact_status`、`artifact_delivery`、`doc_publish`。
+- [x] 晋级 artifact route readiness：`artifact_status_flow`、`artifact_delivery_flow`、`doc_publish_flow`。
+- [x] 测试与 readiness check：`tests/agent_system/` → 287 passed；readiness check → 3 ready routes / 4 ready skills。
+- [x] 真实 smoke：显式 `artifact_status_flow` 调用完成，`api_calls=0`，`post_audit_react` 短路为 `deterministic_system_pipeline`。
+
+### Round 15 Readiness Result
+
+- Routes：3 ready / 1 non-ready / 4 unknown。
+- Skills：4 ready / 1 non-ready / 6 unknown。
+- Production candidates：`artifact_status_flow`、`artifact_delivery_flow`、`doc_publish_flow`。
+- 仍不建议升级 gateway/runtime：gstack CLI 仍未安装，VOC/ops/dashboard/report_revision 仍 unknown/non_ready，沉淀组件仍需真实流量阈值验证。
+
+### Decision Log
+
+- 先处理 artifact 链路，因为它们可以纯本地、确定性、无外部副作用地执行；相比 VOC/ops/dashboard/report_revision 更适合作为第一批 production candidates。
+- `doc_publish` 本轮只做本地 fallback publish package，不调用 Feishu API；真实飞书发布仍需独立授权和 smoke。
+
+### Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+python3 scripts/check_agent_system_readiness.py
+scripts/run_tests.sh tests/agent_system/test_production_readiness.py tests/agent_system/test_artifact_resolver.py -q
+```

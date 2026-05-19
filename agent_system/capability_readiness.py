@@ -9,6 +9,42 @@ _MANIFEST_FILE = "readiness_manifest.json"
 _MANIFEST_CACHE: dict[str, dict] = {}
 
 
+def _manifest_path(root: Path) -> Path:
+    """Resolve readiness_manifest.json from either repo root or agent_system root.
+
+    Production entrypoints pass the agent_system directory as root, while
+    standalone scripts often pass the repository root. Keep both forms valid
+    so the gate never reports false "missing pipeline" errors due to path shape.
+    """
+    root = Path(root)
+    direct = root / _MANIFEST_FILE
+    nested = root / "agent_system" / _MANIFEST_FILE
+    if direct.exists():
+        return direct
+    if nested.exists():
+        return nested
+    if (root / "scheduler" / "main_scheduler" / "routes.json").exists() or (
+        root / "skills"
+    ).exists():
+        return direct
+    return nested
+
+
+def _project_dir(root: Path) -> Path:
+    """Resolve the agent_system project directory from repo or project root."""
+    root = Path(root)
+    if (root / "scheduler" / "main_scheduler" / "routes.json").exists():
+        return root
+    nested = root / "agent_system"
+    if (nested / "scheduler" / "main_scheduler" / "routes.json").exists():
+        return nested
+    if (root / _MANIFEST_FILE).exists() and (root / "skills").exists():
+        return root
+    if (nested / _MANIFEST_FILE).exists() and (nested / "skills").exists():
+        return nested
+    return nested
+
+
 @dataclass
 class ReadinessResult:
     id: str
@@ -29,7 +65,7 @@ class ReadinessResult:
 
 
 def load_readiness_manifest(root: Path) -> dict[str, Any]:
-    path = Path(root) / "agent_system" / _MANIFEST_FILE
+    path = _manifest_path(Path(root))
     key = str(path)
     if key not in _MANIFEST_CACHE:
         if path.exists():
@@ -40,8 +76,9 @@ def load_readiness_manifest(root: Path) -> dict[str, Any]:
 
 
 def _invalidate_manifest_cache(root: Path) -> None:
-    key = str(Path(root) / "agent_system" / _MANIFEST_FILE)
-    _MANIFEST_CACHE.pop(key, None)
+    root = Path(root)
+    for path in {root / _MANIFEST_FILE, root / "agent_system" / _MANIFEST_FILE}:
+        _MANIFEST_CACHE.pop(str(path), None)
 
 
 def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> list[str]:
@@ -55,7 +92,7 @@ def validate_readiness_manifest(root: Path, routes_payload: dict[str, Any]) -> l
         if pid and pid not in manifest_pipeline_ids:
             errors.append(f"MANIFEST_MISSING: pipeline {pid!r} not in readiness_manifest.json")
 
-    skills_root = Path(root) / "agent_system" / "skills"
+    skills_root = _project_dir(Path(root)) / "skills"
     if skills_root.exists():
         for skill_dir in sorted(skills_root.iterdir()):
             if skill_dir.is_dir() and not skill_dir.name.startswith("_"):

@@ -38,7 +38,7 @@ def _write_ready_manifest(root: Path, pipeline_ids: list[str], skill_ids: list[s
                 "skill_id": sid,
                 "readiness_state": "ready",
                 "executable": True,
-                "executor_type": "system",
+                "executor_type": "delegate_task",
                 "production_ready": True,
                 "output_contract": "test_output",
                 "readiness_reason": "test fixture",
