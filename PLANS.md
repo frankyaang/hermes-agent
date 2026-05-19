@@ -1,3 +1,242 @@
+# Phase 8 — 生产准入收口（2026-05-19）
+
+## 目标
+
+将 integrate 分支的 Cognitive Governance Kernel MVP 安全合入 dev，完成主路径接线，
+关闭 pending 知识捕获，补全 HERMES_HOME runtime 产物，诚实收口所有能力状态。
+
+## 当前不能升级 Hermes 的原因（已清除）
+
+| 原因 | Gate 0 状态 | Phase 8 后状态 |
+|------|------------|----------------|
+| 14 个 Cognitive/MemoryOps 模块缺失 | MISSING | ✅ 全部合入 |
+| run_agent.py 无 session_capture 接线 | 缺失 | ✅ _capture_session_memory 已插入 |
+| experience_cards/ 目录不存在 | 不存在 | ✅ smoke 创建并写入 |
+| project_process/ 目录不存在 | 不存在 | ✅ smoke 创建并写入 |
+| 14 条 pending_captures 全部卡住 | 14 pending | ✅ 全部 archived |
+| cognitive_governance 未在 toolsets 注册 | 缺失 | ✅ 已注册 |
+| gstack binary 不存在 | NOT FOUND | ✅ 标 deferred（诚实） |
+
+## 合入文件清单（Phase 8 新增）
+
+**agent/ 模块（从 integrate 安全复制）**：
+- memory_event.py, memory_dispatcher.py, staging_store.py, session_capture.py
+- usage_hint.py, experience_card.py, memory_relations.py, insight_gap_scan.py
+- promotion_decision.py, project_process_store.py, evaluator.py
+
+**tools/**：cognitive_tool.py
+
+**scripts/**：migrate_pending_captures.py, verify_memory_mvp.py
+
+**tests/**：test_memory_event.py, test_memory_dispatcher.py, test_staging_store.py,
+test_session_capture.py, test_usage_hint.py, test_experience_card.py,
+test_insight_gap_scan.py, test_promotion_decision.py,
+tests/integration/test_cognitive_vertical_slice.py,
+tests/integration/test_memory_mvp_cases.py,
+tests/agent_system/test_quality_pulse.py
+
+**修改文件**：
+- run_agent.py — 新增 `_capture_session_memory` 方法 + 调用（非 frozen 段）
+- toolsets.py — 追加 cognitive_governance toolset
+- tools/session_search_tool.py — 结果注入 usage_hint
+- tools/knowledge_tool.py — permission_denied 时调用 dispatch_tool_failure
+- tests/tools/test_registry.py — 期望集合加入 cognitive_tool
+- agent_system/readiness_manifest.json — 新增 13 个能力条目
+
+## 验证结果（2026-05-19）
+
+| 测试类别 | 结果 |
+|---------|------|
+| Cognitive/MemoryOps 核心（8 文件）| 145 pass |
+| Integration（cognitive + memory_mvp）| 43 pass |
+| Quality Pulse | 31 pass |
+| Weekly runtime E2E | 7 pass |
+| Quality Loop | 13 pass |
+| 宽回归（agent/ + integration/ + tools/）| 6563 pass, 46 skip, 0 fail |
+
+## HERMES_HOME smoke 证据（2026-05-19）
+
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| memory_events/events.jsonl | 2 | 真实主路径产生 |
+| staging/staging.jsonl | 16 | 真实主路径产生 |
+| experience_cards/cards.jsonl | 1 | smoke 写入，cards.jsonl 存在 |
+| project_process/records.jsonl | 2 | smoke 写入，records.jsonl 存在 |
+| knowledge/pending_captures.jsonl | 14 | 全部 archived |
+
+## Recovery
+
+```bash
+# 回退 Phase 8 改动（保留工作区）
+git log --oneline -8          # 找到 Phase 8 第一个 commit hash
+git reset HEAD~<n>            # soft reset（保留文件），n = Phase 8 commit 数量
+
+# 重跑核心 smoke
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-dev/.venv \
+  scripts/run_tests.sh tests/agent/test_session_capture.py \
+  tests/integration/test_cognitive_vertical_slice.py
+
+# 重跑宽回归
+HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-dev/.venv \
+  scripts/run_tests.sh tests/agent/ tests/integration/ tests/tools/
+
+# 判断是否可升级 Hermes
+# 1. readiness_manifest 中 blocking capabilities = contract_complete 或以上
+# 2. HERMES_HOME smoke 全部通过（5 个文件存在）
+# 3. run_agent.py _build_system_prompt 行号（当前 4927）内容未变
+# 4. pending_captures.jsonl 全部 archived（status_counts = {archived: 14}）
+# 5. scripts/run_tests.sh 无新 FAIL
+```
+
+## Non-goals（Phase 8 明确不做）
+
+- gstack（binary 未安装，标 deferred）
+- CognitiveRelease / CognitiveAuthority / Governor（独立 RFC）
+- ThinkingTrace 实时 hook（需修改 run_agent.py 主循环，cache 风险）
+- Pattern Registry（需积累 InsightDelta 样本）
+- gbrain 安装（外部依赖，不在本计划范围）
+
+---
+
+# Phase 7 — 最终收口（2026-05-19）
+
+## 当前未闭合验收项（Phase 7 目标）
+
+| ID | 问题 | 根因 | 修复文件 |
+|---|---|---|---|
+| P0-1 | issue_extractor 无生产 LLM 路径 | `llm_call_fn=None` 抛 RuntimeError，无默认 Anthropic 路径 | `issue_extractor/skill.py` |
+| P0-2 | Weekly E2E 从手工构造 Issue 开始 | `test_weekly_flow_runtime_e2e.py` 跳过 raw material | 新增 `test_weekly_flow_production_e2e.py` |
+| P0-3 | `_on_card_action_trigger` weekly 路由无测试 | 只有 handler 测试，无路由层测试 | 新增 `test_feishu_weekly_callback.py` |
+| P0-4 | pending → confirmed 状态连续性断裂 | `_load_weekly_issue_lookup` 重建 Issue 时 `recommended_option` 为空，导致 `route_issue` 返回 `need_more_info` | `ExecutionContract` 加 `original_recommended_option` 字段 |
+| P1-1 | 多轮质量集成测试缺失 | 无 run_conversation 级别测试验证 correction→state→gate 闭环 | 新增 `test_understanding_loop_run_conversation.py` |
+| P1-2 | 质量机制启用策略不明确 | 只有 env var，无 config.yaml 集成或文档说明 | 新增配置策略测试 |
+| P1-3 | `_do_quality_rewrite` 无 provider fallback | 只假设 Anthropic 路径，非兼容 provider 会静默失败 | `run_agent.py` 加 provider 检测 |
+
+## 修改文件清单
+
+- `agent_system/schemas/weekly_schemas.py` — `ExecutionContract` 加 `original_recommended_option` 字段
+- `agent_system/stores/weekly_ledger_store.py` — `_contract_to_dict` / `_dict_to_contract` 处理新字段
+- `agent_system/skills/execution_contract/skill.py` — pending contract 保存 `original_recommended_option`
+- `agent_system/skills/issue_extractor/skill.py` — 加默认 Anthropic API 路径
+- `gateway/platforms/feishu.py` — `_load_weekly_issue_lookup` 使用 `original_recommended_option`
+- `run_agent.py` — `_get_quality_rewrite_fn` provider 检测
+
+## 新增测试文件
+
+- `tests/agent_system/skills/test_issue_extractor_runtime.py`
+- `tests/agent_system/test_weekly_flow_production_e2e.py`
+- `tests/gateway/test_feishu_weekly_callback.py`
+- `tests/agent_system/test_weekly_pending_to_confirmed.py`
+- `tests/run_agent/test_understanding_loop_run_conversation.py`
+- `tests/run_agent/test_quality_loop_config_strategy.py`
+- `tests/run_agent/test_quality_rewrite_provider_fallback.py`
+
+## 额外修复（执行过程中发现）
+
+- `agent_system/skills/execution_contract/skill.py` — pending contract 追加 `acceptance_criteria` 字段（路由重建必须）
+- `gateway/platforms/feishu.py` `_load_weekly_issue_lookup` — 重建 Issue 时加入 `acceptance_criteria`（来自 contract）
+- `agent_system/skills/execution_contract/skill.py` — consensus_ledger 输出加 `fake_closure_count` 字段
+- `agent_system/skills/issue_extractor/skill.py` — 修复 `_EXTRACTION_PROMPT.format()` 与 JSON 括号冲突（改为 `.replace()`）
+
+## production_ready 前置条件
+
+| node | 当前 | 条件 |
+|---|---|---|
+| `issue_extractor` | **true** ✅ | P0-1 ~ P0-4 全通过，2026-05-19 改 true |
+| `decision_gate` | true ✅ | 已满足 |
+| `execution_contract` | true ✅ | 已满足 |
+
+## 验证结果（2026-05-19）
+
+**Phase 7 新增测试（46 个）：全部 PASS**
+
+```
+tests/agent_system/skills/test_issue_extractor_runtime.py    8/8 ✅
+tests/agent_system/test_weekly_flow_production_e2e.py        5/5 ✅
+tests/gateway/test_feishu_weekly_callback.py                 7/7 ✅
+tests/agent_system/test_weekly_pending_to_confirmed.py       5/5 ✅
+tests/run_agent/test_understanding_loop_run_conversation.py  7/7 ✅
+tests/run_agent/test_quality_loop_config_strategy.py         7/7 ✅
+tests/run_agent/test_quality_rewrite_provider_fallback.py    7/7 ✅
+```
+
+**完整回归（2026-05-19）**：
+- 7704 passed, 11 skipped, 4 failed
+- 4 个失败均为预存问题（`test_background_review.py` 缺少 `fire` 模块），与 Phase 7 无关
+- 无新增回归
+
+---
+
+# Phase 6 — Hermes 闭环验收（2026-05-19）
+
+## 当前缺口
+
+| ID | 缺口 | 文件 | 状态 |
+|---|---|---|---|
+| G1 | Quality Gate history inconsistency | `run_agent.py:13476` | `_build_assistant_message` 用 `assistant_message.content`（原始），不用改写后的 `final_response` |
+| G2 | Feishu 真实入口缺失 | `gateway/platforms/feishu.py:2422` | `_on_card_action_trigger` 无 `weekly_confirmation` 分支 |
+| G3 | 无平台中立 handler | 缺文件 | `weekly_confirmation_handler.py` 不存在 |
+| G4 | production_ready 无测试依据 | `routes.json` | `execution_contract` 保持 false，阻塞原因：Feishu 入口未接入 |
+
+## 修改文件
+
+- `run_agent.py` — 在 `final_msg = _build_assistant_message(...)` 后同步 `final_msg["content"] = final_response`
+- `agent_system/adapters/weekly_confirmation_handler.py` — 新增平台中立 handler
+- `gateway/platforms/feishu.py` — `_on_card_action_trigger` 插入 `weekly_confirmation` 分支
+
+## 新增测试
+
+- `tests/run_agent/test_quality_gate_history_consistency.py` — 5 cases
+- `tests/gateway/test_feishu_weekly_confirmation.py` — 5 cases
+
+## production_ready 前置条件
+
+- `execution_contract`：M1A 7 个 E2E 测试通过（已满足）+ Feishu 确认入口测试通过
+- `issue_extractor`：仍为 LLM stub，保持 false
+
+## 验证命令
+
+```bash
+scripts/run_tests.sh tests/run_agent/test_quality_gate_history_consistency.py -v
+scripts/run_tests.sh tests/gateway/test_feishu_weekly_confirmation.py -v
+scripts/run_tests.sh tests/run_agent/ tests/gateway/test_feishu_weekly_confirmation.py tests/agent_system/ -v
+```
+
+## 验证结果（2026-05-19）
+
+### 新增测试
+- `tests/run_agent/test_quality_gate_history_consistency.py` — 6/6 PASS
+- `tests/gateway/test_feishu_weekly_confirmation.py` — 5/5 PASS
+
+### 完整回归
+- 3729 passed, 8 skipped（原 3718 + 11 新增）
+- 4 pre-existing FAILED（`test_background_review.py`，fire 模块缺失，与本次无关）
+
+### 实现内容
+| 变更 | 文件 | 行 |
+|---|---|---|
+| G1 history sync | `run_agent.py:13476` | `final_msg["content"] = final_response`（4 行） |
+| G3 平台中立 handler | `agent_system/adapters/weekly_confirmation_handler.py` | 新增 |
+| G2 Feishu 真实入口 | `gateway/platforms/feishu.py:2422` | 插入 `weekly_confirmation` 分支 + `_handle_weekly_confirmation_action` |
+
+### production_ready 状态（最终）
+| node | 状态 | 依据 |
+|---|---|---|
+| `decision_gate` | **true**（Phase 3） | 纯函数，全 golden fixture 通过 |
+| `execution_contract` | **true**（本轮） | M1A 7 个 E2E 通过 + Feishu 入口 5 个测试通过 |
+| `issue_extractor` | false | LLM stub，无真实 LLM 集成测试 |
+
+### 新增测试（本轮完整）
+- `tests/run_agent/test_quality_gate_history_consistency.py` — 6/6 PASS
+- `tests/gateway/test_feishu_weekly_confirmation.py` — 5/5 PASS
+- `tests/agent/test_quality_convergence_mechanism.py` — 5/5 PASS
+
+### 最终回归（2026-05-19）
+- 3734 passed, 8 skipped（原 3718 + 16 新增）
+- 4 pre-existing FAILED（fire 模块缺失，与本次无关）
+
+---
+
 # Builder Intent Layer And Context Prefill
 
 ## Goal
@@ -2316,4 +2555,134 @@ HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tes
 cd /Users/frank/.hermes/hermes-agent-integrate
 git status --short --branch
 HERMES_TEST_VENV=/Users/frank/.hermes/hermes-agent-official/venv scripts/run_tests.sh
+```
+
+---
+
+# KnowledgeOps Orchestrator — 知识资产运营闭环 v1.0
+
+## Goal
+
+将 Hermes 知识/经验沉淀从"Agent 顺手调用工具"升级为"组织记忆运营系统"的第一版闭环，交付 5 个结果：
+1. Knowledge Asset Protocol（统一协议）
+2. KnowledgeOps Orchestrator（统一编排层）
+3. Golden Trace Release Gate（黄金验收样本）
+4. Pending Reconciliation Loop（pending 对账循环）
+5. KnowledgeOps Diagnostic Report（诊断报告能力）
+
+成功标准：`scripts/run_tests.sh tests/agent/` 全部通过；历史 golden traces 可稳定诊断；background review 不再产生 cli:frank:default 漂移；provider 不可用有明确错误分类和 retryable pending。
+
+## Phase 1 — 历史事实固化（只读分析结果）
+
+### 生产 pending_captures.jsonl 现状（2026-05-15，共 8 条）
+
+| capture_id前缀 | session_id | user_id | failure_reason | disposition |
+|---|---|---|---|---|
+| 8b542e4c | 20260515_150231_d5806c | feishu:ou_3a1f0c191d015df426a3a801ac3770c3 | write_failed:FileNotFoundError | retryable_provider |
+| 48182009 | 20260515_150231_d5806c | feishu:ou_3a1f0c191d015df426a3a801ac3770c3 | write_failed:FileNotFoundError | retryable_provider |
+| 58502708 | 20260515_152450_a167fb | feishu:ou_3a1f0c191d015df426a3a801ac3770c3 | write_failed:FileNotFoundError | retryable_provider |
+| 8d167f23 | 20260515_152450_a167fb | feishu:ou_3a1f0c191d015df426a3a801ac3770c3 | write_failed:FileNotFoundError | retryable_provider |
+| 05d78ae6 | 39805341-5485-403a-bbc9-bee8f799e0fa | cli:frank:default | product_line_not_authorized | blocked_identity |
+| 2fa523d3 | 39805341-5485-403a-bbc9-bee8f799e0fa | cli:frank:default | product_line_not_authorized | blocked_identity |
+| 0ef7002e | 39805341-5485-403a-bbc9-bee8f799e0fa | cli:frank:default | product_line_not_authorized | blocked_identity |
+| 9216f5f1 | 20260515_163628_649025db | feishu:ou_92e78aea6cb26fd9f159aa5b367e4e84 | write_failed:FileNotFoundError | retryable_provider |
+
+### Golden Trace 预期状态
+
+| Session ID | 描述 | 预期诊断 | Root Cause |
+|---|---|---|---|
+| 20260515_150231_d5806c | Feishu 前台身份正确但 provider 失败 | retryable_provider (gbrain executable_not_found) | gbrain CLI 未安装，FileNotFoundError 被模糊为 write_failed |
+| 20260515_152450_a167fb | 后台 review 触发了身份漂移 | parent: retryable_provider; child background review → blocked_identity | ContextVar 未跨线程继承，background review 丢失 Feishu user_id |
+| 20260515_161113_4f8e6e | 张嫄阿基米德知识 provider 失败 | retryable_provider | 同 gbrain 不可用 |
+| 20260515_163628_649025db | pending replay 缺少完整事务语义 | needs_human_review (无 source_session_id/idempotency_key) | PendingCapture 未保存完整事务上下文 |
+
+### Background Review 身份漂移根因
+
+`run_agent.py:_spawn_background_review()` 用 `threading.Thread` 创建新线程。Python `ContextVar` 不自动跨线程继承。新线程中 `_SESSION_USER_ID` 持有 `_UNSET` sentinel，`get_session_env()` fallback 到 `os.environ`，读取到 CLI 用户 `cli:frank:default`。
+
+修复：`contextvars.copy_context()` + 在 `AIAgent` 构造时传 `user_id=self._user_id`。
+
+### gbrain FileNotFoundError 根因
+
+`GBrainCLIKnowledgeProvider.write()` 调用 `subprocess.run(["gbrain", "put", slug])` 时 gbrain 未安装，抛 `FileNotFoundError`。该异常在 `knowledge_tool._knowledge_write()` 被 `except Exception as exc` 捕获，写入 `failure_reason=f"write_failed:{type(exc).__name__}"` → `write_failed:FileNotFoundError`。失败原因模糊，无法自动判断是否可重试。
+
+修复：在 `write()` 前调用 `is_available()` 检查；catch `FileNotFoundError` 归类为 `provider_unavailable/executable_not_found`；pending disposition 设为 `retryable_provider`。
+
+## Scope
+
+### 新增/修改文件
+
+- `agent/knowledge_models.py`：新增 `KnowledgeWriteTransaction`、`AssetType`、`TransactionState`（升级）、`ProviderError`
+- `agent/knowledge_audit.py`：升级为事务事件流，增加 lifecycle event types
+- `agent/knowledge_ops.py`（新建）：KnowledgeOps Orchestrator
+- `agent/pending_capture.py`：新增 `PendingDisposition`、`dry_run_reconcile()`，修复 `replay_pending` 身份保留
+- `plugins/knowledge/gbrain/provider.py`：错误分类修复，`write()` 前 health check
+- `run_agent.py`：`_spawn_background_review()` 修复 ContextVar 继承
+- `tools/knowledge_tool.py`：真实 `knowledge_write` 工具入口接入 KnowledgeOps Orchestrator；成功、ACL denied、provider failed 均输出 transaction_id/current_state
+- `tests/agent/test_knowledge_ops.py`（新建）：Golden trace + orchestrator tests
+- `tests/agent/test_pending_reconcile.py`（新建）：Reconciliation logic tests
+- `tests/agent/test_background_review_identity.py`（新建）：Identity drift prevention tests
+- `tests/tools/test_knowledge_tool.py`：补充工具入口事务审计和 pending 事务上下文断言
+- `scripts/knowledge_ops_report.py`（新建）：Diagnostic report
+
+### Non-goals
+
+- 不修改真实 ~/.hermes 生产数据（state.db、pending_captures.jsonl、audit logs）
+- 不 replay 生产数据（dry-run only）
+- 不重写 gbrain MCP 服务器模式
+- 不引入新的 LLM 调用
+
+## Milestones
+
+- [x] M1：只读历史分析完成，golden trace 预期状态写入 PLANS.md
+- [x] M2：knowledge_models.py 扩展完成（KnowledgeWriteTransaction + AssetType + TransactionState + ProviderError）
+- [x] M3：knowledge_audit.py 升级为事务事件流（TransactionAuditEvent、emit()、read_tx_events()）
+- [x] M4：gbrain provider 错误分类修复（ProviderUnavailableError、_assert_available()、FileNotFoundError → executable_not_found）
+- [x] M5：knowledge_ops.py Orchestrator 实现（身份解析、provider health check、lifecycle events、David 分层）
+- [x] M6：pending_capture.py reconciliation 逻辑（PendingDisposition、dry_run_reconcile、_classify_pending_disposition、replay 身份保留、write_pending_capture_tx）
+- [x] M7：run_agent.py background review 身份漂移修复（copy_context() + user_id=self._user_id）
+- [x] M8：Golden trace tests + KnowledgeOps test suite（58 tests）
+- [x] M9：scripts/knowledge_ops_report.py 诊断脚本（pending 分析 + audit 统计 + dry-run replay）
+- [x] M10：`scripts/run_tests.sh tests/agent/` → 2282 passed, 1 skipped, 0 failed
+
+## Validation Results (2026-05-15)
+
+```
+scripts/run_tests.sh tests/agent/ → 2282 passed, 1 skipped in 31.31s
+scripts/run_tests.sh tests/agent/test_knowledge_ops.py tests/agent/test_pending_reconcile.py tests/agent/test_background_review_identity.py → 58 passed
+scripts/run_tests.sh tests/tools/test_knowledge_tool.py tests/integration/test_knowledge_sedimentation_vertical_slice.py tests/agent/test_knowledge_ops.py tests/agent/test_pending_reconcile.py tests/agent/test_background_review_identity.py -q → 70 passed
+```
+
+Diagnostic report (`scripts/knowledge_ops_report.py --dry-run-replay`) correctly classifies:
+- 5 platform-user captures → retryable_provider (gbrain not installed; includes 4 Yang Zifeng + 1 Zhang Yuan)
+- 3 cli:frank:default captures → blocked_identity (background review drift)
+
+Codex follow-up check: direct `knowledge_write` no longer writes through legacy `KnowledgeManager.write()`; it constructs `KnowledgeOpsOrchestrator` and emits tx audit lifecycle events. ACL-denied writes now create pending records via `write_pending_capture_tx()` with `transaction_id`, `idempotency_key`, and `original_user_id`.
+
+## Definition of Done
+
+1. 历史会话黄金样本能稳定诊断（disposition 判断正确）
+2. background review 不再产生 cli:frank:default 漂移
+3. gbrain/provider 不可用有明确 executable_not_found 分类和 retryable pending
+4. pending replay 使用原始身份、原始 source、原始 scope
+5. audit 能记录从 candidate 到 terminal state 的全过程
+6. 统计报告能区分读取、写入意图、ACL 通过、provider 成功、pending、replay、query_verified
+7. David 类跨层级知识能通过 asset_type 正确分层
+8. `scripts/run_tests.sh tests/agent/` 全部通过
+
+## Validation
+
+```bash
+scripts/run_tests.sh tests/agent/test_knowledge_ops.py
+scripts/run_tests.sh tests/agent/test_pending_reconcile.py
+scripts/run_tests.sh tests/agent/test_background_review_identity.py
+scripts/run_tests.sh tests/agent/
+```
+
+## Recovery
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-dev
+git diff -- agent/knowledge_models.py agent/knowledge_ops.py agent/knowledge_audit.py agent/pending_capture.py plugins/knowledge/gbrain/provider.py run_agent.py
+scripts/run_tests.sh tests/agent/
 ```

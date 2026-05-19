@@ -92,6 +92,112 @@
       "owner": ""
     }
   ],
+  "capabilities": [
+    {
+      "capability_id": "memory_event",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "145 unit tests pass; events.jsonl exists with 2 real events",
+      "runtime_path": "agent/memory_event.py → HERMES_HOME/memory_events/events.jsonl",
+      "readiness_reason": "contracts verified; not yet wired in all main paths"
+    },
+    {
+      "capability_id": "memory_dispatcher",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "dispatch_tool_failure verified in knowledge_tool permission_denied path",
+      "runtime_path": "agent/memory_dispatcher.py → 5 destinations",
+      "readiness_reason": "contracts verified; requires full session integration review"
+    },
+    {
+      "capability_id": "session_capture",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "wired in run_agent.py _capture_session_memory post-round hook; 39 tests pass",
+      "runtime_path": "run_agent.py:_capture_session_memory → agent/session_capture.py:capture_turn",
+      "readiness_reason": "main path wired; smoke evidence requires live session run"
+    },
+    {
+      "capability_id": "experience_card",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "trigger_check+render_card smoke PASS; write_card verified; cards.jsonl created",
+      "runtime_path": "session_capture → experience_card.trigger_check → render_card → routing_hint",
+      "readiness_reason": "smoke verified; behavior injection proven via routing_hint containing usage_hint"
+    },
+    {
+      "capability_id": "usage_hint",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "wrap_with_hint smoke PASS; session_search_tool now injects usage_hint",
+      "runtime_path": "agent/usage_hint.py → tool results + session_search",
+      "readiness_reason": "contracts verified; full readback path integration pending"
+    },
+    {
+      "capability_id": "insight_gap_scan",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "14 tests pass; 7-branch decision logic verified",
+      "runtime_path": "agent/insight_gap_scan.py:scan() → ScanDecision",
+      "readiness_reason": "pure rule function; can be promoted to production when cognitive tool activated"
+    },
+    {
+      "capability_id": "promotion_decision",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "14 tests pass; 9-scope classifier verified; no auto-write proven",
+      "runtime_path": "agent/promotion_decision.py:classify() → PromotionScope",
+      "readiness_reason": "pure classifier; no write side effects; human gate required for execution"
+    },
+    {
+      "capability_id": "project_process_store",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "write_record smoke PASS; records.jsonl created at HERMES_HOME",
+      "runtime_path": "agent/project_process_store.py → HERMES_HOME/project_process/records.jsonl",
+      "readiness_reason": "smoke verified; dispatcher routing to project_process needs project_hint"
+    },
+    {
+      "capability_id": "cognitive_tool",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "registered in toolsets.py; tools pass registry discovery test",
+      "runtime_path": "tools/cognitive_tool.py → HERMES_HOME/cognitive/states.jsonl + insights.jsonl",
+      "readiness_reason": "toolset registered; cognitive_governance toolset can be explicitly enabled"
+    },
+    {
+      "capability_id": "gstack",
+      "readiness_state": "deferred",
+      "production_ready": false,
+      "evidence": "command -v gstack returned empty on 2026-05-19",
+      "runtime_path": "N/A — binary not installed",
+      "readiness_reason": "gstack binary not found in PATH; all gstack phases blocked from production"
+    },
+    {
+      "capability_id": "weekly_flow",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "7 runtime E2E tests pass; routes.json configured; Feishu dependency not available",
+      "runtime_path": "agent_system/scheduler → weekly_flow → Feishu (shadow/advisory)",
+      "readiness_reason": "Feishu not available in this environment; shadow/advisory only; not production_ready"
+    },
+    {
+      "capability_id": "quality_loop",
+      "readiness_state": "contract_complete",
+      "production_ready": false,
+      "evidence": "13 tests pass; shadow mode and config-gated mode verified",
+      "runtime_path": "run_agent.py:_classify_and_log_correction → understanding.correction_classifier",
+      "readiness_reason": "shadow mode verified; enforced mode requires UNDERSTANDING_LOOP_ENABLED=true"
+    },
+    {
+      "capability_id": "pending_captures_closure",
+      "readiness_state": "smoke_verified",
+      "production_ready": false,
+      "evidence": "14/14 pending captures archived; backup created; all staging entries present",
+      "runtime_path": "knowledge/pending_captures.jsonl → archived; staging/staging.jsonl updated",
+      "readiness_reason": "operational closure complete for current backlog; future captures need gbrain installation"
+    }
+  ],
   "skills": [
     {
       "skill_id": "voc_insight",
