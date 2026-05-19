@@ -10671,6 +10671,15 @@ class AIAgent:
                             _injections.append(_fenced)
                     if _plugin_user_context:
                         _injections.append(_plugin_user_context)
+                    try:
+                        from agent.experience_card import trigger_check, render_card
+                        _ec_text = original_user_message if isinstance(original_user_message, str) else ""
+                        if _ec_text:
+                            _ec_card = trigger_check(_ec_text)
+                            if _ec_card:
+                                _injections.append(render_card(_ec_card))
+                    except Exception:
+                        pass
                     if _injections:
                         _base = api_msg.get("content", "")
                         if isinstance(_base, str):

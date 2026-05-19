@@ -85,12 +85,12 @@
     },
     {
       "component_id": "experience_card",
-      "readiness_state": "contract_tested",
+      "readiness_state": "wired",
       "production_ready": false,
       "feature_flag": null,
-      "runtime_wired": false,
-      "readiness_reason": "ExperienceCard + DAVID_CARD defined. Dispatcher routes experience_card type. No runtime trigger from live sessions yet.",
-      "evidence": { "contract_tests": "S4 passed 2026-05-19" }
+      "runtime_wired": true,
+      "readiness_reason": "Round 14+: trigger_check() called in run_agent.py user-message injection loop; matching card render_card() injected as ephemeral context. No feature flag (conservative trigger — keyword match only). Dispatcher routes experience_card destination without write (human-review gate for new cards).",
+      "evidence": { "contract_tests": "S4 passed 2026-05-19", "runtime_wired": "run_agent.py injection loop 2026-05-19" }
     }
   ],
   "routes": [
