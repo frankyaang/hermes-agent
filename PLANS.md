@@ -2497,3 +2497,93 @@ scripts/run_tests.sh  # must show 0 new failures
 
 参见 RESTORE.md（Round 13 专用回滚指令）
 
+
+---
+
+## Round 14 — Sedimentation Runtime Wiring
+
+> Date: 2026-05-19 | Status: ✅ COMPLETE
+
+### 目标
+
+把 Round 13 合同测试层升级为真实 runtime 闭环。所有特性开关保持默认 OFF（shadow mode）。
+
+### 产出：修改文件（8个）
+
+- `run_agent.py` — capture_turn() in on_turn_start, SESSION_CAPTURE_AUTO_ENABLED gate
+- `agent/session_capture.py` — dispatch_event() after write_event()
+- `tools/knowledge_tool.py` — dispatch_tool_failure() on all write failure paths; usage_hint on query
+- `agent_system/cli_bridge.py` — dispatch_event() on permission_denied in _auto_sedate_knowledge()
+- `agent/memory_manager.py` — wrap_with_hint() in build_memory_context_block() under flag
+- `agent_system/runtime.py` — write_to_layer() ACL check before each _append_memory_line()
+- `agent_system/sedimentation/feature_flags.py` — set_flag() runtime override + _env_bool() helper
+- `agent_system/sedimentation/gstack_bridge.py` — map_phase_to_output_type() + route_gstack_result()
+
+### 产出：扩展文件（2个）
+
+- `agent/staging_store.py` — approve/reject/archive/update_next_action/stats + audit log + atomic writes
+- `agent/pending_capture.py` — stats() + migrate_to_staging() idempotent
+
+### 产出：新建测试（6个文件，52个测试）
+
+- `tests/agent/test_session_capture_runtime.py`
+- `tests/agent/test_knowledge_tool_sedimentation.py`
+- `tests/agent/test_staging_ops.py` (18 tests)
+- `tests/agent/test_usage_hint_readback.py`
+- `tests/agent_system/test_experience_layer_runtime.py`
+- `tests/agent_system/test_gstack_bridge_control.py`
+
+### 文档更新（3个）
+
+- `agent_system/readiness_manifest.json` — v1.1, sedimentation_components 区段，组件 → wired 状态
+- `agent_system/ARCHITECTURE.md` — 沉淀治理层架构章节
+- `RESTORE.md` — Round 14 回滚指令
+
+### 测试结果
+
+- S1–S12（治理契约）：12/12 ✅
+- 新增 runtime 测试：52/52 ✅
+- Gate 7 指定测试套件（8个文件）：64/64 ✅
+- full suite：17864 passed, 0 failed ✅
+- secret scan：0 ✅
+- path safety（新文件）：0 ✅
+- feature flags 默认 OFF：✅
+
+### Smoke（Gate 6）
+
+- `~/.hermes/knowledge/pending_captures.jsonl`：13行（全 pending_created，旧路径遗留）
+- 新沉淀文件（events.jsonl/staging.jsonl）：不存在（预期，SESSION_CAPTURE_AUTO_ENABLED=OFF）
+- 首次运行时触发：设置 SESSION_CAPTURE_AUTO_ENABLED=true 即可产生真实产物
+
+### Commit
+
+- Round 13: a39cd44cf（合同层骨架）
+- Round 14 main: 6db73843d（runtime wiring, 20 files changed）
+- Round 14 docs: fc5e27fec（RESTORE.md + readiness_manifest）
+
+### runtime wired 路径清单
+
+| 触发点 | 路径 | 目的地 |
+|--------|------|--------|
+| user correction in session | run_agent.py → capture_turn() → dispatch_event() | personal_memory or staging |
+| knowledge_write permission_denied | knowledge_tool.py → dispatch_tool_failure() | staging(retry_write) |
+| knowledge_write write_failed | knowledge_tool.py → dispatch_tool_failure() | staging(retry_write) |
+| auto_sedate permission_denied | cli_bridge.py → dispatch_event() | staging |
+| memory context readback | memory_manager.py → wrap_with_hint() | prompt with hint |
+| knowledge_query results | knowledge_tool.py → hint_for_knowledge() | doc._usage_hint |
+| expert_mem write | runtime.py → write_to_layer() ACL check | expert_mem (or staging if denied) |
+| skill_mem write | runtime.py → write_to_layer() ACL check | skill_mem (or staging if denied) |
+| system_mem write | runtime.py → write_to_layer() ACL check | system_mem (hermes_main only) |
+| gstack phase result | gstack_bridge.route_gstack_result() | by output_type (flag ON only) |
+
+### 仍 non_ready 的能力及原因
+
+- gstack phases（all）：real_gstack=false，gstack CLI 未安装
+- experience_card trigger：DAVID_CARD 已定义，但无自动触发点接入主 prompt
+- pending→staging 迁移：migrate_to_staging() 已实现但未被自动触发（需手动 ops）
+- production_ready：任何组件均需真实流量 smoke 验证才能升级
+
+### Hermes 升级准入判断
+
+不建议基于本轮升级 Hermes gateway/runtime。本轮 evidence 级别为 wired（有 runtime 接线，无真实产物）。
+下一步：在 staging 环境打开 SESSION_CAPTURE_AUTO_ENABLED，积累 events.jsonl 产物，验证无回归后方可 production 升级。
