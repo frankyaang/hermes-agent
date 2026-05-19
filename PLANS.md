@@ -1,3 +1,80 @@
+# Phase 10 — Release Evidence Governance Gate（2026-05-19）
+
+## Goal
+
+把“是否允许升级 Hermes”的判断从自然语言复盘升级为可执行门禁。Phase 9 已完成 Cognitive/MemoryOps/Weekly/QualityLoop 的证据收口；Phase 10 负责固化 release operating system：统一生成 Release Truth Table、Readiness Burn-down、External Dependency Truth Table、runtime artifact evidence 检查和最终 release decision。
+
+## Scope
+
+- 新增一个只读 release gate 脚本，不重新实现 Cognitive/MemoryOps。
+- 脚本必须能在当前 `codex/dev-env` 上判定 `release_candidate_only`，而不是误报 `release_upgrade_allowed`。
+- 脚本必须暴露 upstream/main 漂移、manifest unknown/non_ready/deferred、gstack/Feishu/gbrain 外部依赖状态。
+- 补测试覆盖：artifact evidence 缺字段、routes/manifest 冲突、external dependency deferred、upstream integration 未完成时不能升级。
+
+## Non-goals
+
+- 不在本轮执行 upstream/main 大规模 cherry-pick/rebase。
+- 不安装 gstack、Feishu、gbrain。
+- 不把 mock 外部依赖标为 production ready。
+
+## Validation
+
+```bash
+scripts/run_tests.sh tests/scripts/test_release_readiness_gate.py tests/scripts/test_cognitive_governance_smoke.py tests/agent_system/test_production_readiness.py -q
+python scripts/release_readiness_gate.py --json
+```
+
+## Progress
+
+- [x] Gate 0：实现 release readiness report：新增只读 `scripts/release_readiness_gate.py`，输出 release truth table、readiness burn-down、external dependency truth table、runtime artifact evidence、routes/manifest check、git delivery 和 final decision。
+- [x] Gate 1：补 release gate 单元测试：新增 `tests/scripts/test_release_readiness_gate.py`，覆盖 candidate-only、dirty/upstream drift、gstack/gbrain 外部依赖、runtime evidence 缺字段、routes/manifest 冲突、candidate leak 和 all-green upgrade。
+- [x] Gate 2：运行聚焦验证：`scripts/run_tests.sh tests/scripts/test_release_readiness_gate.py tests/scripts/test_cognitive_governance_smoke.py tests/agent_system/test_production_readiness.py -q` → 26 passed；`python scripts/check_agent_system_readiness.py` → READINESS CHECK PASSED。
+- [x] Gate 3：提交、推送并输出最终 release decision；Phase 10 delivery 以最终 `codex/dev-env` HEAD 和 `fork/codex/dev-env` push evidence 为准。
+
+## Phase 10 Verification Results
+
+- `python -m py_compile scripts/release_readiness_gate.py` → passed
+- `scripts/run_tests.sh tests/scripts/test_release_readiness_gate.py -q` → 9 passed
+- `scripts/run_tests.sh tests/scripts/test_release_readiness_gate.py tests/scripts/test_cognitive_governance_smoke.py tests/agent_system/test_production_readiness.py -q` → 26 passed
+- `python scripts/release_readiness_gate.py --json --tests-passed` → `final_decision=release_candidate_only`, `allow_upgrade_hermes=false`, blockers `[]`
+- `python scripts/check_agent_system_readiness.py` → READINESS CHECK PASSED
+- `git diff --check` → passed
+
+## Phase 10 Release Gate Snapshot
+
+- Git delivery after Phase 10 implementation: branch `codex/dev-env`, worktree clean after commit, still behind `origin/main` by 1273 commits.
+- Required Phase 9 commits all present:
+  - `ac0dc548c526674b49d79d70d57bd074bade8e5e`
+  - `522475dda1a0259f2c518ebaff50ede6b3b97279`
+  - `9c1eca9e56f3105423289622a0706593e0d4afe1`
+  - `521cc173d71f81e893e294326cfd68b426948603`
+- `fork/codex/dev-env` push evidence must match the final Phase 10 HEAD before release gate is considered delivered.
+- Readiness burn-down remains: 35 non-production entries.
+- Routes/manifest consistency: no manifest errors, no non-ready candidate leaks, production candidates `[]`.
+- Runtime artifact evidence: complete; required fields `status`、`producer_runtime_path`、`source_capability`、`sanitized_summary` present for all checked records.
+- External dependency truth table:
+  - `gstack`: `deferred`, `production_ready=false`, `real_gstack=false`
+  - `gbrain`: `installed_unverified`, path `/Users/frank/.bun/bin/gbrain`, version `gbrain 0.31.3`, `production_ready=false`
+  - `feishu`: `shadow_advisory`, `production_ready=false`
+- Current release gaps: upstream behind 1273, readiness burn-down not zero, and gstack/gbrain/Feishu not production ready.
+- Current decision remains `release_candidate_only`; Hermes upgrade remains `no`.
+
+## Phase 10 Recovery
+
+```bash
+# 查看 Phase 10 文件
+git diff -- scripts/release_readiness_gate.py tests/scripts/test_release_readiness_gate.py PLANS.md
+
+# 重新运行 release gate
+python scripts/release_readiness_gate.py --json --tests-passed
+
+# 重新运行聚焦验证
+scripts/run_tests.sh tests/scripts/test_release_readiness_gate.py tests/scripts/test_cognitive_governance_smoke.py tests/agent_system/test_production_readiness.py -q
+
+# 如需撤回 Phase 10 提交但保留文件内容
+git reset --soft HEAD~1
+```
+
 # Phase 9 — Cognitive Governance 证据收口（2026-05-19）
 
 ## Goal
