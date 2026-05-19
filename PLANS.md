@@ -71,6 +71,70 @@ scripts/run_tests.sh tests/agent_system/ -q
 python3 -m agent_system.gstack_control.ops status
 ```
 
+# Agent-System Production Gate Optimization — Round 18
+
+## Goal
+
+基于前面五轮复盘，把 Hermes Agent-System 的“上线裁判系统”真正落地：evidence gate、failure taxonomy、run evidence、gateway smoke evidence、production config snapshot、统一状态面板、acceptance report、operator runbook 和 human gate protocol。成功标准是系统能机器可读地回答：当前是否 production_ready、是否允许升级、缺哪些真实证据。
+
+## Scope
+
+- 新增 `agent_system/evidence_gate.py`、`failure_taxonomy.py`、`run_evidence.py`、`status_report.py`。
+- 新增记录/快照/状态/验收脚本：`record_run_evidence.py`、`record_gateway_smoke_evidence.py`、`snapshot_agent_system_production_config.py`、`agent_system_status.py`、`write_agent_system_acceptance_report.py`。
+- 新增操作文档：`docs/agent-system-operations-runbook.md`、`docs/agent-system-human-gate-protocol.md`。
+- 新增/扩展测试，覆盖 gate 状态、证据记录、配置 redaction、状态报告和 acceptance report。
+
+## Non-goals
+
+- 不新增业务 route。
+- 不把 `report_revision_flow` 标记 ready。
+- 不自动安装 gstack，不自动修改 Claude/Codex skills。
+- 不自动开启生产沉淀 flag，不伪造 Feishu/Gateway smoke。
+- 不把 local smoke / mock / temp HERMES_HOME 当 production evidence。
+
+## Milestones
+
+- [x] M1：实现 failure taxonomy、run evidence 和 gateway smoke evidence 记录器。
+- [x] M2：实现 production config snapshot 和 redaction。
+- [x] M3：实现 evidence gate 和 unified status report。
+- [x] M4：实现 acceptance report。
+- [x] M5：补操作 runbook 与 human gate protocol。
+- [x] M6：运行 readiness、smoke、status、acceptance、agent_system 测试并提交推送。
+
+## Validation
+
+- `python3 scripts/check_agent_system_readiness.py`
+- `python3 scripts/smoke_agent_system_business_routes.py`
+- `python3 scripts/smoke_agent_system_sedimentation.py --hermes-home /tmp/hermes_sedimentation_smoke_final`
+- `python3 scripts/check_agent_system_operational_evidence.py --hermes-home /Users/frank/.hermes`
+- `python3 scripts/snapshot_agent_system_production_config.py`
+- `python3 scripts/agent_system_status.py --hermes-home /Users/frank/.hermes`
+- `python3 scripts/write_agent_system_acceptance_report.py --hermes-home /Users/frank/.hermes`
+- `scripts/run_tests.sh tests/agent_system/ -q`
+- `git diff --check`
+
+## Progress
+
+- [x] 2026-05-19 只读确认：当前分支干净，已有 readiness / business smoke / sedimentation smoke 基础，但缺上线裁判系统。
+- [x] 2026-05-19 Round 18 实现完成：新增 evidence gate、failure taxonomy、run evidence、gateway smoke evidence、status report、production config snapshot、acceptance report。
+- [x] 2026-05-19 记录器完成：`record_run_evidence.py` 和 `record_gateway_smoke_evidence.py` 校验 route/status/failure_code，失败或 blocked 必须带标准 failure_code，输出保持 redacted。
+- [x] 2026-05-19 配置快照完成：`snapshot_agent_system_production_config.py` 生成 `/Users/frank/.hermes/agent_system/evidence/production_config_snapshot.json`；当前真实配置检测到 `config_secret_detected=true`，仅记录路径与阻塞状态，不迁移、不打印密钥。
+- [x] 2026-05-19 状态面板完成：`agent_system_status.py` 机器可读输出 `overall_status=local_ready_not_operationally_verified`、`primary_blocker_status=gateway_smoke_incomplete`、`upgrade_allowed=false`。
+- [x] 2026-05-19 验收报告完成：`write_agent_system_acceptance_report.py` 写入 `/Users/frank/.hermes/agent_system/evidence/latest_acceptance_report.json`，当前仍 `upgrade_allowed=false`。
+- [x] 2026-05-19 操作文档完成：新增 `docs/agent-system-operations-runbook.md` 和 `docs/agent-system-human-gate-protocol.md`。
+- [x] 2026-05-19 验证完成：readiness 通过；business smoke ok；sedimentation smoke ok；operational evidence 当前 `not_ready`；`scripts/run_tests.sh tests/agent_system/ -q` → `299 passed`；`git diff --check` 通过。
+- [x] 2026-05-19 当前剩余真实阻塞：7 条 Gateway/Feishu smoke 未记录，真实 memory events 为 5/50，缺 gstack external evidence，gstack CLI unavailable，config snapshot 检测到明文密钥形态。
+
+## Recovery
+
+恢复时进入：
+
+```bash
+cd /Users/frank/.hermes/hermes-agent-official
+python3 scripts/agent_system_status.py --hermes-home /Users/frank/.hermes
+scripts/run_tests.sh tests/agent_system/ -q
+```
+
 # Dashboard Artifact Route And Operational Evidence — Round 17
 
 ## Goal
