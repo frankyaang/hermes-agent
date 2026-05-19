@@ -89,8 +89,10 @@
       "production_ready": false,
       "feature_flag": null,
       "runtime_wired": true,
+      "persistent_store_enabled": false,
+      "design_boundary": "ephemeral prompt injection only — write_card() not called from runtime path. Persistent authoring requires gstack→staging→human review→manual write_card(). cards.jsonl absence is correct by design.",
       "readiness_reason": "Round 14+: trigger_check() called in run_agent.py user-message injection loop; matching card render_card() injected as ephemeral context. No feature flag (conservative trigger — keyword match only). Dispatcher routes experience_card destination without write (human-review gate for new cards). DESIGN NOTE: runtime path is ephemeral prompt injection only — write_card() is NOT called from runtime. Persistent cards.jsonl requires gstack→staging→human review→manual write_card(). cards.jsonl will not exist until first manual or gstack-triggered card is persisted.",
-      "evidence": { "contract_tests": "S4 passed 2026-05-19", "runtime_wired": "run_agent.py injection loop 2026-05-19", "acceptance_closure": "2026-05-19 confirmed: cards.jsonl correctly absent; ephemeral-only design documented" }
+      "evidence": { "contract_tests": "S4 passed 2026-05-19", "runtime_wired": "run_agent.py injection loop 2026-05-19", "acceptance_closure": "2026-05-19 confirmed: cards.jsonl correctly absent; ephemeral-only design documented; persistent_store_enabled=false" }
     }
   ],
   "routes": [

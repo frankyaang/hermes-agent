@@ -2609,3 +2609,11 @@ evidence 级别：wired（接线完成，真实流量 smoke 不足）
 - 积累 ≥50 条 events.jsonl 真实产物
 - 跑完整 smoke suite + full suite 无回归
 - 至少 1 个 sedimentation 组件升级至 smoke_tested
+
+**验收收口状态（2026-05-19）：**
+- Gate 0 push: ✅ fork remote HEAD = ac3b04511
+- Gate 1 experience_card: ✅ 设计边界 — ephemeral injection，persistent_store_enabled=false，cards.jsonl 缺失为预期
+- Gate 2 readiness: ✅ manifest 无虚假 production_ready；sedimentation 8/8 wired，routes 0/8，gstack 0/3
+- Gate 3 docs: ✅ ARCHITECTURE.md stale labels 修正；governance.md v1.1；RESTORE.md remote HEAD 准确
+- Gate 4 tests: ✅ Batch 1+2 141 passed；full suite 17864 passed（见最近一次 full suite run）
+- smoke: events.jsonl=2，staging.jsonl=16，pending=14（migrated_to_staging），project_process=2，cards.jsonl=不存在（设计）

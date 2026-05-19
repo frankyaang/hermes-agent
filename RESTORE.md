@@ -7,10 +7,9 @@
 
 | 项目 | 值 |
 |------|-----|
-| local HEAD | 55582309a（Round 14 docs） |
-| fork remote HEAD | **55582309a**（push 已完成 2026-05-19） |
+| local HEAD | ac3b04511（验收收口：Gate 0-4 全部关闭） |
+| fork remote HEAD | **ac3b04511**（push 已完成 2026-05-19，proxy override） |
 | branch | snapshot/hermes-local-20260514-224006 |
-| acceptance closure commit | 待提交（pending_capture fix + smoke + docs） |
 
 ## 恢复点
 
@@ -22,7 +21,9 @@
 | Round 14 post | 9e89318ca | knowledge_staging_ops 14 tests |
 | Round 14 post | d31354694 | experience_card trigger_check prompt injection wired |
 | Round 14 post | 55582309a | docs: PLANS.md + RESTORE.md post-Round14 completions |
-| 验收收口 | TBD | 验收收口：pending fix + smoke + docs（本次提交） |
+| 验收收口 | ac3b04511 | fix: pending terminal_state + project_process smoke + docs 对齐 |
+| 验收收口 post | TBD | 本次：manifest experience_card persistent_store_enabled=false + docs final |
+| Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
 | Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
 
 ## 快速回滚到 Round 12 状态
