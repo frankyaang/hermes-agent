@@ -221,3 +221,81 @@ def _route_uncertain(output, source_uri, actor_id, project_hint, hermes_home) ->
         staging_id=staging_id,
         reason="gstack_uncertain_needs_project_mapping",
     )
+
+
+# ── gstack_control integration helpers ────────────────────────────────────────
+
+_PHASE_OUTPUT_TYPE_MAP: dict[str, GstackOutputType] = {
+    "gstack.review": "review",
+    "gstack.plan_eng_review": "lesson",
+    "gstack.plan_ceo_review": "lesson",
+    "gstack.plan_design_review": "lesson",
+    "gstack.retro": "lesson",
+    "gstack.qa": "fact",
+    "gstack.document_release": "playbook",
+    "gstack.office_hours": "fact",
+}
+
+
+def map_phase_to_output_type(phase_id: str) -> GstackOutputType:
+    """Map a gstack_control phase_id to the corresponding BridgeResult output_type."""
+    return _PHASE_OUTPUT_TYPE_MAP.get(phase_id, "uncertain")
+
+
+def route_gstack_result(
+    phase_id: str,
+    gstack_result: object,
+    *,
+    project_hint: str = "",
+    hermes_home: Path | None = None,
+) -> BridgeResult:
+    """Route a GstackResult from gstack_control through the sedimentation bridge.
+
+    Called after any run_gstack_* function returns. Non-blocking — never raises.
+    Returns BridgeResult(skipped=True) when GSTACK_SEDIMENTATION_ENABLED=false
+    or when gstack was not available.
+    """
+    from agent_system.sedimentation.feature_flags import GSTACK_SEDIMENTATION_ENABLED
+    if not GSTACK_SEDIMENTATION_ENABLED:
+        return BridgeResult(
+            output_type="uncertain",
+            destination="noop",
+            event_id="",
+            staging_id="",
+            reason="feature_flag_disabled",
+            skipped=True,
+        )
+    try:
+        available = getattr(gstack_result, "available", False)
+        stdout = getattr(gstack_result, "stdout", "") or ""
+        command = getattr(gstack_result, "command", "") or ""
+        source_uri = f"hermes://gstack/{phase_id}/{command}"
+
+        if not available or not stdout.strip():
+            return _route_uncertain(
+                output=f"gstack phase {phase_id}: not available or empty output",
+                source_uri=source_uri,
+                actor_id="gstack",
+                project_hint=project_hint,
+                hermes_home=hermes_home,
+            )
+
+        output_type = map_phase_to_output_type(phase_id)
+        return route(
+            output=stdout,
+            output_type=output_type,
+            source_uri=source_uri,
+            actor_id="gstack",
+            project_hint=project_hint,
+            hermes_home=hermes_home,
+        )
+    except Exception as exc:
+        logger.warning("route_gstack_result failed (non-fatal): %s", exc)
+        return BridgeResult(
+            output_type="uncertain",
+            destination="noop",
+            event_id="",
+            staging_id="",
+            reason=f"bridge_error: {exc}",
+            skipped=True,
+        )

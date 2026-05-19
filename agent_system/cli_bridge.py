@@ -509,6 +509,22 @@ def _auto_sedate_knowledge(
                 except Exception:
                     pass
                 logger.warning("[knowledge-sedimentation] permission_denied → pending capture written")
+                try:
+                    from agent.memory_event import create_event
+                    from agent.memory_dispatcher import dispatch_event
+                    evt = create_event(
+                        source_type="tool_result",
+                        source_uri=source_uri,
+                        actor_user_id=identity.user_id,
+                        subject=f"auto_sedate permission_denied: {product_line_id}",
+                        risk_flags=["permission_unclear", "tool_failure"],
+                        recommended_destination="staging",
+                        session_id=run_id,
+                        product_line_hint=product_line_id,
+                    )
+                    dispatch_event(evt)
+                except Exception as sed_exc:
+                    logger.debug("[knowledge-sedimentation] dispatch non-fatal: %s", sed_exc)
         except Exception as check_exc:
             logger.debug("[knowledge-sedimentation] result check non-fatal: %s", check_exc)
     except Exception as exc:

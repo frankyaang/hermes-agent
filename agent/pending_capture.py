@@ -191,6 +191,53 @@ def _replay_write_knowledge(record: dict) -> dict:
         return {"error": "write_failed", "reason": str(raw)}
 
 
+def stats(hermes_home: Path | None = None) -> dict:
+    """Return count statistics by status across all pending captures."""
+    records = list_pending(hermes_home=hermes_home)
+    by_status: dict[str, int] = {}
+    for rec in records:
+        s = rec.get("status", "pending")
+        by_status[s] = by_status.get(s, 0) + 1
+    return {"total": len(records), "by_status": by_status}
+
+
+def migrate_to_staging(capture_id: str, hermes_home: Path | None = None) -> str:
+    """Idempotent: promote a pending capture to staging(retry_write).
+
+    Returns staging_id on success, "" if capture not found.
+    Already-migrated captures return the same staging_id stored in their record.
+    """
+    rec = read_pending(capture_id, hermes_home=hermes_home)
+    if rec is None:
+        return ""
+    existing_staging_id = rec.get("staging_id", "")
+    if existing_staging_id:
+        return existing_staging_id
+
+    from agent.staging_store import write_staging
+    staging_id = write_staging(
+        event_id=capture_id,
+        reason=rec.get("failure_reason") or "pending_capture migration",
+        next_action="retry_write",
+        source_uri=rec.get("source_uri", ""),
+        raw_content=rec.get("title", ""),
+        hermes_home=hermes_home,
+    )
+    base = hermes_home or get_hermes_home()
+    path = base / "knowledge" / "pending_captures.jsonl"
+    try:
+        records = list_pending(hermes_home=hermes_home)
+        for r in records:
+            if r.get("capture_id") == capture_id:
+                r["staging_id"] = staging_id
+        with open(path, "w", encoding="utf-8") as f:
+            for r in records:
+                f.write(json.dumps(r) + "\n")
+    except Exception as exc:
+        logger.warning("migrate_to_staging write-back failed (non-fatal): %s", exc)
+    return staging_id
+
+
 def replay_pending(capture_id: str, hermes_home: Path | None = None) -> dict:
     """Replay one pending knowledge capture and update its terminal_state."""
     rec = read_pending(capture_id, hermes_home=hermes_home)

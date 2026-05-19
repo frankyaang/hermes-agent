@@ -113,6 +113,84 @@ flowchart TD
 - `render_expert（渲染专家）`：主调 `dashboard_html（看板渲染）`。
 - `audit_expert（核查专家）`：主调 `audit（核查）`。
 
+## Sedimentation Governance Layer
+
+> Round 13 合同测试完整；Round 14 Runtime Wiring 进行中
+
+所有候选沉淀内容（私聊、PBI、用户纠正、工具失败、gstack 输出）经由统一入口
+`MemoryEvent` 进入系统，由 `MemoryDispatcher` 按 10 条规则路由到 5 个目标之一。
+不确定内容进入 `StagingStore`，永不被静默丢弃。所有回读内容携带 `UsageHint`。
+
+### 数据流
+
+```
+任意内容来源（私聊/PBI/用户纠正/gstack/工具失败）
+    ↓
+MemoryEvent(source_type, actor_user_id, risk_flags, recommended_destination, ...)
+    ↓
+MemoryDispatcher.dispatch_event(event) → DispatchResult
+    ├─ personal_memory   — 用户偏好、纠正（已确认 scope）
+    ├─ project_process   — PBI、版本计划（有 project_hint）
+    ├─ knowledge         — KnowledgeCandidate payload → knowledge_write
+    ├─ experience_card   — 结构化行动卡（DAVID_CARD 等）
+    └─ staging           — 条件不足（不丢失，等待下一步 ops）
+
+所有回读路径:
+    任何存储 → wrap_with_hint(content, hint) → prompt
+```
+
+### 三层经验写入 ACL
+
+```
+system_mem:  仅 caller_id="hermes_main" 可写（experience_layer.py 强制）
+expert_mem:  仅 caller_id 与 expert_id 匹配可写
+skill_mem:   仅 caller_id 与 skill_id 匹配可写
+gstack 任何输出 → 必须走 candidate → dispatcher → ACL 审核
+```
+
+### gstack 专家层路由（feature flag 守卫，默认 OFF）
+
+```
+gstack output → gstack_bridge.route(output_type)
+    review    → audit_evidence
+    fact      → knowledge_candidate
+    lesson    → expert_mem_candidate
+    playbook  → skill_asset
+    action_rule → experience_card_candidate
+    uncertain → staging(needs_project_mapping)
+```
+
+### Feature Flags（全部默认 OFF）
+
+- `SESSION_CAPTURE_AUTO_ENABLED` — session_capture.capture_turn() 自动触发
+- `USAGE_HINT_INJECTION_ENABLED` — 回读内容携带 usage_hint
+- `GSTACK_SEDIMENTATION_ENABLED` — gstack 输出进入沉淀链
+
+### 存储布局
+
+```
+{HERMES_HOME}/
+├── memory_events/events.jsonl         — MemoryEvent 流水
+├── staging/staging.jsonl              — 暂存区（不确定内容）
+├── memory_relations/relations.jsonl   — 强关系图
+├── project_process/records.jsonl      — 项目流程记录
+├── experience_cards/cards.jsonl       — 结构化行动卡
+└── knowledge/pending_captures.jsonl   — pending 重放队列
+```
+
+### 关键模块（agent/ + agent_system/sedimentation/）
+
+| 模块 | 职责 | runtime 状态 |
+|------|------|-------------|
+| memory_event.py | MemoryEvent 创建/写入/读取 | wiring in progress |
+| memory_dispatcher.py | 10规则5目的地分流 | wiring in progress |
+| staging_store.py | StagingEntry + ops | wiring in progress |
+| usage_hint.py | 6类 hint，wrap_with_hint | wiring in progress |
+| experience_card.py | ExperienceCard，DAVID_CARD | wiring in progress |
+| session_capture.py | 会话风险探测，emit MemoryEvent | wiring in progress |
+| sedimentation/experience_layer.py | 三层 ACL（system/expert/skill） | wiring in progress |
+| sedimentation/gstack_bridge.py | gstack → 沉淀链 | flag OFF, wiring pending |
+
 ## Flow Rules
 
 - `insight_flow（洞察流程）`：适用于用户只要分析结论，最终业务输出来自 `voc_insight（用户洞察）`。

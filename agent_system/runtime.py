@@ -1802,7 +1802,13 @@ class HermesAgentSystemRuntime:
             f"review_triggers={','.join(review_summary.get('review_triggers', [])) or 'none'}; "
             "写入主体=Hermes 主代理；不包含专家或 Skill 私有正文。\n"
         )
-        self._append_memory_line(system_path, "# 系统级经验\n\n", system_line)
+        try:
+            from agent_system.sedimentation.experience_layer import write_to_layer
+            _acl = write_to_layer("system_mem", system_line, caller_id="hermes_main")
+            if _acl.success:
+                self._append_memory_line(system_path, "# 系统级经验\n\n", system_line)
+        except Exception:
+            self._append_memory_line(system_path, "# 系统级经验\n\n", system_line)
         updates.append(
             {
                 "layer": "system",
@@ -1840,7 +1846,13 @@ class HermesAgentSystemRuntime:
                 f"human_reviews={sum(1 for result in expert_results if result.get('human_review_required') == '是')}; "
                 "写入主体=对应专家；仅记录专家决策、复盘和 Skill 调用摘要。\n"
             )
-            self._append_memory_line(expert_path, f"# {expert_id} 私域经验\n\n", expert_line)
+            try:
+                from agent_system.sedimentation.experience_layer import write_to_layer
+                _acl = write_to_layer("expert_mem", expert_line, caller_id=expert_id, expert_id=expert_id)
+                if _acl.success:
+                    self._append_memory_line(expert_path, f"# {expert_id} 私域经验\n\n", expert_line)
+            except Exception:
+                self._append_memory_line(expert_path, f"# {expert_id} 私域经验\n\n", expert_line)
             updates.append(
                 {
                     "layer": "expert",
@@ -1873,7 +1885,13 @@ class HermesAgentSystemRuntime:
                 f"average_quality={average_quality}; exceptions={exceptions}; "
                 "写入主体=对应 Skill；仅记录执行历史、异常统计和复盘反馈。\n"
             )
-            self._append_memory_line(skill_path, f"# {skill_id} Skill级经验\n\n", skill_line)
+            try:
+                from agent_system.sedimentation.experience_layer import write_to_layer
+                _acl = write_to_layer("skill_mem", skill_line, caller_id=skill_id, skill_id=skill_id)
+                if _acl.success:
+                    self._append_memory_line(skill_path, f"# {skill_id} Skill级经验\n\n", skill_line)
+            except Exception:
+                self._append_memory_line(skill_path, f"# {skill_id} Skill级经验\n\n", skill_line)
             updates.append(
                 {
                     "layer": "skill",

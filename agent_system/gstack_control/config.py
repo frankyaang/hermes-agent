@@ -47,7 +47,7 @@ def load_gstack_config() -> GstackConfig:
             return _SAFE_DEFAULTS
 
         allowlist = block.get("allowlist_phases", [])
-        return GstackConfig(
+        cfg = GstackConfig(
             enabled=bool(block.get("enabled", False)),
             mode=str(block.get("mode", "disabled")),
             allow_blocking=bool(block.get("allow_blocking", False)),
@@ -58,5 +58,13 @@ def load_gstack_config() -> GstackConfig:
             allowlist_phases=list(allowlist) if isinstance(allowlist, list) else [],
             use_real_gstack=bool(block.get("use_real_gstack", False)),
         )
+        # Propagate sedimentation_enabled to feature_flags (runtime override)
+        if block.get("sedimentation_enabled"):
+            try:
+                from agent_system.sedimentation.feature_flags import set_flag
+                set_flag("GSTACK_SEDIMENTATION_ENABLED", True)
+            except Exception:
+                pass
+        return cfg
     except Exception:  # noqa: BLE001
         return _SAFE_DEFAULTS

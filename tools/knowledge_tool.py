@@ -96,21 +96,30 @@ def _knowledge_query(query: str, product_line_id: str, finance: bool, task_id: s
         return json.dumps({"error": "no_product_line", "reason": "specify product_line_id or set default"})
 
     results = mgr.query(query, product_line_id, finance_ok=finance)
+    docs = [
+        {
+            "slug": d.slug,
+            "title": d.title,
+            "snippet": d.snippet or d.content[:300],
+            "source_uri": d.source_uri,
+            "confidence": d.confidence,
+            "knowledge_type": d.knowledge_type,
+        }
+        for d in results
+    ]
+    try:
+        from agent_system.sedimentation.feature_flags import USAGE_HINT_INJECTION_ENABLED
+        if USAGE_HINT_INJECTION_ENABLED:
+            from agent.usage_hint import hint_for_knowledge
+            for doc in docs:
+                doc["_usage_hint"] = hint_for_knowledge(doc)
+    except Exception:
+        pass
     return json.dumps({
-        "count": len(results),
+        "count": len(docs),
         "product_line_id": product_line_id,
         "finance_mode": finance,
-        "results": [
-            {
-                "slug": d.slug,
-                "title": d.title,
-                "snippet": d.snippet or d.content[:300],
-                "source_uri": d.source_uri,
-                "confidence": d.confidence,
-                "knowledge_type": d.knowledge_type,
-            }
-            for d in results
-        ],
+        "results": docs,
     })
 
 
@@ -191,6 +200,16 @@ def _knowledge_write(
             sedimentation_metrics.increment("knowledge_write_failed")
         except Exception:
             pass
+        try:
+            from agent.memory_dispatcher import dispatch_tool_failure
+            dispatch_tool_failure(
+                title=f"knowledge_write: no_product_line — {title[:60]}",
+                source_uri=source_uri or f"hermes://knowledge/write/{task_id}",
+                actor_user_id=getattr(getattr(mgr, "_ctx", None), "user_id", "agent"),
+                session_id=task_id,
+            )
+        except Exception:
+            pass
         return json.dumps({
             "error": "no_product_line",
             "reason": "specify product_line_id or set default",
@@ -236,6 +255,17 @@ def _knowledge_write(
             sedimentation_metrics.increment("knowledge_write_failed")
         except Exception:
             pass
+        try:
+            from agent.memory_dispatcher import dispatch_tool_failure
+            dispatch_tool_failure(
+                title=f"knowledge_write: permission_denied — {product_line_id}",
+                source_uri=source_uri or f"hermes://knowledge/{product_line_id}",
+                actor_user_id=getattr(getattr(mgr, "_ctx", None), "user_id", "agent"),
+                session_id=task_id,
+                product_line_hint=product_line_id,
+            )
+        except Exception:
+            pass
         return json.dumps({
             "error": "permission_denied",
             "reason": reason,
@@ -258,6 +288,17 @@ def _knowledge_write(
         try:
             from agent import sedimentation_metrics
             sedimentation_metrics.increment("knowledge_write_failed")
+        except Exception:
+            pass
+        try:
+            from agent.memory_dispatcher import dispatch_tool_failure
+            dispatch_tool_failure(
+                title=f"knowledge_write: write_failed — {product_line_id}",
+                source_uri=source_uri or f"hermes://knowledge/{product_line_id}",
+                actor_user_id=getattr(getattr(mgr, "_ctx", None), "user_id", "agent"),
+                session_id=task_id,
+                product_line_hint=product_line_id,
+            )
         except Exception:
             pass
         return json.dumps({

@@ -2431,7 +2431,7 @@ scripts/run_tests.sh  # must show 0 new failures
 
 ## Round 13 — Sedimentation Governance Backbone + gstack 专家层接入
 
-> Date: 2026-05-19 | Status: ✅ COMPLETE
+> Date: 2026-05-19 | Status: contract_layer_complete; runtime wiring pending (Round 14)
 
 ### 目标
 

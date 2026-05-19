@@ -10495,6 +10495,23 @@ class AIAgent:
             except Exception:
                 pass
 
+        # Session capture: detect user corrections / risk patterns and route to MemoryDispatcher.
+        # Gated by SESSION_CAPTURE_AUTO_ENABLED (default OFF — shadow mode).
+        try:
+            from agent_system.sedimentation.feature_flags import SESSION_CAPTURE_AUTO_ENABLED
+            if SESSION_CAPTURE_AUTO_ENABLED and original_user_message:
+                from agent.session_capture import capture_turn
+                _cap_text = original_user_message if isinstance(original_user_message, str) else ""
+                if _cap_text:
+                    capture_turn(
+                        _cap_text,
+                        session_id=self.session_id,
+                        actor_user_id=getattr(self, "_actor_user_id", ""),
+                        platform=getattr(self, "_platform", "run_agent"),
+                    )
+        except Exception:
+            pass
+
         # External memory provider: prefetch once before the tool loop.
         # Reuse the cached result on every iteration to avoid re-calling
         # prefetch_all() on each tool call (10 tool calls = 10x latency + cost).

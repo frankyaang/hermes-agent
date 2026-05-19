@@ -181,6 +181,13 @@ def build_memory_context_block(raw_context: str) -> str:
     clean = sanitize_context(raw_context)
     if clean != raw_context:
         logger.warning("memory provider returned pre-wrapped context; stripped")
+    try:
+        from agent_system.sedimentation.feature_flags import USAGE_HINT_INJECTION_ENABLED
+        if USAGE_HINT_INJECTION_ENABLED:
+            from agent.usage_hint import wrap_with_hint
+            clean = wrap_with_hint(clean, "project_material_usable")
+    except Exception:
+        pass
     return (
         "<memory-context>\n"
         "[System note: The following is recalled memory context, "

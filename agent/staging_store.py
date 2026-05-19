@@ -106,3 +106,126 @@ def read_staging(staging_id: str, hermes_home: Path | None = None) -> dict | Non
         if rec.get("staging_id") == staging_id:
             return rec
     return None
+
+
+# ── ops: state transitions ─────────────────────────────────────────────────────
+
+_OPS_STATES = NEXT_ACTIONS | {"approved", "rejected"}
+
+
+def _rewrite_staging(records: list[dict], path: Path) -> None:
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    tmp.replace(path)
+
+
+def _write_audit(staging_id: str, action: str, detail: str, base: Path) -> None:
+    import time
+    audit_path = base / "staging" / "staging_audit.jsonl"
+    entry = {
+        "staging_id": staging_id,
+        "action": action,
+        "detail": detail,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        with open(audit_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        logger.warning("staging audit write failed (non-fatal): %s", exc)
+
+
+def _update_staging_field(
+    staging_id: str,
+    updates: dict,
+    hermes_home: Path | None,
+    audit_action: str,
+    audit_detail: str = "",
+) -> bool:
+    base = hermes_home or get_hermes_home()
+    path = base / "staging" / "staging.jsonl"
+    if not path.exists():
+        return False
+    try:
+        records = []
+        found = False
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            # Remove usage_hint sentinel added by list_staging()
+            rec.pop("usage_hint", None)
+            if rec.get("staging_id") == staging_id:
+                rec.update(updates)
+                found = True
+            records.append(rec)
+        if not found:
+            return False
+        _rewrite_staging(records, path)
+        _write_audit(staging_id, audit_action, audit_detail, base)
+        return True
+    except Exception as exc:
+        logger.warning("_update_staging_field failed (non-fatal): %s", exc)
+        return False
+
+
+def approve(staging_id: str, hermes_home: Path | None = None) -> bool:
+    """Mark a staging entry as approved; idempotent."""
+    return _update_staging_field(
+        staging_id,
+        {"next_action": "approved"},
+        hermes_home,
+        audit_action="approve",
+    )
+
+
+def reject(staging_id: str, reason: str = "", hermes_home: Path | None = None) -> bool:
+    """Mark a staging entry as rejected, storing the reason."""
+    return _update_staging_field(
+        staging_id,
+        {"next_action": "rejected", "rejection_reason": reason},
+        hermes_home,
+        audit_action="reject",
+        audit_detail=reason,
+    )
+
+
+def archive(staging_id: str, hermes_home: Path | None = None) -> bool:
+    """Transition a staging entry to archive_as_reference."""
+    return _update_staging_field(
+        staging_id,
+        {"next_action": "archive_as_reference"},
+        hermes_home,
+        audit_action="archive",
+    )
+
+
+def update_next_action(
+    staging_id: str,
+    next_action: str,
+    hermes_home: Path | None = None,
+) -> bool:
+    """Update next_action to any valid state; rejects unknown states."""
+    if next_action not in _OPS_STATES:
+        logger.warning("update_next_action: invalid state %r", next_action)
+        return False
+    return _update_staging_field(
+        staging_id,
+        {"next_action": next_action},
+        hermes_home,
+        audit_action="update_next_action",
+        audit_detail=next_action,
+    )
+
+
+def stats(hermes_home: Path | None = None) -> dict:
+    """Return count statistics by next_action."""
+    records = list_staging(hermes_home=hermes_home)
+    by_action: dict[str, int] = {}
+    for rec in records:
+        action = rec.get("next_action", "unknown")
+        by_action[action] = by_action.get(action, 0) + 1
+    return {"total": len(records), "by_next_action": by_action}

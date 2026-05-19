@@ -84,7 +84,13 @@ def capture_turn(
             recommended_destination=dest,
             session_id=session_id,
         )
-        return write_event(evt, hermes_home=hermes_home)
+        event_id = write_event(evt, hermes_home=hermes_home)
+        try:
+            from agent.memory_dispatcher import dispatch_event
+            dispatch_event(evt, hermes_home=hermes_home)
+        except Exception as disp_exc:
+            logger.debug("capture_turn dispatch failed (non-fatal): %s", disp_exc)
+        return event_id
     except Exception as exc:
         logger.debug("capture_turn failed (non-fatal): %s", exc)
         return None

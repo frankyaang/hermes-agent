@@ -1,14 +1,97 @@
 {
-  "version": "1.0",
-  "generated_at": "2026-05-15",
+  "version": "1.1",
+  "generated_at": "2026-05-19",
   "description": "Agent-system production readiness registry. Manifest is the single source of truth. Routes/skills not listed here are treated as unknown (blocked at production entrypoints).",
+  "readiness_state_legend": {
+    "unknown": "Not started; no information",
+    "non_ready": "Known dependency missing (e.g. CLI not installed)",
+    "contract_tested": "Contract tests pass; not yet wired to runtime",
+    "wired": "Wired to runtime path; not yet smoke-verified",
+    "smoke_tested": "Real HERMES_HOME artifacts confirmed",
+    "production_ready": "smoke + full suite + manual review"
+  },
   "rules": [
     "Routes/skills absent from manifest => unknown => blocked at production entrypoints",
     "production_ready defaults to false (never inferred as true)",
     "executable defaults to false (never inferred from pipeline.steps or skill.json existence)",
     "executor_type=system must be explicitly declared in manifest",
     "unknown routes do not enter Opus planning candidates",
-    "unknown routes are not triggered by feishu/gateway implicit messages"
+    "unknown routes are not triggered by feishu/gateway implicit messages",
+    "contract_tested != production_ready; requires runtime evidence before promotion"
+  ],
+  "sedimentation_components": [
+    {
+      "component_id": "memory_event",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": null,
+      "runtime_wired": false,
+      "readiness_reason": "Round 13: MemoryEvent module complete, S1-S12 contract tests pass. Round 14: runtime wiring to run_agent/knowledge_tool in progress.",
+      "evidence": { "contract_tests": "S1-S12 passed 2026-05-19" }
+    },
+    {
+      "component_id": "memory_dispatcher",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": null,
+      "runtime_wired": false,
+      "readiness_reason": "dispatch_event() defined and tested; never called from run_agent/knowledge_tool in production. Round 14 wiring pending.",
+      "evidence": { "contract_tests": "S1-S12 passed 2026-05-19" }
+    },
+    {
+      "component_id": "staging_store",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": null,
+      "runtime_wired": false,
+      "readiness_reason": "write/list/read ops complete. approve/reject/archive/stats ops pending (Round 14 Phase 2).",
+      "evidence": { "contract_tests": "S5-S6 passed 2026-05-19" }
+    },
+    {
+      "component_id": "usage_hint",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": "USAGE_HINT_INJECTION_ENABLED",
+      "runtime_wired": false,
+      "readiness_reason": "wrap_with_hint() defined and tested. memory_manager/knowledge_tool not yet calling it in production.",
+      "evidence": { "contract_tests": "S7 passed 2026-05-19" }
+    },
+    {
+      "component_id": "experience_layer_acl",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": null,
+      "runtime_wired": false,
+      "readiness_reason": "write_to_layer() ACL tested (S8-S9). runtime._append_memory_line() bypasses ACL — Round 14 Phase 4 wiring pending.",
+      "evidence": { "contract_tests": "S8-S9 passed 2026-05-19" }
+    },
+    {
+      "component_id": "session_capture",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": "SESSION_CAPTURE_AUTO_ENABLED",
+      "runtime_wired": false,
+      "readiness_reason": "capture_turn() defined; run_agent.py has no call site. Round 14 Phase 3 wiring pending.",
+      "evidence": {}
+    },
+    {
+      "component_id": "gstack_bridge",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": "GSTACK_SEDIMENTATION_ENABLED",
+      "runtime_wired": false,
+      "readiness_reason": "gstack_bridge.route() defined and tested (S10-S12). No caller in gstack_control. real_gstack=false. Round 14 Phase 5 wiring pending.",
+      "evidence": { "contract_tests": "S10-S12 passed 2026-05-19" }
+    },
+    {
+      "component_id": "experience_card",
+      "readiness_state": "contract_tested",
+      "production_ready": false,
+      "feature_flag": null,
+      "runtime_wired": false,
+      "readiness_reason": "ExperienceCard + DAVID_CARD defined. Dispatcher routes experience_card type. No runtime trigger from live sessions yet.",
+      "evidence": { "contract_tests": "S4 passed 2026-05-19" }
+    }
   ],
   "routes": [
     {
