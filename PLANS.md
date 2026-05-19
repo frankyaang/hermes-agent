@@ -70,7 +70,7 @@ git reset --soft HEAD~<n>
 - [x] Gate 2 ExperienceCard working memory 注入：`_capture_session_memory` 将 routing hint 写入 session working memory。
 - [x] Gate 3 readiness/routes 一致性修正：weekly route 不再在 `routes.json` 绕过 manifest 标 ready；manifest 补齐 `weekly_flow` 与 3 个 weekly skills。
 - [x] Gate 4 聚焦测试与 smoke 验证：核心验收 225 passed；artifact smoke 全部有状态；readiness check passed。
-- [ ] Gate 5 commit/push/recovery 收口。
+- [x] Gate 5 commit/push/recovery 收口：3 个能力域提交已创建并推送到 `fork/codex/dev-env`。
 
 ## Phase 9 Verification Results
 
@@ -83,6 +83,11 @@ git reset --soft HEAD~<n>
 - Broad regression: `scripts/run_tests.sh tests/agent/ tests/integration/ tests/tools/ -q` → 6564 passed, 44 skipped, 2 failed in `tests/tools/test_resolve_path.py`; isolated rerun `scripts/run_tests.sh tests/tools/test_resolve_path.py -q` → 6 passed, so failures are classified as existing xdist/environment-sensitive behavior rather than Phase 9 regression.
 - `git diff --check` → passed
 - Secret literal scan across changed Python files → passed; historical Feishu identifiers in `PLANS.md` were redacted.
+- Commit/push:
+  - `ac0dc548c526674b49d79d70d57bd074bade8e5e` — `feat(knowledge): close pending capture operations`
+  - `522475dda1a0259f2c518ebaff50ede6b3b97279` — `feat(governance): add weekly and quality loop closure`
+  - `9c1eca9e56f3105423289622a0706593e0d4afe1` — `chore(cognitive): close runtime evidence readiness gates`
+  - Push target: `fork codex/dev-env`
 
 ## Phase 9 Runtime Artifact Report
 
