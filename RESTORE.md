@@ -1,7 +1,51 @@
-# RESTORE — Sedimentation Governance Backbone 回滚指令
+# RESTORE — Sedimentation Runtime Wiring 回滚指令
 
 生成时间: 2026-05-19  
-适用轮次: Round 13 (Sedimentation Governance Backbone + gstack 专家层接入)
+适用轮次: Round 13 + Round 14 (Contract Layer + Runtime Wiring)
+
+## 恢复点
+
+| 轮次 | commit | 描述 |
+|------|--------|------|
+| Round 13 | a39cd44cf | 合同测试骨架（S1-S12），14个新文件，feature flags OFF |
+| Round 14 | 6db73843d | Runtime 接线：run_agent/knowledge_tool/cli_bridge/runtime/memory_manager |
+| Round 12 | db570d1f8 | Weekly Flow + Quality Gate（恢复到此可回到 Round 12） |
+
+## 快速回滚到 Round 12 状态
+
+```bash
+git reset --hard db570d1f8  # 警告：丢弃 Round 13+14 所有修改
+scripts/run_tests.sh
+```
+
+## 选择性回滚 Round 14（保留 Round 13 合同层）
+
+```bash
+# 恢复 runtime 接线修改
+git checkout a39cd44cf -- \
+  run_agent.py \
+  agent/memory_manager.py \
+  agent/session_capture.py \
+  tools/knowledge_tool.py \
+  agent_system/cli_bridge.py \
+  agent_system/runtime.py \
+  agent_system/sedimentation/feature_flags.py \
+  agent_system/sedimentation/gstack_bridge.py \
+  agent_system/gstack_control/config.py \
+  agent/staging_store.py \
+  agent/pending_capture.py
+
+# 删除 Round 14 新增测试
+rm -f \
+  tests/agent/test_session_capture_runtime.py \
+  tests/agent/test_knowledge_tool_sedimentation.py \
+  tests/agent/test_staging_ops.py \
+  tests/agent/test_usage_hint_readback.py \
+  tests/agent_system/test_experience_layer_runtime.py \
+  tests/agent_system/test_gstack_bridge_control.py
+
+scripts/run_tests.sh
+```
 
 ## 新建文件（删除即完全回滚）
 
