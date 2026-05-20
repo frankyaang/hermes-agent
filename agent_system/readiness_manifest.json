@@ -1008,6 +1008,102 @@
       "output_contract": "",
       "readiness_reason": "pipeline.steps=[] and no explicit executor contract declared",
       "owner": ""
+    },
+    {
+      "skill_id": "gstack_plan_gate",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": true,
+      "optional": true,
+      "output_contract": "advisory planning suggestion; non-blocking",
+      "readiness_reason": "Hermes-native skill wired. methodology_only: bash preamble NOT executed. Runtime calls skill_executor(context) with methodology_ref to gstack SKILL.md.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_plan_gate",
+        "wired": "2026-05-20"
+      }
+    },
+    {
+      "skill_id": "gstack_qa",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": true,
+      "optional": true,
+      "output_contract": "quality assessment suggestion; non-blocking",
+      "readiness_reason": "Hermes-native skill wired. methodology_only. Runtime calls skill_executor(context) with gstack-qa methodology.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_qa",
+        "wired": "2026-05-20"
+      }
+    },
+    {
+      "skill_id": "gstack_ship",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": true,
+      "optional": true,
+      "output_contract": "deployment advisory; non-blocking",
+      "readiness_reason": "Hermes-native skill wired. methodology_only. gstack ship/land-and-deploy/canary methodology.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_ship",
+        "wired": "2026-05-20"
+      }
+    },
+    {
+      "skill_id": "gstack_retro",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": false,
+      "optional": true,
+      "output_contract": "retrospective output routed to staging for human review",
+      "readiness_reason": "Hermes-native sedimentation skill. Output routes staging->human review->experience_card. methodology_only.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_retro",
+        "wired": "2026-05-20"
+      }
+    },
+    {
+      "skill_id": "gstack_learn",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": false,
+      "optional": true,
+      "output_contract": "experience extraction routed to staging for human review",
+      "readiness_reason": "Hermes-native sedimentation skill. Output routes staging->human review->experience_card. methodology_only.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_learn",
+        "wired": "2026-05-20"
+      }
+    },
+    {
+      "skill_id": "gstack_benchmark",
+      "readiness_state": "wired",
+      "executable": false,
+      "executor_type": "methodology_only",
+      "production_ready": false,
+      "advisory": true,
+      "optional": true,
+      "output_contract": "benchmark results advisory; non-blocking",
+      "readiness_reason": "Hermes-native skill wired. methodology_only. gstack benchmark/benchmark-models methodology.",
+      "owner": "agent_system/gstack",
+      "evidence": {
+        "native_component": "agent_system/skills/gstack_benchmark",
+        "wired": "2026-05-20"
+      }
     }
   ]
 }
