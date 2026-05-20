@@ -93,15 +93,6 @@ def evaluate_evidence_gate(
                 "detail": f"{operational_summary.get('event_count', 0)}/50",
             }
         )
-    if not checks.get("covers_gstack_external_evidence", False):
-        missing_evidence.append(
-            {
-                "failure_code": GSTACK_EXTERNAL_EVIDENCE_MISSING,
-                "reason": "no real gstack external evidence event observed",
-                "detail": "missing hermes://gstack/ memory event",
-            }
-        )
-
     if not config_snapshot:
         missing_evidence.append(
             {
@@ -128,12 +119,28 @@ def evaluate_evidence_gate(
             }
         )
 
-    if not gstack_status.get("adapter_available", False):
-        missing_evidence.append(
+    # gstack is advisory — not a hard production blocker.
+    # Hermes production_ready does not depend on gstack CLI installation.
+    # gstack expert patterns can be absorbed without the CLI.
+    advisory_warnings: list[dict[str, str]] = []
+    if not checks.get("covers_gstack_external_evidence", False):
+        advisory_warnings.append(
             {
-                "failure_code": GSTACK_CLI_MISSING,
-                "reason": "gstack CLI unavailable; Hermes remains shadow/advisory/fail-closed",
+                "warning_code": GSTACK_EXTERNAL_EVIDENCE_MISSING,
+                "category": "integration_backlog",
+                "reason": "no gstack external evidence observed — advisory, not a blocker",
+                "detail": "missing hermes://gstack/ memory event; absorb expert patterns or keep as backlog",
+                "next_action": "Review gstack expert patterns for absorption into Hermes expert layer.",
+            }
+        )
+    if not gstack_status.get("adapter_available", False):
+        advisory_warnings.append(
+            {
+                "warning_code": GSTACK_CLI_MISSING,
+                "category": "integration_backlog",
+                "reason": "gstack CLI absent — expert patterns absorb without CLI install",
                 "detail": str(gstack_status.get("blocked_reason") or "adapter unavailable"),
+                "next_action": "Absorb gstack expert patterns manually; do not auto-install gstack CLI.",
             }
         )
 
@@ -150,7 +157,7 @@ def evaluate_evidence_gate(
             if operational_summary.get("status") == "ready"
             else GATE_LOCAL_SMOKE_PASSED
         ),
-        "gstack": GATE_GATEWAY_SMOKE_PASSED if gstack_status.get("adapter_available") else GATE_BLOCKED,
+        "gstack": "advisory" if not gstack_status.get("adapter_available") else GATE_GATEWAY_SMOKE_PASSED,
         "config_snapshot": (
             GATE_BLOCKED
             if not config_snapshot or (config_snapshot.get("secret_hygiene") or {}).get("config_secret_detected")
@@ -158,25 +165,20 @@ def evaluate_evidence_gate(
         ),
         "acceptance_report": GATE_DECLARED if acceptance_report else GATE_BLOCKED,
     }
-    overall_status = _overall_status(
-        missing_gateway=missing_gateway,
-        operational_summary=operational_summary,
-        gstack_status=gstack_status,
-        missing_evidence=missing_evidence,
-    )
+    overall_status = _overall_status(missing_evidence=missing_evidence)
     upgrade_allowed = overall_status == STATUS_PRODUCTION_READY
     return {
         "overall_status": overall_status,
         "primary_blocker_status": _primary_blocker_status(
             missing_gateway=missing_gateway,
             operational_summary=operational_summary,
-            gstack_status=gstack_status,
             missing_evidence=missing_evidence,
         ),
         "upgrade_allowed": upgrade_allowed,
         "route_gates": route_gates,
         "system_gates": system_gates,
         "missing_evidence": missing_evidence,
+        "advisory_warnings": advisory_warnings,
         "next_required_actions": _next_actions(missing_evidence),
     }
 
@@ -191,13 +193,7 @@ def _gateway_ok_routes(gateway_smoke: dict[str, Any], operational_summary: dict[
     return {route for route in routes if route}
 
 
-def _overall_status(
-    *,
-    missing_gateway: list[str],
-    operational_summary: dict[str, Any],
-    gstack_status: dict[str, Any],
-    missing_evidence: list[dict[str, str]],
-) -> str:
+def _overall_status(*, missing_evidence: list[dict[str, str]]) -> str:
     if missing_evidence:
         return STATUS_LOCAL_READY
     return STATUS_PRODUCTION_READY
@@ -207,15 +203,12 @@ def _primary_blocker_status(
     *,
     missing_gateway: list[str],
     operational_summary: dict[str, Any],
-    gstack_status: dict[str, Any],
     missing_evidence: list[dict[str, str]],
 ) -> str:
     if missing_gateway:
         return STATUS_GATEWAY_INCOMPLETE
     if operational_summary.get("status") != "ready":
         return STATUS_SEDIMENTATION_INSUFFICIENT
-    if not gstack_status.get("adapter_available", False):
-        return STATUS_GSTACK_SHADOW_ONLY
     if missing_evidence:
         return STATUS_EXTERNAL_BLOCKED
     return STATUS_PRODUCTION_READY
@@ -229,14 +222,10 @@ def _next_actions(missing_evidence: list[dict[str, str]]) -> list[str]:
             actions.append("Run and record real Gateway/Feishu smoke for all 7 ready routes.")
         elif code == INSUFFICIENT_MEMORY_EVENTS:
             actions.append("Collect at least 50 real memory events with required coverage.")
-        elif code == GSTACK_EXTERNAL_EVIDENCE_MISSING:
-            actions.append("Record real gstack external expert evidence or keep gstack shadow-only.")
         elif code == CONFIG_SNAPSHOT_MISSING:
             actions.append("Generate redacted production config snapshot.")
         elif code == ACCEPTANCE_REPORT_MISSING:
             actions.append("Generate latest acceptance report after status check.")
-        elif code == GSTACK_CLI_MISSING:
-            actions.append("Decide whether to install/absorb gstack; do not auto-install.")
         elif code == CONFIG_SECRET_DETECTED:
             actions.append("Move plaintext config secrets into .env or provider auth store, then regenerate snapshot.")
     return list(dict.fromkeys(actions))

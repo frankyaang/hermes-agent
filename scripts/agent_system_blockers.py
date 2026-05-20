@@ -76,14 +76,15 @@ _BLOCKER_CATALOGUE: dict[str, dict] = {
         "requires_real_feishu": True,
     },
     "gstack_external_evidence_missing": {
-        "category": "user_authorization",
+        "category": "integration_backlog",
         "owner": "user",
-        "risk_level": "medium",
+        "risk_level": "advisory",
         "next_command": (
-            "# Option A: Install gstack and produce real external evidence (requires user decision)\n"
-            "# See docs/agent-system-gstack-decision-request.md\n\n"
-            "# Option B: Keep gstack shadow-only (upgrade_allowed stays false for this blocker)\n"
-            "# gstack remains advisory; this blocker persists until real gstack evidence appears."
+            "# gstack external evidence is ADVISORY — not a production blocker.\n"
+            "# Hermes production_ready does not depend on gstack CLI or gstack evidence.\n\n"
+            "# Option A: Absorb gstack expert patterns into Hermes expert layer (recommended)\n"
+            "# See docs/agent-system-gstack-decision-request.md for absorption workflow.\n\n"
+            "# Option B: Keep as integration backlog — upgrade_allowed remains unaffected."
         ),
         "verification_command": (
             "python3 scripts/check_agent_system_operational_evidence.py --hermes-home /Users/frank/.hermes | "
@@ -91,10 +92,9 @@ _BLOCKER_CATALOGUE: dict[str, dict] = {
             "print('covers_gstack_external_evidence:', d['checks']['covers_gstack_external_evidence'])\""
         ),
         "rollback_note": (
-            "gstack is currently shadow/advisory/fail-closed. "
-            "Installing gstack does not change Hermes runtime behaviour unless "
-            "GSTACK_SEDIMENTATION_ENABLED=true. "
-            "Rollback: uninstall gstack or set kill_switch=true in gstack config."
+            "gstack expert patterns are advisory. Absorbing patterns into Hermes expert layer "
+            "does not change Hermes runtime behaviour unless GSTACK_SEDIMENTATION_ENABLED=true. "
+            "No rollback needed — this is an integration backlog item, not a deployed change."
         ),
         "auto_executable": False,
         "requires_real_feishu": False,
@@ -124,15 +124,17 @@ _BLOCKER_CATALOGUE: dict[str, dict] = {
         "requires_real_feishu": False,
     },
     "gstack_cli_missing": {
-        "category": "user_authorization",
+        "category": "integration_backlog",
         "owner": "user",
-        "risk_level": "medium",
+        "risk_level": "advisory",
         "next_command": (
-            "# Do NOT auto-install. Read the decision doc first:\n"
+            "# gstack CLI absence is ADVISORY — not a production blocker.\n"
+            "# Hermes production_ready does not depend on gstack CLI installation.\n"
+            "# gstack expert patterns can be absorbed into Hermes expert layer without the CLI.\n\n"
+            "# Read the design doc:\n"
             "# cat docs/agent-system-gstack-decision-request.md\n\n"
-            "# Then choose:\n"
-            "# Option A: install gstack at agreed path, run smoke\n"
-            "# Option B: keep disabled (gstack_cli_missing stays as blocker)"
+            "# Recommended: absorb gstack expert patterns manually into Hermes expert layer.\n"
+            "# Do NOT install gstack CLI independently or configure a separate gstack API key."
         ),
         "verification_command": (
             "python3 -m agent_system.gstack_control.ops status | "
@@ -140,8 +142,9 @@ _BLOCKER_CATALOGUE: dict[str, dict] = {
             "print('adapter_available:', d['adapter_available'])\""
         ),
         "rollback_note": (
-            "gstack CLI absence is the current safe state (shadow/advisory/fail-closed). "
-            "If installed and causing issues, remove from PATH or set kill_switch=true in gstack config."
+            "gstack CLI absence is the correct safe state. "
+            "Expert patterns should be absorbed into Hermes expert layer, not via external CLI. "
+            "No rollback needed — this is an integration backlog item, not a deployed change."
         ),
         "auto_executable": False,
         "requires_real_feishu": False,
@@ -221,6 +224,7 @@ def build_blockers(hermes_home: Path, repo_root: Path) -> dict:
     primary_blocker_status: str = report.get("primary_blocker_status", "")
 
     raw_missing: list[dict] = list(report.get("missing_evidence") or [])
+    raw_advisory: list[dict] = list(report.get("advisory_warnings") or [])
 
     # Inject human_gate_not_drilled if run_evidence count == 0
     run_evidence_count: int = int((report.get("run_evidence") or {}).get("count", 0))
@@ -270,6 +274,25 @@ def build_blockers(hermes_home: Path, repo_root: Path) -> dict:
     _order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 9}
     blockers.sort(key=lambda b: _order.get(b.get("risk_level", "unknown"), 9))
 
+    # Build advisory_warnings (gstack items — not upgrade blockers)
+    advisory_list = []
+    seen_advisory: set[str] = set()
+    for item in raw_advisory:
+        code = item.get("warning_code", "")
+        if code in seen_advisory:
+            continue
+        seen_advisory.add(code)
+        cat_entry = _BLOCKER_CATALOGUE.get(code, {})
+        advisory_list.append(
+            {
+                "warning_code": code,
+                "category": item.get("category", cat_entry.get("category", "integration_backlog")),
+                "reason": item.get("reason", ""),
+                "detail": item.get("detail", ""),
+                "next_action": item.get("next_action", cat_entry.get("next_command", "")),
+            }
+        )
+
     # Summarise by category
     by_category: dict[str, int] = {}
     by_owner: dict[str, int] = {}
@@ -284,13 +307,16 @@ def build_blockers(hermes_home: Path, repo_root: Path) -> dict:
         "overall_status": overall_status,
         "primary_blocker_status": primary_blocker_status,
         "blocker_count": len(blockers),
+        "advisory_count": len(advisory_list),
         "by_category": by_category,
         "by_owner": by_owner,
         "blockers": blockers,
+        "advisory_warnings": advisory_list,
         "legend": {
             "auto": "Claude Code can execute without user authorization",
             "user_authorization": "Requires explicit user decision or action",
             "external_runtime": "Requires real Feishu/Gateway environment",
+            "integration_backlog": "Advisory — gstack expert patterns to absorb; does not block upgrade",
         },
     }
 

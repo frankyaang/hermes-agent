@@ -114,6 +114,78 @@ def test_evidence_gate_allows_production_only_when_all_evidence_exists() -> None
     assert result["missing_evidence"] == []
 
 
+def test_gstack_cli_missing_does_not_block_upgrade() -> None:
+    """gstack CLI 缺失是 advisory warning，不阻断 upgrade_allowed。"""
+    result = evaluate_evidence_gate(
+        readiness_summary=_ready_summary(),
+        operational_summary=_ready_operational_summary(),
+        gateway_smoke=_gateway_smoke_payload(),
+        gstack_status={"adapter_available": False, "blocked_reason": "cli not installed"},
+        config_snapshot={"secret_hygiene": {"config_secret_detected": False}},
+        acceptance_report={"created_at": "2026-05-19T00:00:00Z"},
+    )
+
+    assert result["upgrade_allowed"] is True
+    assert result["overall_status"] == "production_ready"
+    assert not any(
+        item.get("failure_code") == "gstack_cli_missing" for item in result["missing_evidence"]
+    )
+    assert any(
+        item.get("warning_code") == "gstack_cli_missing" for item in result["advisory_warnings"]
+    )
+
+
+def test_gstack_external_evidence_missing_does_not_block_upgrade() -> None:
+    """gstack 外部证据缺失是 integration_backlog，不阻断 upgrade_allowed。"""
+    op = _ready_operational_summary()
+    op["checks"]["covers_gstack_external_evidence"] = False
+    result = evaluate_evidence_gate(
+        readiness_summary=_ready_summary(),
+        operational_summary=op,
+        gateway_smoke=_gateway_smoke_payload(),
+        gstack_status={"adapter_available": True},
+        config_snapshot={"secret_hygiene": {"config_secret_detected": False}},
+        acceptance_report={"created_at": "2026-05-19T00:00:00Z"},
+    )
+
+    assert result["upgrade_allowed"] is True
+    assert not any(
+        item.get("failure_code") == "gstack_external_evidence_missing"
+        for item in result["missing_evidence"]
+    )
+    assert any(
+        item.get("warning_code") == "gstack_external_evidence_missing"
+        for item in result["advisory_warnings"]
+    )
+
+
+def test_gstack_advisory_warnings_have_correct_metadata() -> None:
+    """advisory_warnings 包含 category=integration_backlog，不出现在 missing_evidence。"""
+    result = evaluate_evidence_gate(
+        readiness_summary=_ready_summary(),
+        operational_summary={
+            **_ready_operational_summary(),
+            "checks": {"min_50_real_events": True, "covers_gstack_external_evidence": False},
+        },
+        gateway_smoke=_gateway_smoke_payload(),
+        gstack_status={"adapter_available": False},
+        config_snapshot={"secret_hygiene": {"config_secret_detected": False}},
+        acceptance_report={"created_at": "2026-05-19T00:00:00Z"},
+    )
+
+    advisory_codes = {w["warning_code"] for w in result["advisory_warnings"]}
+    assert "gstack_cli_missing" in advisory_codes
+    assert "gstack_external_evidence_missing" in advisory_codes
+    for w in result["advisory_warnings"]:
+        assert w["category"] == "integration_backlog"
+    # Both gstack items must NOT appear as hard blockers
+    missing_codes = {m.get("failure_code") for m in result["missing_evidence"]}
+    assert "gstack_cli_missing" not in missing_codes
+    assert "gstack_external_evidence_missing" not in missing_codes
+    # upgrade still allowed
+    assert result["upgrade_allowed"] is True
+
+
 def test_run_evidence_validates_route_status_failure_code_and_redacts(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         make_run_evidence_record(route="unknown_flow", platform="feishu", status="ok")

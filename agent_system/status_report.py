@@ -108,6 +108,7 @@ def build_status_report(
         },
         "evidence_gate": gate,
         "missing_evidence": gate["missing_evidence"],
+        "advisory_warnings": gate.get("advisory_warnings", []),
         "next_required_actions": gate["next_required_actions"],
     }
 
