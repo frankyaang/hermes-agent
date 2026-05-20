@@ -153,11 +153,36 @@ python3 scripts/write_agent_system_acceptance_report.py --hermes-home /Users/fra
 
 报告只记录当前门禁判断。它不会自动运行 Feishu smoke、安装 gstack、迁移密钥或把状态提升为生产 ready。
 
+## Upgrade Preflight Hard Gate（强制）
+
+**任何 Hermes 升级动作之前，必须先运行 preflight，且 exit code 必须为 0：**
+
+```bash
+python3 scripts/preflight_agent_system_upgrade.py --hermes-home /Users/frank/.hermes
+echo "preflight exit code: $?"
+```
+
+- exit code 0 → `upgrade_allowed=true`，可以继续升级流程
+- exit code 1 → `upgrade_allowed=false`，**立即停止，不得执行任何升级动作**
+- exit code 2 → 内部错误（status report 构建失败），同样停止
+
+preflight 是只读操作，可以多次运行，不修改任何状态。
+
+查看当前所有 blocker 详情：
+
+```bash
+python3 scripts/agent_system_blockers.py --hermes-home /Users/frank/.hermes
+```
+
 ## 升级判断
 
 升级前必须全部通过：
 
 ```bash
+# Step 1: Upgrade Preflight（必须 exit 0，否则停止）
+python3 scripts/preflight_agent_system_upgrade.py --hermes-home /Users/frank/.hermes
+
+# Step 2: 以下检查全部通过后才继续
 python3 scripts/check_agent_system_readiness.py
 python3 scripts/smoke_agent_system_business_routes.py
 python3 scripts/smoke_agent_system_sedimentation.py --hermes-home /tmp/hermes_sedimentation_smoke_final
