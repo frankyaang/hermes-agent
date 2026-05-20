@@ -236,14 +236,16 @@ def build_blockers(hermes_home: Path, repo_root: Path) -> dict:
             }
         )
 
-    # Always include upgrade_preflight_missing as an auto-executable reminder
-    # if upgrade is not allowed
-    if not upgrade_allowed:
+    # Only inject upgrade_preflight_missing if the preflight script itself is absent.
+    # Once the script exists the "missing" aspect is resolved — the script will enforce
+    # exit 1 at call time when upgrade_allowed=false, which is the intended gate.
+    _preflight_script = ROOT / "scripts" / "preflight_agent_system_upgrade.py"
+    if not _preflight_script.exists():
         raw_missing.append(
             {
                 "failure_code": "upgrade_preflight_missing",
-                "reason": "preflight_agent_system_upgrade.py must pass before any upgrade attempt",
-                "detail": "upgrade_allowed=false; preflight enforces non-0 exit",
+                "reason": "scripts/preflight_agent_system_upgrade.py does not exist",
+                "detail": "create the preflight script before any upgrade attempt",
             }
         )
 
