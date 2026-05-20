@@ -1,0 +1,15 @@
+{
+  "name": "gstack_learn",
+  "display_name": "经验提炼",
+  "description": "从任务历史中提炼可复用经验，写入 Hermes 经验卡片。来源于 gstack learn 方法论，对接 Hermes 沉淀层。",
+  "type": "sedimentation",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_learn",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-learn/SKILL.md",
+  "gstack_commands": ["learn"],
+  "hermes_layer": "sedimentation",
+  "advisory": false,
+  "blocking": false
+}

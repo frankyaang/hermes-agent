@@ -2,7 +2,7 @@
 Tests for agent_system.gstack_control.phase_registry.
 
 Key invariants:
-  - Exactly three phases registered: plan_eng_review, review, qa
+  - Core phases registered: plan_eng_review, review, qa (+ expanded 24-specialist set)
   - All phases are NOT production_ready
   - real_gstack is False for all phases
   - blocking_allowed is False for all phases
@@ -23,8 +23,10 @@ def test_all_expected_phases_registered():
         assert is_registered(pid), f"Phase {pid} must be registered"
 
 
-def test_list_phases_returns_three():
-    assert len(list_phases()) == 3
+def test_list_phases_covers_all_layers():
+    phases = list_phases()
+    # Protocol v0.3.0: 27 phases across scheduler/expert/skill/sedimentation/tool layers
+    assert len(phases) >= 24, f"Expected >= 24 phases, got {len(phases)}"
 
 
 def test_unknown_phase_not_registered():

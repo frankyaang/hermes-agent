@@ -1,0 +1,15 @@
+{
+  "name": "gstack_retro",
+  "display_name": "复盘沉淀",
+  "description": "项目/迭代复盘：总结经验、识别改进点、写入沉淀记忆。来源于 gstack retro 方法论，对接 Hermes 沉淀层。",
+  "type": "sedimentation",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_retro",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-retro/SKILL.md",
+  "gstack_commands": ["retro"],
+  "hermes_layer": "sedimentation",
+  "advisory": false,
+  "blocking": false
+}

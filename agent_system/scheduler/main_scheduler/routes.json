@@ -219,7 +219,8 @@
         "expert_required": true,
         "primary_expert": "audit_expert",
         "secondary_experts": [
-          "ops_expert"
+          "ops_expert",
+          "gstack_review_expert"
         ]
       },
       "user_gate": false,
@@ -276,6 +277,29 @@
       "pipeline_id": "artifact_delivery_flow",
       "pipeline_name": "产物交付流程",
       "priority": "normal",
+      "step": "pre_advisory",
+      "node": "gstack_plan_gate",
+      "display_name": "规划门禁（advisory）",
+      "constraints": {
+        "input_type": "用户任务描述",
+        "output_type": "规划建议（advisory only，不阻断）",
+        "max_runtime": 60
+      },
+      "supervision": {
+        "scheduler_monitor": false,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "optional": true,
+      "advisory": true,
+      "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "artifact_delivery_flow",
+      "pipeline_name": "产物交付流程",
+      "priority": "normal",
       "step": 1,
       "node": "artifact_resolver",
       "display_name": "产物定位",
@@ -316,6 +340,55 @@
       },
       "user_gate": false,
       "final_output": true,
+      "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "artifact_delivery_flow",
+      "pipeline_name": "产物交付流程",
+      "priority": "normal",
+      "step": "quality_gate_gstack",
+      "node": "gstack_qa",
+      "display_name": "质量门禁（advisory）",
+      "depends_on": [
+        "artifact_delivery"
+      ],
+      "constraints": {
+        "input_type": "产物内容",
+        "output_type": "质量评估建议（advisory only，不阻断）",
+        "max_runtime": 60
+      },
+      "supervision": {
+        "scheduler_monitor": false,
+        "expert_required": true,
+        "primary_expert": "gstack_review_expert",
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "optional": true,
+      "advisory": true,
+      "allowed_entrypoints": []
+    },
+    {
+      "pipeline_id": "doc_publish_flow",
+      "pipeline_name": "文档发布流程",
+      "priority": "normal",
+      "step": "pre_advisory",
+      "node": "gstack_plan_gate",
+      "display_name": "规划门禁（advisory）",
+      "constraints": {
+        "input_type": "发布任务描述",
+        "output_type": "规划建议（advisory only，不阻断）",
+        "max_runtime": 60
+      },
+      "supervision": {
+        "scheduler_monitor": false,
+        "expert_required": false,
+        "primary_expert": null,
+        "secondary_experts": []
+      },
+      "user_gate": false,
+      "optional": true,
+      "advisory": true,
       "allowed_entrypoints": []
     },
     {

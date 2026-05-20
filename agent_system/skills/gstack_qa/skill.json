@@ -1,0 +1,15 @@
+{
+  "name": "gstack_qa",
+  "display_name": "质量门禁",
+  "description": "发布前质量验证：功能测试、边界用例、回归检查。advisory 模式，不阻断主流程。来源于 gstack qa/qa-only 方法论。",
+  "type": "quality_gate",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_qa",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-qa/SKILL.md",
+  "gstack_commands": ["qa", "qa-only"],
+  "hermes_layer": "skill_layer",
+  "advisory": true,
+  "blocking": false
+}

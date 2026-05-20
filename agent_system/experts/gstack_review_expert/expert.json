@@ -1,0 +1,13 @@
+{
+  "name": "gstack_review_expert",
+  "display_name": "代码审查专家",
+  "description": "负责代码/设计落地前的评审门禁：SQL安全、LLM信任边界、条件副作用、结构性问题。来源于 gstack review/careful/guard 方法论。",
+  "skills": ["gstack_qa"],
+  "private_memory": true,
+  "root": "experts/gstack_review_expert",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-review/SKILL.md",
+  "gstack_commands": ["review", "careful", "guard"],
+  "hermes_layer": "expert_layer",
+  "invocation": "methodology_only"
+}

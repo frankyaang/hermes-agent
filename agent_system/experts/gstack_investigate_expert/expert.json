@@ -1,0 +1,13 @@
+{
+  "name": "gstack_investigate_expert",
+  "display_name": "深度调查专家",
+  "description": "负责问题根因分析与系统健康诊断：线上 bug 追踪、系统状态核查、性能异常调查。来源于 gstack investigate/health 方法论。",
+  "skills": ["gstack_benchmark"],
+  "private_memory": true,
+  "root": "experts/gstack_investigate_expert",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-investigate/SKILL.md",
+  "gstack_commands": ["investigate", "health"],
+  "hermes_layer": "expert_layer",
+  "invocation": "methodology_only"
+}

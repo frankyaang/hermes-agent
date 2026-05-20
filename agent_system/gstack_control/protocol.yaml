@@ -2,28 +2,70 @@
 # THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR ALL GSTACK PHASES.
 # phase_registry.py loads from here; specs.py must not duplicate KNOWN_PHASES.
 
-version: "0.2.0"
-description: "GStack SDLC phase protocol for Hermes integration"
+version: "0.3.0"
+description: "GStack SDLC phase protocol for Hermes integration — full 24-specialist mapping"
 
-# Known gstack CLI commands (from garrytan/gstack upstream + .codex absorption core).
-# These are the real commands; the adapter uses this list for validation.
-# gstack CLI is not required to be installed; adapter falls back gracefully.
+# Known gstack commands (from garrytan/gstack upstream).
+# gstack CLI is not required; Hermes uses methodology_only invocation.
+# gstack SKILL.md files serve as methodology documentation, not executable scripts.
 known_commands:
+  # Scheduler layer (planning gates)
+  - office-hours
   - plan-eng-review
   - plan-ceo-review
   - plan-design-review
-  - design-consultation
+  - plan-devex-review
+  - autoplan
+  # Expert layer (review & advisory)
   - review
+  - careful
+  - guard
+  - investigate
+  - health
+  - cso
+  - design-consultation
+  - design-review
+  - design-shotgun
+  - devex-review
+  # Skill layer (execution)
   - qa
+  - qa-only
+  - ship
+  - land-and-deploy
+  - canary
+  - benchmark
+  - benchmark-models
+  - design-html
+  # Sedimentation layer
   - retro
-  - document-release
-  - office-hours
+  - learn
+  # Tool layer (optional binary)
+  - browse
+  - pair-agent
 
 phases:
+  # ─── Scheduler Layer ───────────────────────────────────────────────────────
+
+  - id: gstack.office_hours
+    label: "Office Hours / Strategic Review"
+    description: "开放性战略咨询，任意 pipeline 启动前可激活"
+    gstack_command: office-hours
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
   - id: gstack.plan_eng_review
     label: "Plan / Engineering Review"
-    description: "Engineering review gate before implementation starts"
+    description: "实现开始前的工程评审门禁"
     gstack_command: plan-eng-review
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
     risk_level: medium
     allowed_modes:
       - shadow
@@ -31,11 +73,73 @@ phases:
     blocking_allowed: false
     production_ready: false
     real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.plan_ceo_review
+    label: "Plan / CEO Review"
+    description: "产品/CEO 视角规划评审"
+    gstack_command: plan-ceo-review
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
+    risk_level: medium
+    allowed_modes:
+      - shadow
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.plan_design_review
+    label: "Plan / Design Review"
+    description: "设计视角规划评审"
+    gstack_command: plan-design-review
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.plan_devex_review
+    label: "Plan / DevEx Review"
+    description: "开发者体验视角规划评审"
+    gstack_command: plan-devex-review
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.autoplan
+    label: "Auto Plan"
+    description: "自动规划分解，将复杂任务拆解为步骤"
+    gstack_command: autoplan
+    hermes_layer: scheduler
+    hermes_skill: gstack_plan_gate
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  # ─── Expert Layer ──────────────────────────────────────────────────────────
 
   - id: gstack.review
     label: "Code / Design Review"
-    description: "Code or design review gate"
+    description: "代码或设计落地前评审：SQL安全、LLM信任边界、条件副作用"
     gstack_command: review
+    hermes_layer: expert_layer
+    hermes_expert: gstack_review_expert
     risk_level: medium
     allowed_modes:
       - shadow
@@ -43,11 +147,143 @@ phases:
     blocking_allowed: false
     production_ready: false
     real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.careful
+    label: "Careful Review"
+    description: "严格模式代码评审，高风险变更前使用"
+    gstack_command: careful
+    hermes_layer: expert_layer
+    hermes_expert: gstack_review_expert
+    risk_level: high
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.guard
+    label: "Guard Review"
+    description: "安全边界守护评审"
+    gstack_command: guard
+    hermes_layer: expert_layer
+    hermes_expert: gstack_review_expert
+    risk_level: high
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.investigate
+    label: "Investigate"
+    description: "深度问题调查：线上 bug 追踪、根因分析"
+    gstack_command: investigate
+    hermes_layer: expert_layer
+    hermes_expert: gstack_investigate_expert
+    risk_level: medium
+    allowed_modes:
+      - shadow
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.health
+    label: "System Health Check"
+    description: "系统健康诊断：状态核查、性能异常、依赖检查"
+    gstack_command: health
+    hermes_layer: expert_layer
+    hermes_expert: gstack_investigate_expert
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.cso
+    label: "Customer / Stakeholder Voice"
+    description: "客户/利益相关方视角评审：用户痛点、影响范围"
+    gstack_command: cso
+    hermes_layer: expert_layer
+    hermes_expert: gstack_cso_expert
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.design_consultation
+    label: "Design Consultation"
+    description: "设计合理性评估与咨询"
+    gstack_command: design-consultation
+    hermes_layer: expert_layer
+    hermes_expert: gstack_design_expert
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.design_review
+    label: "Design Review"
+    description: "设计方案正式评审"
+    gstack_command: design-review
+    hermes_layer: expert_layer
+    hermes_expert: gstack_design_expert
+    risk_level: medium
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.design_shotgun
+    label: "Design Shotgun"
+    description: "发散设计方案生成：快速产出多个设计候选"
+    gstack_command: design-shotgun
+    hermes_layer: expert_layer
+    hermes_expert: gstack_design_expert
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.devex_review
+    label: "DevEx Review"
+    description: "开发者体验评审：API 设计、工具链、文档质量"
+    gstack_command: devex-review
+    hermes_layer: expert_layer
+    hermes_expert: gstack_design_expert
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  # ─── Skill Layer ───────────────────────────────────────────────────────────
 
   - id: gstack.qa
     label: "QA Gate"
-    description: "Quality assurance gate before release"
+    description: "质量验证门禁：功能测试、边界用例、回归检查"
     gstack_command: qa
+    hermes_layer: skill_layer
+    hermes_skill: gstack_qa
     risk_level: high
     allowed_modes:
       - shadow
@@ -55,11 +291,158 @@ phases:
     blocking_allowed: false
     production_ready: false
     real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.qa_only
+    label: "QA Only"
+    description: "纯质量验证，不含代码修复建议"
+    gstack_command: qa-only
+    hermes_layer: skill_layer
+    hermes_skill: gstack_qa
+    risk_level: medium
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.ship
+    label: "Ship"
+    description: "完整发布流程执行"
+    gstack_command: ship
+    hermes_layer: skill_layer
+    hermes_skill: gstack_ship
+    risk_level: high
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.land_and_deploy
+    label: "Land and Deploy"
+    description: "落地部署：合并后的部署执行与验证"
+    gstack_command: land-and-deploy
+    hermes_layer: skill_layer
+    hermes_skill: gstack_ship
+    risk_level: high
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.canary
+    label: "Canary Release"
+    description: "金丝雀发布：流量逐步切换与监控"
+    gstack_command: canary
+    hermes_layer: skill_layer
+    hermes_skill: gstack_ship
+    risk_level: high
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.benchmark
+    label: "Performance Benchmark"
+    description: "性能基准测试：延迟、吞吐量、质量指标采集"
+    gstack_command: benchmark
+    hermes_layer: skill_layer
+    hermes_skill: gstack_benchmark
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.benchmark_models
+    label: "Benchmark Models"
+    description: "多模型性能对比评估"
+    gstack_command: benchmark-models
+    hermes_layer: skill_layer
+    hermes_skill: gstack_benchmark
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  # ─── Sedimentation Layer ───────────────────────────────────────────────────
+
+  - id: gstack.retro
+    label: "Retrospective"
+    description: "项目/迭代复盘，输出写入 Hermes 沉淀层"
+    gstack_command: retro
+    hermes_layer: sedimentation
+    hermes_skill: gstack_retro
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  - id: gstack.learn
+    label: "Learn / Experience Extraction"
+    description: "从任务历史提炼可复用经验，写入 experience_card"
+    gstack_command: learn
+    hermes_layer: sedimentation
+    hermes_skill: gstack_learn
+    risk_level: low
+    allowed_modes:
+      - advisory
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: approved
+
+  # ─── Tool Layer (optional binary) ─────────────────────────────────────────
+
+  - id: gstack.browse
+    label: "Browser Control"
+    description: "浏览器控制：UI 测试、截图、网页交互。需要 browse binary。"
+    gstack_command: browse
+    hermes_layer: tool_layer
+    hermes_skill: null
+    risk_level: medium
+    allowed_modes:
+      - disabled
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: partial
+    blocker: "browse binary not built (bun run build required)"
+
+  - id: gstack.pair_agent
+    label: "Pair Agent"
+    description: "配对 Agent 协作模式。需要 pair-agent binary。"
+    gstack_command: pair-agent
+    hermes_layer: tool_layer
+    hermes_skill: null
+    risk_level: medium
+    allowed_modes:
+      - disabled
+    blocking_allowed: false
+    production_ready: false
+    real_gstack: false
+    absorption_status: partial
+    blocker: "pair-agent binary not built"
 
 risk_levels:
   low:
-    default_mode: disabled
-    description: "No gstack intervention"
+    default_mode: advisory
+    description: "Advisory suggestion only"
   medium:
     default_mode: shadow
     description: "Record only, no intervention"
@@ -88,3 +471,6 @@ constraints:
   - "no token/cookie/Authorization/Bearer in metrics"
   - "controlled requires allowlist + kill_switch + budget + human approval"
   - "quarantined requires manual human reset"
+  - "gstack SKILL.md = methodology_only — bash preamble not executed by Hermes runtime"
+  - "gstack cannot write directly to system_mem/expert_mem/skill_mem (ACL enforced)"
+  - "gstack outputs route through staging -> human review -> experience_card"

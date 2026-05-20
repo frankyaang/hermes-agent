@@ -1,0 +1,15 @@
+{
+  "name": "gstack_ship",
+  "display_name": "发布交付",
+  "description": "代码发布与部署：完整发布流程、金丝雀发布、落地验证。advisory 模式。来源于 gstack ship/land-and-deploy/canary 方法论。",
+  "type": "deployment",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_ship",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-ship/SKILL.md",
+  "gstack_commands": ["ship", "land-and-deploy", "canary"],
+  "hermes_layer": "skill_layer",
+  "advisory": true,
+  "blocking": false
+}

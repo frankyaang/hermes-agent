@@ -1,0 +1,16 @@
+{
+  "name": "gstack_plan_gate",
+  "display_name": "规划门禁",
+  "description": "Pipeline 启动前的 advisory 规划审查：工程评审、CEO视角评审、自动规划分解。非阻断性，advisory only。来源于 gstack office-hours/plan-eng-review/plan-ceo-review/autoplan/plan-design-review/plan-devex-review 方法论。",
+  "type": "advisory_gate",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_plan_gate",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-plan-eng-review/SKILL.md",
+  "gstack_commands": ["office-hours", "plan-eng-review", "plan-ceo-review", "autoplan", "plan-design-review", "plan-devex-review"],
+  "hermes_layer": "scheduler",
+  "advisory": true,
+  "blocking": false,
+  "optional": true
+}

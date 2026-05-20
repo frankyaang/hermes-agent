@@ -27,7 +27,10 @@
       "feature_flag": null,
       "runtime_wired": true,
       "readiness_reason": "Round 14: knowledge_tool failure paths call dispatch_tool_failure(); session_capture calls dispatch_event() after write_event(). S1-S12 pass. 17864 passed full suite.",
-      "evidence": { "contract_tests": "S1-S12 passed 2026-05-19", "full_suite": "17864 passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S1-S12 passed 2026-05-19",
+        "full_suite": "17864 passed 2026-05-19"
+      }
     },
     {
       "component_id": "memory_dispatcher",
@@ -36,7 +39,10 @@
       "feature_flag": null,
       "runtime_wired": true,
       "readiness_reason": "Round 14: dispatch_event() called from session_capture; dispatch_tool_failure() from knowledge_tool and cli_bridge failure paths.",
-      "evidence": { "contract_tests": "S1-S12 passed 2026-05-19", "runtime_tests": "52 new tests passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S1-S12 passed 2026-05-19",
+        "runtime_tests": "52 new tests passed 2026-05-19"
+      }
     },
     {
       "component_id": "staging_store",
@@ -45,7 +51,10 @@
       "feature_flag": null,
       "runtime_wired": true,
       "readiness_reason": "Round 14: approve/reject/archive/update_next_action/stats ops added with file-level atomic writes and audit log. migrate_to_staging idempotent. 18 tests pass.",
-      "evidence": { "contract_tests": "S5-S6 passed 2026-05-19", "ops_tests": "18 passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S5-S6 passed 2026-05-19",
+        "ops_tests": "18 passed 2026-05-19"
+      }
     },
     {
       "component_id": "usage_hint",
@@ -54,7 +63,10 @@
       "feature_flag": "USAGE_HINT_INJECTION_ENABLED",
       "runtime_wired": true,
       "readiness_reason": "Round 14: build_memory_context_block() wraps with project_material_usable hint; knowledge_query adds _usage_hint per doc. Both gated by USAGE_HINT_INJECTION_ENABLED (default OFF).",
-      "evidence": { "contract_tests": "S7 passed 2026-05-19", "readback_tests": "9 tests passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S7 passed 2026-05-19",
+        "readback_tests": "9 tests passed 2026-05-19"
+      }
     },
     {
       "component_id": "experience_layer_acl",
@@ -63,7 +75,10 @@
       "feature_flag": null,
       "runtime_wired": true,
       "readiness_reason": "Round 14: runtime._append_private_memory() calls write_to_layer() ACL before each mem write (non-destructive wrapping). On ACL failure, content goes to staging. 8 tests pass.",
-      "evidence": { "contract_tests": "S8-S9 passed 2026-05-19", "acl_runtime_tests": "8 tests passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S8-S9 passed 2026-05-19",
+        "acl_runtime_tests": "8 tests passed 2026-05-19"
+      }
     },
     {
       "component_id": "session_capture",
@@ -72,7 +87,9 @@
       "feature_flag": "SESSION_CAPTURE_AUTO_ENABLED",
       "runtime_wired": true,
       "readiness_reason": "Round 14: run_agent.py on_turn_start area calls capture_turn() gated by SESSION_CAPTURE_AUTO_ENABLED (default OFF). capture_turn() now calls dispatch_event() after write_event().",
-      "evidence": { "runtime_tests": "5 tests passed 2026-05-19" }
+      "evidence": {
+        "runtime_tests": "5 tests passed 2026-05-19"
+      }
     },
     {
       "component_id": "gstack_bridge",
@@ -81,7 +98,10 @@
       "feature_flag": "GSTACK_SEDIMENTATION_ENABLED",
       "runtime_wired": true,
       "readiness_reason": "Round 14: map_phase_to_output_type + route_gstack_result added to gstack_bridge. load_gstack_config() drives GSTACK_SEDIMENTATION_ENABLED via set_flag(). real_gstack=false → gstack phases remain non_ready.",
-      "evidence": { "contract_tests": "S10-S12 passed 2026-05-19", "bridge_tests": "7 tests passed 2026-05-19" }
+      "evidence": {
+        "contract_tests": "S10-S12 passed 2026-05-19",
+        "bridge_tests": "7 tests passed 2026-05-19"
+      }
     },
     {
       "component_id": "experience_card",
@@ -92,7 +112,11 @@
       "persistent_store_enabled": false,
       "design_boundary": "ephemeral prompt injection only — write_card() is not called from the automatic runtime path. Persistent authoring requires gstack→staging→human review→manual write_card(). cards.jsonl may exist from manual smoke/seed data, but automatic runtime authoring remains disabled.",
       "readiness_reason": "Round 14+: trigger_check() called in run_agent.py user-message injection loop; matching card render_card() injected as ephemeral context. No feature flag (conservative trigger — keyword match only). Dispatcher routes experience_card destination without write (human-review gate for new cards). DESIGN NOTE: runtime path is ephemeral prompt injection only — write_card() is NOT called from runtime. Persistent cards.jsonl requires gstack→staging→human review→manual write_card(); current cards.jsonl=1 is manual smoke/seed evidence, not production runtime authoring.",
-      "evidence": { "contract_tests": "S4 passed 2026-05-19", "runtime_wired": "run_agent.py injection loop 2026-05-19", "acceptance_closure": "2026-05-19: cards.jsonl has 1 manual smoke/seed row; ephemeral-only runtime design documented; persistent_store_enabled=false" }
+      "evidence": {
+        "contract_tests": "S4 passed 2026-05-19",
+        "runtime_wired": "run_agent.py injection loop 2026-05-19",
+        "acceptance_closure": "2026-05-19: cards.jsonl has 1 manual smoke/seed row; ephemeral-only runtime design documented; persistent_store_enabled=false"
+      }
     }
   ],
   "routes": [
@@ -101,8 +125,15 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "delegate_task",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["voc_insight", "briefing"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "voc_insight",
+        "briefing"
+      ],
       "output_contract": "business insight package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
       "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
       "owner": "agent_system",
@@ -117,8 +148,16 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "delegate_task",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["voc_insight", "ops_dashboard", "briefing"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "voc_insight",
+        "ops_dashboard",
+        "briefing"
+      ],
       "output_contract": "dashboard package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
       "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
       "owner": "agent_system",
@@ -133,8 +172,17 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "delegate_task",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["voc_insight", "ops_dashboard", "dashboard_html", "audit"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "voc_insight",
+        "ops_dashboard",
+        "dashboard_html",
+        "audit"
+      ],
       "output_contract": "HTML package containing artifact_path, main_report_path, result_summary, quality_flags, audit_log, review_summary",
       "readiness_reason": "Round 16: delegate_task business contract normalized and covered by local E2E smoke; real Feishu smoke still tracked separately.",
       "owner": "agent_system",
@@ -149,8 +197,15 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "system",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["artifact_resolver", "artifact_status"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "artifact_resolver",
+        "artifact_status"
+      ],
       "output_contract": "status report containing artifact_path, file_meta, artifact_status",
       "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_status; no external side effects.",
       "owner": "agent_system",
@@ -164,8 +219,15 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "system",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["artifact_resolver", "artifact_delivery"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "artifact_resolver",
+        "artifact_delivery"
+      ],
       "output_contract": "artifact_path plus inline text preview when safe, otherwise path-only delivery",
       "readiness_reason": "Round 15: deterministic local system executors for artifact_resolver + artifact_delivery; text preview capped and binary files delivered by path.",
       "owner": "agent_system",
@@ -179,8 +241,15 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "system",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["artifact_resolver", "doc_publish"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "artifact_resolver",
+        "doc_publish"
+      ],
       "output_contract": "local fallback publish package with artifact_path, file_meta, content_preview, requires_external_publish=true",
       "readiness_reason": "Round 15: deterministic local doc publish fallback package; does not call Feishu API.",
       "owner": "agent_system",
@@ -194,8 +263,15 @@
       "readiness_state": "ready",
       "production_ready": true,
       "executor_type": "system+delegate_task",
-      "allowed_entrypoints": ["gateway", "feishu", "cli"],
-      "required_skills": ["artifact_resolver", "ops_dashboard"],
+      "allowed_entrypoints": [
+        "gateway",
+        "feishu",
+        "cli"
+      ],
+      "required_skills": [
+        "artifact_resolver",
+        "ops_dashboard"
+      ],
       "output_contract": "artifact_resolver resolves artifact_path via system executor; ops_dashboard returns artifact_path, main_report_path, result_summary, quality_flags via delegate_task; user_gate requires explicit approval/confirmation",
       "readiness_reason": "Round 17: artifact input path smoke covers artifact_resolver → ops_dashboard with human gate confirmation.",
       "owner": "agent_system",
@@ -210,7 +286,10 @@
       "readiness_state": "non_ready",
       "production_ready": false,
       "allowed_entrypoints": [],
-      "required_skills": ["artifact_resolver", "report_revision"],
+      "required_skills": [
+        "artifact_resolver",
+        "report_revision"
+      ],
       "output_contract": "",
       "readiness_reason": "report_revision skill has no executor implementation; stub only",
       "owner": ""
@@ -221,10 +300,31 @@
     "source": "https://github.com/garrytan/gstack",
     "host_config": "hosts/hermes.ts",
     "installed_at": "2026-05-20",
+    "native_components_wired": "2026-05-20",
     "skill_count": 47,
-    "absorption_model": "skill_pack — gstack SKILL.md files installed at ~/.hermes/skills/; Hermes governs invocation, memory, and audit. gstack CLI binary NOT required.",
-    "governance": "Hermes ACL applies. gstack skills invoke via Hermes dispatcher. No direct memory writes outside Hermes experience_layer.",
-    "notes": "ETHOS.md absorbed into system-level principles (see system_mem). browse binary not built (headless browser optional)."
+    "absorption_model": "methodology_only — gstack SKILL.md files serve as methodology reference docs; Hermes runtime invokes via native expert.json/skill.json components. gstack CLI binary NOT required. bash preamble in SKILL.md files NOT executed by Hermes runtime.",
+    "governance": "Hermes ACL applies. gstack experts/skills governed by Hermes dispatcher. No direct memory writes outside Hermes experience_layer. gstack outputs route staging -> human review -> experience_card.",
+    "hermes_native_experts": [
+      "agent_system/experts/gstack_review_expert",
+      "agent_system/experts/gstack_design_expert",
+      "agent_system/experts/gstack_investigate_expert",
+      "agent_system/experts/gstack_cso_expert"
+    ],
+    "hermes_native_skills": [
+      "agent_system/skills/gstack_qa",
+      "agent_system/skills/gstack_ship",
+      "agent_system/skills/gstack_retro",
+      "agent_system/skills/gstack_learn",
+      "agent_system/skills/gstack_benchmark",
+      "agent_system/skills/gstack_plan_gate"
+    ],
+    "scheduler_wired": [
+      "artifact_delivery_flow: pre_advisory gate (gstack_plan_gate, optional)",
+      "artifact_delivery_flow: quality_gate_gstack (gstack_qa, optional)",
+      "doc_publish_flow: pre_advisory gate (gstack_plan_gate, optional)",
+      "html_flow: quality_gate secondary_expert gstack_review_expert"
+    ],
+    "notes": "ETHOS.md absorbed into system_mem/ETHOS_PRINCIPLES.md as static governance. browse/pair-agent: absorption_status=partial (binary not built)."
   },
   "gstack_phases": [
     {
@@ -234,15 +334,21 @@
       "role": "YC Office Hours — 6 forcing questions that reframe product direction before any task starts",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-office-hours/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Invocable as /gstack-office-hours. Use at task intake to reframe scope before execution.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.plan-ceo-review",
@@ -251,15 +357,21 @@
       "role": "CEO/Founder — rethink the problem, find the 10-star product, challenge scope",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-plan-ceo-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Planning gate before major feature work.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.plan-eng-review",
@@ -268,15 +380,21 @@
       "role": "Eng Manager — architecture diagrams, data flow, edge cases, test matrix",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-plan-eng-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Engineering gate before implementation starts.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.plan-design-review",
@@ -285,15 +403,20 @@
       "role": "Senior Designer — rates design 0-10, detects AI slop, interactive per-choice questions",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-plan-design-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Design planning gate.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.plan-devex-review",
@@ -302,15 +425,20 @@
       "role": "DX Lead — developer experience review, TTHW benchmarking, friction analysis",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-plan-devex-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed. DX planning gate.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.autoplan",
@@ -319,15 +447,20 @@
       "role": "Review Pipeline Orchestrator — auto-runs CEO → design → eng review pipeline",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-autoplan/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Orchestrates full planning pipeline automatically.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_plan_gate. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_plan_gate"
     },
     {
       "skill_id": "gstack.review",
@@ -336,15 +469,21 @@
       "role": "Staff Engineer — pre-landing PR review with 7 sub-specialists (api-contract, data-migration, maintainability, performance, red-team, security, testing)",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed (71920 bytes). 7 sub-specialist personas: api-contract, data-migration, maintainability, performance, red-team, security, testing.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_review_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_review_expert"
     },
     {
       "skill_id": "gstack.investigate",
@@ -353,15 +492,20 @@
       "role": "Debugger — systematic root-cause analysis, Iron Law: no fixes without investigation",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-investigate/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Debugging expert for complex root-cause analysis.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_investigate_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_investigate_expert"
     },
     {
       "skill_id": "gstack.cso",
@@ -370,15 +514,20 @@
       "role": "Chief Security Officer — OWASP Top 10 + STRIDE, 8/10+ confidence gate, exploit scenarios",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-cso/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Security audit expert.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_cso_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_cso_expert"
     },
     {
       "skill_id": "gstack.design-consultation",
@@ -387,15 +536,20 @@
       "role": "Design Partner — build complete design system from scratch, creative risk proposals",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-design-consultation/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_design_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_design_expert"
     },
     {
       "skill_id": "gstack.design-review",
@@ -404,15 +558,20 @@
       "role": "Designer Who Codes — design audit + atomic fix commits, before/after screenshots",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-design-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_design_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_design_expert"
     },
     {
       "skill_id": "gstack.design-shotgun",
@@ -421,15 +580,20 @@
       "role": "Design Explorer — generates 4-6 mockup variants, taste memory across sessions",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-design-shotgun/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_design_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_design_expert"
     },
     {
       "skill_id": "gstack.devex-review",
@@ -438,15 +602,20 @@
       "role": "DX Tester — live onboarding test, measures TTHW, compares against plan-devex-review scores",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_expert",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-devex-review/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native expert wired at experts/gstack_design_expert. methodology_ref points to installed SKILL.md. expert_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "experts/gstack_design_expert"
     },
     {
       "skill_id": "gstack.qa",
@@ -455,15 +624,21 @@
       "role": "QA Lead — real browser test, find bugs, fix with atomic commits, auto-generate regression tests",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-qa/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Requires browser binary for full capability.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_qa. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_qa"
     },
     {
       "skill_id": "gstack.qa-only",
@@ -472,15 +647,21 @@
       "role": "QA Reporter — same methodology as /qa but report-only, no code changes",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli", "feishu"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli",
+        "feishu"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-qa-only/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_qa. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_qa"
     },
     {
       "skill_id": "gstack.ship",
@@ -489,15 +670,20 @@
       "role": "Release Engineer — sync main, run tests, audit coverage, push, open PR",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-ship/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_ship. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_ship"
     },
     {
       "skill_id": "gstack.land-and-deploy",
@@ -506,15 +692,20 @@
       "role": "Deploy Engineer — merge PR, wait for CI/deploy, verify production health",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-land-and-deploy/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_ship. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_ship"
     },
     {
       "skill_id": "gstack.canary",
@@ -523,15 +714,20 @@
       "role": "SRE — post-deploy monitoring loop, console errors, performance regressions, page failures",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-canary/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_ship. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_ship"
     },
     {
       "skill_id": "gstack.benchmark",
@@ -540,15 +736,20 @@
       "role": "Performance Engineer — baseline page load, Core Web Vitals, before/after comparison",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-benchmark/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_benchmark. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_benchmark"
     },
     {
       "skill_id": "gstack.design-html",
@@ -557,15 +758,20 @@
       "role": "Design Engineer — mockup to production HTML, pretext computed layout, zero deps",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-design-html/SKILL.md",
-      "readiness_reason": "SKILL.md installed.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_qa. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_qa"
     },
     {
       "skill_id": "gstack.retro",
@@ -574,15 +780,20 @@
       "role": "Eng Manager — weekly retro, per-person breakdowns, shipping streaks, growth opportunities",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-retro/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Reinforces Hermes review_summary + skill_weights mechanism.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_retro. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_retro"
     },
     {
       "skill_id": "gstack.learn",
@@ -591,15 +802,20 @@
       "role": "Memory — manage cross-session learnings, project patterns, pitfalls, preferences",
       "readiness_state": "wired",
       "registered": true,
-      "executable": true,
+      "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_skill",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "methodology_only",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "approved",
       "install_path": "~/.hermes/skills/gstack-learn/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Maps to Hermes sedimentation system.",
-      "evidence": {"installed": "2026-05-20"}
+      "readiness_reason": "Hermes native skill wired at skills/gstack_learn. methodology_ref points to installed SKILL.md. skill_mem initialized. bash preamble NOT executed.",
+      "evidence": {
+        "installed": "2026-05-20"
+      },
+      "hermes_native_component": "skills/gstack_learn"
     },
     {
       "skill_id": "gstack.browse",
@@ -610,13 +826,18 @@
       "registered": true,
       "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_tool",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "not_available",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "partial",
       "install_path": "~/.hermes/skills/gstack-browse/SKILL.md",
-      "readiness_reason": "SKILL.md installed. browse binary not built — requires bun run build in gstack repo. Headless browser optional for non-UI tasks.",
-      "evidence": {"installed": "2026-05-20", "binary": "not_built"}
+      "readiness_reason": "Binary not built. absorption_status=partial. Use bun run build to enable.",
+      "evidence": {
+        "installed": "2026-05-20",
+        "binary": "not_built"
+      }
     },
     {
       "skill_id": "gstack.pair-agent",
@@ -627,13 +848,18 @@
       "registered": true,
       "executable": false,
       "production_ready": false,
-      "executor_type": "absorbed_tool",
-      "allowed_entrypoints": ["cli"],
+      "executor_type": "not_available",
+      "allowed_entrypoints": [
+        "cli"
+      ],
       "blocking": false,
       "absorption_status": "partial",
       "install_path": "~/.hermes/skills/gstack-pair-agent/SKILL.md",
-      "readiness_reason": "SKILL.md installed. Requires browser binary for full capability.",
-      "evidence": {"installed": "2026-05-20", "binary": "not_built"}
+      "readiness_reason": "Binary not built. absorption_status=partial. Use bun run build to enable.",
+      "evidence": {
+        "installed": "2026-05-20",
+        "binary": "not_built"
+      }
     }
   ],
   "skills": [

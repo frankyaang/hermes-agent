@@ -1,0 +1,15 @@
+{
+  "name": "gstack_benchmark",
+  "display_name": "性能基准测试",
+  "description": "性能基准评估：多模型对比、指标采集、性能回归检查。advisory 模式。来源于 gstack benchmark/benchmark-models 方法论。",
+  "type": "evaluation",
+  "pipeline": null,
+  "private_memory": true,
+  "root": "skills/gstack_benchmark",
+  "absorption_source": "gstack",
+  "methodology_ref": "~/.hermes/skills/gstack-benchmark/SKILL.md",
+  "gstack_commands": ["benchmark", "benchmark-models"],
+  "hermes_layer": "skill_layer",
+  "advisory": true,
+  "blocking": false
+}
